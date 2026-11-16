@@ -108,7 +108,7 @@ input[type="date"], input[type="time"] { min-height: 48px; }
 
   .input { @apply w-full min-h-12 rounded-2xl border-0 bg-fuego-100 px-4 py-3 text-[16px] text-ink outline-none ring-1 ring-transparent transition placeholder:text-fuego-800/45 focus:bg-white focus:ring-ink/15; }
   .dark .input { @apply bg-noche-700 text-white placeholder:text-white/35 focus:bg-noche-700 focus:ring-white/20; }
-  .label { @apply mb-1.5 block text-[13px] font-medium text-fuego-800; }
+  .label { @apply mb-1.5 block text-[14px] font-medium text-fuego-800; }
   .dark .label { @apply text-white/60; }
   .muted { @apply text-fuego-800/75; }
   .dark .muted { @apply text-white/50; }
@@ -171,3 +171,12 @@ input[type="date"], input[type="time"] { min-height: 48px; }
 }
 @keyframes water-wave { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .water-wave { animation: water-wave 2.2s linear infinite; }
+
+/* En todas las ventanas: el botón principal de guardar queda siempre visible abajo */
+.sheet-body form > button[type="submit"].w-full,
+.sheet-body .sticky-save {
+  position: sticky; bottom: 6px; z-index: 5;
+  box-shadow: 0 -14px 18px 6px var(--color-fuego-50);
+}
+.dark .sheet-body form > button[type="submit"].w-full,
+.dark .sheet-body .sticky-save { box-shadow: 0 -14px 18px 6px var(--color-noche-900); }

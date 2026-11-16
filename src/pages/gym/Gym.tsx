@@ -410,7 +410,7 @@ function WorkoutLogger({ routine, workout, onClose }: { routine?: Routine; worko
         })}
         <Button variant="soft" className="w-full" onClick={() => setPicker(true)}><Plus className="size-4" />Añadir ejercicio</Button>
         <Field label="Notas"><textarea className="input min-h-20" maxLength={1000} value={notes} onChange={e => setNotes(e.target.value)} placeholder="¿Cómo te sentiste?" /></Field>
-        <Button className="w-full min-h-14 text-lg" loading={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: () => { if (!workout) celebrate(['💪', '🔥', '🏋️']); onClose() } })}>{workout ? 'Guardar cambios' : 'Terminar y guardar'}</Button>
+        <Button variant="ember" className="sticky-save w-full min-h-14 text-lg" loading={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: () => { if (!workout) celebrate(['💪', '🔥', '🏋️']); onClose() } })}>{workout ? 'Guardar cambios' : 'Terminar y guardar'}</Button>
         {workout && <Button variant="ghost" className="w-full text-red-600" onClick={async () => { if (await confirm({ title: '¿Eliminar este entrenamiento?', text: 'Si era de hoy, puede afectar tu estado de racha del día.', danger: true, confirm: 'Eliminar' })) del.mutate(undefined, { onSuccess: onClose }) }}><Trash2 className="size-4" />Eliminar entrenamiento</Button>}
       </div>
       <ExercisePicker open={picker} onClose={() => setPicker(false)} onPick={ex => { setItems(a => [...a, { exercise_id: ex.id, open: true, sets: [{ reps: '', weight_kg: '', duration_sec: '', rest_sec: '90', done: false }] }]); setPicker(false) }} />

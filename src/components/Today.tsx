@@ -122,16 +122,31 @@ export function useAddWater() {
 // ---------------------------------------------------------------------
 // Ventanas de registro rápido: elegir con un toque, guardar con otro.
 // ---------------------------------------------------------------------
-function Chips<T extends string | number>({ options, value, onChange, cols = 3 }: { options: { value: T; label: string; icon?: LucideIcon }[]; value: T | null; onChange: (v: T) => void; cols?: number }) {
+/** Botones grandes para elegir. Con `isOn` se pueden marcar varios a la vez. */
+function Chips<T extends string | number>({ options, value, onChange, cols = 3, isOn }: { options: { value: T; label: string; icon?: LucideIcon }[]; value?: T | null; onChange: (v: T) => void; cols?: number; isOn?: (v: T) => boolean }) {
   return (
     <div className={cx('grid gap-2', cols === 4 ? 'grid-cols-4' : cols === 5 ? 'grid-cols-5' : 'grid-cols-3')}>
-      {options.map(o => (
-        <button key={String(o.value)} type="button" onClick={() => onChange(o.value)}
-          className={cx('flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[13px] font-semibold transition active:scale-95',
-            value === o.value ? 'bg-ink text-white dark:bg-white dark:text-ink' : 'bg-white text-ink ring-1 ring-black/[.06] dark:bg-noche-800 dark:text-white dark:ring-white/[.06]')}>
-          {o.icon && <o.icon className="size-5" strokeWidth={1.8} />}{o.label}
-        </button>
-      ))}
+      {options.map(o => {
+        const on = isOn ? isOn(o.value) : value === o.value
+        return (
+          <button key={String(o.value)} type="button" onClick={() => onChange(o.value)} aria-pressed={on}
+            className={cx('relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[15px] font-semibold leading-tight transition active:scale-95',
+              on ? 'bg-ember text-white shadow-[0_6px_16px_-8px_rgba(225,29,72,.7)]' : 'bg-white text-ink ring-1 ring-black/[.08] dark:bg-noche-800 dark:text-white dark:ring-white/[.08]')}>
+            {o.icon && <o.icon className="size-5" strokeWidth={1.9} />}{o.label}
+            {on && isOn && <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-white text-fuego-600"><Check className="size-3.5" strokeWidth={3.5} /></span>}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Botón de guardar siempre visible al pie de la ventana, con resumen de lo elegido. */
+function SaveBar({ summary, label, loading, onClick, disabled }: { summary: string; label: string; loading?: boolean; onClick: () => void; disabled?: boolean }) {
+  return (
+    <div className="sticky bottom-0 -mx-5 border-t border-black/[.06] bg-fuego-50/95 px-5 pb-1 pt-3 backdrop-blur dark:border-white/[.06] dark:bg-noche-900/95">
+      <p className="mb-2 truncate text-center text-[14px] font-semibold">{summary}</p>
+      <Button variant="ember" className="w-full min-h-14 text-[17px]" loading={loading} disabled={disabled} onClick={onClick}><Check className="size-5" strokeWidth={2.6} />{label}</Button>
     </div>
   )
 }
@@ -163,7 +178,9 @@ const MINUTES = [15, 30, 45, 60, 90]
 export function QuickWorkoutSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { uid } = useAuth()
   const nav = useNavigate()
-  const [type, setType] = useState<string | null>(null)
+  const [types, setTypes] = useState<string[]>([])
+  const toggle = (t: string) => setTypes(x => (x.includes(t) ? x.filter(y => y !== t) : [...x, t]))
+  const title = types.length ? types.join(' + ') : 'Entrenamiento'
   const [minutes, setMinutes] = useState<number>(45)
   const [custom, setCustom] = useState('')
   const [date, setDate] = useState(toISODate(new Date()))
@@ -171,12 +188,15 @@ export function QuickWorkoutSheet({ open, onClose }: { open: boolean; onClose: (
   const [notes, setNotes] = useState('')
   const mins = custom ? Number(custom) : minutes
   const save = useAction(async () => {
-    await must(supabase.from('workouts').insert({ user_id: uid, title: type ?? 'Entrenamiento', duration_min: mins || null, notes: notes || null, performed_at: localDateTimeToISO(date, time) }))
+    await must(supabase.from('workouts').insert({ user_id: uid, title: title.slice(0, 80), duration_min: mins || null, notes: notes || null, performed_at: localDateTimeToISO(date, time) }))
   }, { invalidate: [['workouts'], ...LOG_KEYS], success: '¡Entrenamiento registrado! 💪' })
   return (
     <Sheet open={open} onClose={onClose} title="¿Qué entrenaste hoy?">
       <div className="space-y-5">
-        <Chips options={WORKOUT_TYPES} value={type} onChange={setType} />
+        <div>
+          <p className="label">Toca todo lo que entrenaste <span className="font-normal opacity-70">(puedes elegir varios)</span></p>
+          <Chips options={WORKOUT_TYPES} onChange={toggle} isOn={t => types.includes(t)} />
+        </div>
         <div>
           <p className="label">¿Cuánto tiempo?</p>
           <Chips cols={5} options={MINUTES.map(m => ({ value: m, label: `${m}′` }))} value={custom ? null : minutes} onChange={m => { setMinutes(m); setCustom('') }} />
@@ -186,13 +206,11 @@ export function QuickWorkoutSheet({ open, onClose }: { open: boolean; onClose: (
           <WhenFields date={date} setDate={setDate} time={time} setTime={setTime} />
           <Field label="Notas"><Input value={notes} onChange={e => setNotes(e.target.value)} maxLength={1000} placeholder="¿Cómo te sentiste?" /></Field>
         </MoreOptions>
-        <Button variant="ember" className="w-full min-h-14 text-[16px]" loading={save.isPending}
-          onClick={() => save.mutate(undefined, { onSuccess: () => { celebrate(['💪', '🔥']); onClose() } })}>
-          Guardar · {type ?? 'Entreno'} {mins ? `${mins} min` : ''}
-        </Button>
         <button type="button" className="w-full text-center text-[13px] font-medium text-fuego-800/70 dark:text-white/50" onClick={() => { onClose(); nav('/gym') }}>
           ¿Quieres anotar series y pesos? Ir a Gimnasio →
         </button>
+        <SaveBar summary={`${types.length ? title : 'Entrenamiento'}${mins ? ` · ${mins} min` : ''}`} label="Guardar entreno" loading={save.isPending}
+          onClick={() => save.mutate(undefined, { onSuccess: () => { celebrate(['💪', '🔥']); setTypes([]); onClose() } })} />
       </div>
     </Sheet>
   )
@@ -252,9 +270,7 @@ export function ActivitySheet({ open, onClose }: { open: boolean; onClose: () =>
           <WhenFields date={date} setDate={setDate} time={time} setTime={setTime} />
           <Field label="Notas"><Input value={notes} onChange={e => setNotes(e.target.value)} maxLength={500} /></Field>
         </MoreOptions>
-        <Button variant="ember" className="w-full min-h-14 text-[16px]" loading={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: onClose })}>
-          Guardar · {label} {isSteps ? `${fmtNum(stp)} pasos` : `${mins} min`}
-        </Button>
+        <SaveBar summary={`${label} · ${isSteps ? `${fmtNum(stp)} pasos` : `${mins} min`}`} label="Guardar actividad" loading={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: onClose })} />
       </div>
     </Sheet>
   )

@@ -152,7 +152,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
           <h3 className="text-[17px] font-semibold">{title}</h3>
           <button onClick={onClose} aria-label="Cerrar" className="flex size-8 items-center justify-center rounded-full bg-fuego-200/70 text-fuego-800 dark:bg-noche-700 dark:text-white/70"><X className="size-4" strokeWidth={2.5} /></button>
         </div>
-        <div className="overflow-y-auto px-5 pb-4">{children}</div>
+        <div className="sheet-body overflow-y-auto px-5 pb-4">{children}</div>
       </div>
     </div>,
     document.body,
