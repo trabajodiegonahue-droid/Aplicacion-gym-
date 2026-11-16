@@ -12,6 +12,7 @@ import { Avatar } from '../components/Avatar'
 import { ActivitySheet, QuickWorkoutSheet, WaterSheet, conditionText, useWaterToday } from '../components/Today'
 import { CoupleScene, LevelUpWatcher } from '../components/Characters'
 import { startTour } from '../components/Tour'
+import { GoalsHome } from '../components/Goals'
 import { CountUp, Embers } from '../components/Motion'
 import type { Habit, HabitLog, MemberDay, StreakDay } from '../lib/types'
 
@@ -202,6 +203,8 @@ export default function Home() {
             </button>
           ))}
         </div>
+
+        <GoalsHome />
 
         <SectionTitle action={<Link to="/estadisticas" className="text-[13px] font-medium text-ember">Estadísticas</Link>}>Tu día</SectionTitle>
         <Card className="divide-y divide-black/[.05] p-0 dark:divide-white/[.06]" data-tour="day">

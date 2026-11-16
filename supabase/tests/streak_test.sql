@@ -290,3 +290,17 @@ select pg_temp.check((select xp_today from public.member_levels() where user_id 
 select pg_temp.login(:C);
 select pg_temp.check((select count(*) from public.member_levels()) = 1, 'sin pareja solo se ve a sí mismo');
 reset role;
+
+-- 14) MEDIDAS Y RÉCORDS ------------------------------------------------
+set role authenticated;
+select pg_temp.login(:D);
+update public.profiles set height_cm = 175, goal_weight_kg = 70 where id = :D;
+insert into public.records(user_id, kind, label, value, unit, better) values (:D, 'run_3k', 'Correr 3 km', 960, 's', 'lower');
+insert into public.records(user_id, kind, label, value, unit, better) values (:D, 'run_3k', 'Correr 3 km', 900, 's', 'lower');
+select pg_temp.expect_error(format($q$insert into public.records(user_id, kind, label, value, unit) values (%L, 'x', 'x', 1, 'kg')$q$, :E), 'nadie crea récords por su pareja');
+select pg_temp.login(:E);
+select pg_temp.check((select count(*) from public.records where user_id = :D) = 2, 'la pareja ve los récords');
+select pg_temp.check((select count(*) from public.notifications where title like '%batió su récord%') = 2, 'aviso de récord a la pareja');
+delete from public.records where user_id = :D;
+select pg_temp.check((select count(*) from public.records where user_id = :D) = 2, 'la pareja no puede borrar récords ajenos');
+reset role;

@@ -14,7 +14,7 @@ export type Equipment = keyof typeof EQUIPMENT
  */
 const PATTERNS: Record<string, { use: string; muscles: [string, number][] }> = {
   // Pecho
-  press_plano: { use: 'Ejercicio base de empuje: desarrolla fuerza y volumen de pecho, tríceps y hombro.', muscles: [['Pectoral', 60], ['Tríceps', 25], ['Deltoide anterior', 15]] },
+  press_plano: { use: 'Ejercicio base de empuje: desarrolla fuerza y volumen de pecho, tríceps y hombro.', muscles: [['Pectoral mayor', 55], ['Tríceps', 25], ['Deltoide anterior', 20]] },
   press_inclinado: { use: 'Enfatiza la parte alta del pecho y el hombro frontal.', muscles: [['Pectoral superior', 55], ['Deltoide anterior', 25], ['Tríceps', 20]] },
   press_declinado: { use: 'Enfatiza la parte baja del pecho con menos estrés en el hombro.', muscles: [['Pectoral inferior', 60], ['Tríceps', 30], ['Deltoide anterior', 10]] },
   press_cerrado: { use: 'Empuje con foco en el tríceps; ideal para brazos más fuertes.', muscles: [['Tríceps', 55], ['Pectoral', 35], ['Deltoide anterior', 10]] },
@@ -24,11 +24,11 @@ const PATTERNS: Record<string, { use: string; muscles: [string, number][] }> = {
   fondos_pecho: { use: 'Empuje vertical con el torso inclinado: pecho inferior y tríceps.', muscles: [['Pectoral inferior', 50], ['Tríceps', 35], ['Deltoide anterior', 15]] },
   pullover: { use: 'Trabaja dorsal y pecho a la vez y mejora la movilidad del hombro.', muscles: [['Dorsal', 45], ['Pectoral', 40], ['Tríceps', 15]] },
   // Espalda
-  dominadas: { use: 'El mejor ejercicio de tracción vertical: espalda ancha y bíceps fuertes.', muscles: [['Dorsal ancho', 55], ['Bíceps', 20], ['Romboides y trapecio', 15], ['Core', 10]] },
+  dominadas: { use: 'El mejor ejercicio de tracción vertical: espalda ancha y bíceps fuertes.', muscles: [['Dorsal ancho', 50], ['Bíceps y braquial', 20], ['Romboides y trapecio inferior', 15], ['Redondo mayor', 10], ['Core', 5]] },
   jalon: { use: 'Tracción vertical guiada: construye amplitud de espalda y prepara para dominadas.', muscles: [['Dorsal ancho', 60], ['Bíceps', 20], ['Romboides', 20]] },
   brazos_rectos: { use: 'Aísla el dorsal sin que intervenga el bíceps.', muscles: [['Dorsal ancho', 75], ['Redondo mayor', 15], ['Tríceps (cabeza larga)', 10]] },
   remo: { use: 'Tracción horizontal: grosor de espalda y mejor postura.', muscles: [['Dorsal ancho', 40], ['Romboides y trapecio medio', 30], ['Bíceps', 15], ['Deltoide posterior', 15]] },
-  peso_muerto: { use: 'Ejercicio de fuerza total: cadena posterior completa (espalda, glúteo e isquios).', muscles: [['Isquiotibiales', 30], ['Glúteo', 25], ['Erectores espinales', 25], ['Trapecio', 10], ['Cuádriceps', 10]] },
+  peso_muerto: { use: 'Ejercicio de fuerza total: cadena posterior completa (espalda, glúteo e isquios).', muscles: [['Glúteo mayor', 25], ['Isquiotibiales', 25], ['Erectores espinales', 25], ['Trapecio y dorsal', 15], ['Cuádriceps', 10]] },
   peso_muerto_sumo: { use: 'Variante con piernas abiertas: más glúteo y aductores, menos espalda baja.', muscles: [['Glúteo', 30], ['Cuádriceps', 25], ['Aductores', 20], ['Isquiotibiales', 15], ['Erectores espinales', 10]] },
   rack_pull: { use: 'Peso muerto parcial: espalda alta y bloqueo fuertes.', muscles: [['Erectores espinales', 35], ['Trapecio', 30], ['Glúteo', 20], ['Isquiotibiales', 15]] },
   hiperextension: { use: 'Fortalece la zona lumbar y el glúteo; previene molestias de espalda.', muscles: [['Erectores espinales', 50], ['Glúteo', 30], ['Isquiotibiales', 20]] },
@@ -55,14 +55,14 @@ const PATTERNS: Record<string, { use: string; muscles: [string, number][] }> = {
   ext_overhead: { use: 'Tríceps estirado sobre la cabeza: enfatiza la cabeza larga.', muscles: [['Tríceps cabeza larga', 70], ['Tríceps lateral y medial', 25], ['Core', 5]] },
   fondos: { use: 'Empuje con peso corporal: tríceps fuerte con ayuda del pecho.', muscles: [['Tríceps', 55], ['Pectoral', 30], ['Deltoide anterior', 15]] },
   // Piernas
-  sentadilla: { use: 'El rey de piernas: fuerza y volumen de cuádriceps y glúteo.', muscles: [['Cuádriceps', 50], ['Glúteo', 30], ['Aductores', 12], ['Core y lumbar', 8]] },
+  sentadilla: { use: 'El rey de piernas: fuerza y volumen de cuádriceps y glúteo.', muscles: [['Cuádriceps', 45], ['Glúteo mayor', 25], ['Aductores', 15], ['Erectores espinales', 10], ['Isquiotibiales', 5]] },
   sentadilla_frontal: { use: 'Barra delante: más cuádriceps y torso erguido.', muscles: [['Cuádriceps', 60], ['Glúteo', 20], ['Core', 15], ['Aductores', 5]] },
   goblet: { use: 'Sentadilla con peso al pecho: ideal para aprender la técnica.', muscles: [['Cuádriceps', 50], ['Glúteo', 30], ['Core', 12], ['Aductores', 8]] },
   sentadilla_sumo: { use: 'Piernas abiertas: más aductores y glúteo.', muscles: [['Aductores', 35], ['Glúteo', 35], ['Cuádriceps', 30]] },
-  prensa: { use: 'Empuje de piernas guiado: mucho cuádriceps con espalda apoyada.', muscles: [['Cuádriceps', 60], ['Glúteo', 25], ['Aductores', 10], ['Isquiotibiales', 5]] },
+  prensa: { use: 'Empuje de piernas guiado: mucho cuádriceps con espalda apoyada.', muscles: [['Cuádriceps', 55], ['Glúteo mayor', 25], ['Aductores', 15], ['Isquiotibiales', 5]] },
   zancada: { use: 'Unilateral: piernas y glúteo, corrige desequilibrios entre lados.', muscles: [['Cuádriceps', 45], ['Glúteo', 40], ['Aductores', 10], ['Isquiotibiales', 5]] },
   bulgara: { use: 'Unilateral exigente con pie atrasado: glúteo y cuádriceps.', muscles: [['Cuádriceps', 45], ['Glúteo', 40], ['Aductores', 10], ['Core', 5]] },
-  rumano: { use: 'Bisagra de cadera: isquiotibiales y glúteo; protege la espalda baja.', muscles: [['Isquiotibiales', 50], ['Glúteo', 35], ['Erectores espinales', 15]] },
+  rumano: { use: 'Bisagra de cadera: isquiotibiales y glúteo; protege la espalda baja.', muscles: [['Isquiotibiales', 45], ['Glúteo mayor', 35], ['Erectores espinales', 15], ['Aductores', 5]] },
   rumano_unilateral: { use: 'Rumano a una pierna: isquios, glúteo y equilibrio.', muscles: [['Isquiotibiales', 45], ['Glúteo', 40], ['Core y estabilizadores', 15]] },
   ext_cuadriceps: { use: 'Aísla el cuádriceps; útil para terminar la sesión.', muscles: [['Cuádriceps', 100]] },
   curl_femoral: { use: 'Aísla los isquiotibiales (parte trasera del muslo).', muscles: [['Isquiotibiales', 90], ['Gemelos', 10]] },
@@ -74,7 +74,7 @@ const PATTERNS: Record<string, { use: string; muscles: [string, number][] }> = {
   isometrica: { use: 'Resistencia del cuádriceps sin movimiento.', muscles: [['Cuádriceps', 75], ['Glúteo', 25]] },
   salto: { use: 'Potencia y explosividad de piernas.', muscles: [['Cuádriceps', 45], ['Glúteo', 35], ['Gemelos', 20]] },
   // Glúteos
-  hip_thrust: { use: 'El mejor para glúteo: máxima tensión en extensión de cadera.', muscles: [['Glúteo mayor', 70], ['Isquiotibiales', 15], ['Cuádriceps', 10], ['Core', 5]] },
+  hip_thrust: { use: 'El mejor para glúteo: máxima tensión en extensión de cadera.', muscles: [['Glúteo mayor', 65], ['Isquiotibiales', 15], ['Cuádriceps', 10], ['Aductores', 10]] },
   patada: { use: 'Aísla el glúteo mayor.', muscles: [['Glúteo mayor', 80], ['Isquiotibiales', 20]] },
   abduccion: { use: 'Glúteo medio: cadera estable y glúteo más redondo.', muscles: [['Glúteo medio', 70], ['Glúteo menor', 20], ['Tensor de la fascia lata', 10]] },
   pull_through: { use: 'Bisagra de cadera en polea: glúteo e isquios.', muscles: [['Glúteo', 55], ['Isquiotibiales', 35], ['Erectores espinales', 10]] },
@@ -211,11 +211,39 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = Object.entries(RAW).flatMap((
 
 export const libraryByName = new Map(EXERCISE_LIBRARY.map(e => [e.name.toLowerCase(), e]))
 
+export type MuscleRole = 'Principal' | 'Secundario' | 'Estabilizador'
+/** Rol de cada músculo según su participación: principal (el que más trabaja), secundario (≥ 15 %) o estabilizador. */
+export const roleOf = (p: number, i: number): MuscleRole => (i === 0 || p >= 40 ? 'Principal' : p >= 15 ? 'Secundario' : 'Estabilizador')
+
 /** Para qué sirve y qué músculos trabaja (estimación) un ejercicio por su nombre. */
 export function exerciseInfo(name: string) {
   const lib = libraryByName.get(name.toLowerCase())
   const p = lib ? PATTERNS[lib.pattern] : undefined
-  return p ? { use: p.use, muscles: p.muscles } : null
+  return p ? { use: p.use, muscles: p.muscles, pattern: lib!.pattern } : null
+}
+
+/** Familias de movimiento: patrones que son "el mismo ejercicio" con distinto equipo. */
+const FAMILY: Record<string, string> = {
+  press_plano: 'empuje_horizontal', flexiones: 'empuje_horizontal',
+  press_cerrado: 'empuje_cerrado', fondos: 'fondos', fondos_pecho: 'fondos',
+  dominadas: 'traccion_vertical', jalon: 'traccion_vertical',
+  press_hombro: 'empuje_vertical', pike: 'empuje_vertical', arnold: 'empuje_vertical',
+  sentadilla: 'sentadilla', goblet: 'sentadilla', sentadilla_frontal: 'sentadilla',
+  aperturas: 'aperturas', cruce: 'aperturas',
+  ext_triceps: 'ext_triceps', ext_overhead: 'ext_triceps',
+  rumano: 'bisagra', peso_muerto: 'bisagra', rumano_unilateral: 'bisagra',
+  crunch: 'crunch', piernas_abs: 'piernas_abs',
+}
+const familyOf = (pattern: string) => FAMILY[pattern] ?? pattern
+
+/** Otras formas de hacer el mismo movimiento con distinto equipo (barra, mancuernas, máquina, peso corporal…). */
+export function variantsOf(name: string): LibraryExercise[] {
+  const lib = libraryByName.get(name.toLowerCase())
+  if (!lib) return []
+  const seen = new Set<string>()
+  return EXERCISE_LIBRARY.filter(e => familyOf(e.pattern) === familyOf(lib.pattern))
+    .sort((a, b) => Number(b.name === lib.name) - Number(a.name === lib.name))
+    .filter(e => (seen.has(e.equipment) ? false : (seen.add(e.equipment), true)))
 }
 
 /** Búsqueda sin tildes ni mayúsculas. */

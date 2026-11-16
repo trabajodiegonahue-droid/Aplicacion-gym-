@@ -16,6 +16,9 @@ export interface Profile {
   accent: string
   notification_prefs: NotificationPrefs
   character?: Record<string, unknown>
+  height_cm?: number | null
+  goal_weight_kg?: number | null
+  start_weight_kg?: number | null
 }
 
 export type NotifKind = 'workout' | 'water' | 'habits' | 'streak_risk' | 'partner_activity' | 'streak' | 'goals' | 'challenges' | 'messages' | 'dates' | 'proposals' | 'couple'

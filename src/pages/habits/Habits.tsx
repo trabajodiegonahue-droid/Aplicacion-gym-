@@ -11,6 +11,7 @@ import { addDays, fmtDay, fmtLiters, fmtNum, fmtShort, fmtTime, startOfWeek } fr
 import { Button, Card, Empty, Field, Input, Loading, ProgressBar, Segmented, Sheet, cx, useUi } from '../../components/ui'
 import { PageHeader } from '../../components/AppShell'
 import { TimeField } from '../../components/TimePicker'
+import { QuickGoalSheet } from '../../components/Goals'
 import { ACTIVITY_KINDS, ActivitySheet, presetIcon, useAddWater, useWaterPresets, useWaterToday } from '../../components/Today'
 import { celebrate } from '../../components/Celebration'
 
@@ -438,6 +439,7 @@ function GoalsTab() {
   const { uid, couple } = useAuth()
   const { confirm } = useUi()
   const [form, setForm] = useState<'personal' | 'shared' | null>(null)
+  const [quick, setQuick] = useState(false)
   const [show, setShow] = useState<'active' | 'done'>('active')
   const q = useQuery({ queryKey: ['goals', uid], enabled: !!uid, queryFn: () => must(supabase.from('goals').select('*').order('created_at', { ascending: false })) as Promise<Goal[]> })
   const upd = useAction(async (v: { id: string; patch: Partial<Goal> }) => must(supabase.from('goals').update(v.patch).eq('id', v.id)), { invalidate: [['goals']] })
@@ -446,10 +448,12 @@ function GoalsTab() {
   const list = (q.data ?? []).filter(g => show === 'active' ? ['active', 'paused'].includes(g.status) : ['completed', 'archived'].includes(g.status))
   return (
     <div className="stagger space-y-3">
+      <Button variant="ember" className="w-full min-h-14 text-[16px]" onClick={() => setQuick(true)}><Plus className="size-5" />Nueva meta</Button>
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="soft" onClick={() => setForm('personal')}><User className="size-4" />Meta personal</Button>
-        <Button variant="soft" disabled={!couple} onClick={() => setForm('shared')}><Users className="size-4" />Meta en pareja</Button>
+        <Button variant="soft" className="text-[13px]" onClick={() => setForm('personal')}><User className="size-4" />Personalizada</Button>
+        <Button variant="soft" className="text-[13px]" disabled={!couple} onClick={() => setForm('shared')}><Users className="size-4" />Personalizada en pareja</Button>
       </div>
+      <QuickGoalSheet open={quick} onClose={() => setQuick(false)} onCustom={() => setForm('personal')} />
       <Segmented value={show} onChange={setShow} options={[{ value: 'active', label: 'Activas' }, { value: 'done', label: 'Cumplidas / archivadas' }]} />
       {q.isLoading ? <Loading /> : list.length === 0 ? <Empty icon="🎯" title="Sin metas aquí" text="Ej.: entrenar 4 veces por semana, beber 2 L al día, caminar 8.000 pasos." /> : list.map(g => (
         <Card key={g.id}>

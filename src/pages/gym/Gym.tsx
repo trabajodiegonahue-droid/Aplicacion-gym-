@@ -8,10 +8,11 @@ import { useAuth } from '../../context/AuthProvider'
 import { LOG_KEYS, useAction } from '../../lib/queries'
 import type { Exercise, MuscleGroup, Routine, RoutineExercise, Workout, WorkoutSet } from '../../lib/types'
 import { fmtDay, fmtShort, localDateTimeToISO, nowTimeHHMM, toISODate, WEEKDAYS } from '../../lib/dates'
-import { Button, Card, Empty, Field, Input, Loading, Segmented, Sheet, cx, useUi } from '../../components/ui'
+import { Button, Card, Empty, Field, Input, Loading, ProgressBar, Segmented, Sheet, cx, useUi } from '../../components/ui'
 import { PageHeader } from '../../components/AppShell'
 import { WhenRow } from '../../components/TimePicker'
-import { ExerciseInfoButton, MuscleStack, muscleSummary } from '../../components/MuscleInfo'
+import RecordsTab from './Records'
+import { ExerciseInfoButton, MuscleStack, VariantChips, muscleSummary } from '../../components/MuscleInfo'
 import { EQUIPMENT, EXERCISE_LIBRARY, exerciseInfo, libraryByName, normalize, type Equipment } from '../../lib/exerciseLibrary'
 import { celebrate } from '../../components/Celebration'
 
@@ -23,10 +24,10 @@ export const MUSCLES: { value: MuscleGroup; label: string; emoji: string }[] = [
 ]
 const muscleLabel = (m: MuscleGroup) => MUSCLES.find(x => x.value === m)?.label ?? m
 
-type Tab = 'entrenar' | 'rutinas' | 'ejercicios' | 'historial' | 'progreso' | 'peso'
+type Tab = 'entrenar' | 'rutinas' | 'ejercicios' | 'historial' | 'records' | 'progreso' | 'peso'
 const TABS: { value: Tab; label: string }[] = [
   { value: 'entrenar', label: 'Entrenar' }, { value: 'rutinas', label: 'Rutinas' }, { value: 'ejercicios', label: 'Ejercicios' },
-  { value: 'historial', label: 'Historial' }, { value: 'progreso', label: 'Progreso' }, { value: 'peso', label: 'Peso' },
+  { value: 'historial', label: 'Historial' }, { value: 'records', label: 'Récords' }, { value: 'progreso', label: 'Progreso' }, { value: 'peso', label: 'Mi cuerpo' },
 ]
 
 function useExercises() {
@@ -56,6 +57,7 @@ export default function Gym() {
           {tab === 'rutinas' && <RoutinesTab onStart={r => setLogger({ routine: r })} />}
           {tab === 'ejercicios' && <ExercisesTab />}
           {tab === 'historial' && <HistoryTab onEdit={w => setLogger({ workout: w })} />}
+          {tab === 'records' && <RecordsTab />}
           {tab === 'progreso' && <ProgressTab />}
           {tab === 'peso' && <BodyWeightTab />}
         </div>
@@ -132,6 +134,7 @@ function RoutineEditor({ routine, onClose }: { routine?: Routine; onClose: () =>
     exercise_id: re.exercise_id, target_sets: String(re.target_sets ?? ''), target_reps: String(re.target_reps ?? ''), target_weight_kg: String(re.target_weight_kg ?? ''), rest_seconds: String(re.rest_seconds ?? ''),
   })))
   const [picker, setPicker] = useState(false)
+  const ensure = useEnsureExercises()
   const n = (s: string) => (s === '' ? null : Number(s))
   const save = useAction(async () => {
     let id = routine?.id
@@ -172,6 +175,10 @@ function RoutineEditor({ routine, onClose }: { routine?: Routine; onClose: () =>
                 {ex && <ExerciseInfoButton name={ex.name} className="size-8" />}
                 <button type="button" className="flex size-8 items-center justify-center rounded-full text-red-500" onClick={() => setItems(a => a.filter((_, j) => j !== i))} aria-label="Quitar"><X className="size-5" /></button>
               </div>
+              {ex && <VariantChips className="mt-2 pl-[42px]" name={ex.name} onPick={async v => {
+                const [created] = await ensure.mutateAsync([{ name: v.name, group: v.group }]).then(list => list.filter(x => x.name.toLowerCase() === v.name.toLowerCase()))
+                if (created) setItems(a => a.map((x, j) => j === i ? { ...x, exercise_id: created.id } : x))
+              }} />}
               <div className="mt-1.5 flex items-center gap-2 pl-[42px]">
                 <p className="muted min-w-0 flex-1 truncate text-[12px]">{ex ? (muscleSummary(ex.name) ?? muscleLabel(ex.muscle_group)) : ''}</p>
                 <button type="button" className="flex size-8 items-center justify-center rounded-full bg-fuego-100 disabled:opacity-25 dark:bg-noche-700" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Subir"><ChevronUp className="size-4" /></button>
@@ -257,7 +264,7 @@ function ExercisePicker({ open, onClose, onPick, title = 'Añadir ejercicios', c
         {rows.slice(0, 250).map(r => {
           const on = !!sel[r.key]
           return (
-            <div key={r.key} className={cx('flex items-center gap-1 pr-2 transition-colors', on && 'bg-blush dark:bg-fuego-900/30')}>
+            <div key={r.key} className={cx('flex flex-wrap items-center gap-1 pr-2 transition-colors', on && 'bg-blush dark:bg-fuego-900/30')}>
               <button type="button" onClick={() => toggle(r)} className="flex min-h-[68px] min-w-0 flex-1 items-center gap-3 py-2 pl-4 text-left">
                 <span className={cx('flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition', on ? 'scale-110 border-ember bg-ember text-white' : 'border-fuego-300 dark:border-white/25')}>{on && <Check className="size-4 animate-pop" strokeWidth={3} />}</span>
                 <div className="min-w-0 flex-1">
@@ -267,6 +274,14 @@ function ExercisePicker({ open, onClose, onPick, title = 'Añadir ejercicios', c
                 </div>
               </button>
               <ExerciseInfoButton name={r.name} />
+              {on && libraryByName.has(r.name.toLowerCase()) && (
+                <VariantChips className="w-full basis-full px-4 pb-3 pl-[56px]" name={r.name} onPick={v => setSel(prev => {
+                  const n = { ...prev }; delete n[r.key]
+                  const mineV = mine.find(e => e.name.toLowerCase() === v.name.toLowerCase())
+                  n['lib:' + v.name] = { key: 'lib:' + v.name, name: v.name, group: v.group, equipment: v.equipment, mine: mineV }
+                  return n
+                })} />
+              )}
             </div>
           )
         })}
@@ -274,6 +289,15 @@ function ExercisePicker({ open, onClose, onPick, title = 'Añadir ejercicios', c
       </div>
       <Button variant="soft" className="mt-3 w-full" onClick={() => setCreating(true)}><Plus className="size-4" />Crear ejercicio propio{q ? ` “${q}”` : ''}</Button>
       <div className="sticky bottom-0 -mx-5 mt-3 border-t border-black/[.06] bg-fuego-50/95 px-5 pb-1 pt-3 backdrop-blur dark:border-white/[.06] dark:bg-noche-900/95">
+        {count > 0 && (
+          <div className="no-scrollbar -mx-5 mb-2 flex gap-1.5 overflow-x-auto px-5">
+            {Object.values(sel).map(r => (
+              <button key={r.key} type="button" onClick={() => toggle(r)} className="flex shrink-0 items-center gap-1 rounded-full bg-ink py-1.5 pl-3 pr-2 text-[12.5px] font-semibold text-white animate-pop dark:bg-white dark:text-ink">
+                {r.name}<X className="size-3.5 opacity-70" />
+              </button>
+            ))}
+          </div>
+        )}
         <Button variant="ember" className="w-full min-h-14 text-[17px]" disabled={!count} loading={ensure.isPending} onClick={confirm}>
           <Check className="size-5" strokeWidth={2.6} />{count ? `${cta} ${count} ejercicio${count > 1 ? 's' : ''}` : 'Toca los ejercicios que quieras'}
         </Button>
@@ -590,6 +614,7 @@ function BodyWeightTab() {
   const chart = list.slice(-14).map(x => ({ day: fmtShort(x.day), kg: x.weight_kg }))
   return (
     <div className="stagger space-y-3">
+      <BodyGoalCard current={last?.weight_kg ?? null} first={first?.weight_kg ?? null} />
       <Card>
         <p className="mb-3 text-[15px] font-semibold">Registrar peso</p>
         <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (Number(kg.replace(',', '.')) >= 20) save.mutate(undefined, { onSuccess: () => setKg('') }) }}>
@@ -648,5 +673,54 @@ function NumStep({ label, value, onChange, step }: { label: string; value: strin
         <button type="button" onClick={() => set(n + step)} className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white text-xl font-semibold active:scale-95 dark:bg-noche-800" aria-label={`Más ${label}`}>+</button>
       </div>
     </div>
+  )
+}
+
+/** Altura, peso actual y objetivo: IMC y progreso hacia la meta. */
+function BodyGoalCard({ current, first }: { current: number | null; first: number | null }) {
+  const { uid, profile } = useAuth()
+  const p = profile as unknown as { height_cm?: number | null; goal_weight_kg?: number | null; start_weight_kg?: number | null } | null
+  const [edit, setEdit] = useState(false)
+  const [h, setH] = useState(String(p?.height_cm ?? ''))
+  const [g, setG] = useState(String(p?.goal_weight_kg ?? ''))
+  useEffect(() => { setH(String(p?.height_cm ?? '')); setG(String(p?.goal_weight_kg ?? '')) }, [p?.height_cm, p?.goal_weight_kg])
+  const save = useAction(async () => must(supabase.from('profiles').update({
+    height_cm: h ? Number(h) : null, goal_weight_kg: g ? Number(g.replace(',', '.')) : null,
+    start_weight_kg: p?.start_weight_kg ?? current ?? null,
+  }).eq('id', uid!)), { invalidate: [['profile']], success: 'Datos guardados' })
+  const height = p?.height_cm ? Number(p.height_cm) : null
+  const goal = p?.goal_weight_kg ? Number(p.goal_weight_kg) : null
+  const start = p?.start_weight_kg ? Number(p.start_weight_kg) : first
+  const bmi = height && current ? current / ((height / 100) ** 2) : null
+  const bmiLabel = !bmi ? '' : bmi < 18.5 ? 'Bajo peso' : bmi < 25 ? 'Saludable' : bmi < 30 ? 'Sobrepeso' : 'Obesidad'
+  const total = goal && start ? Math.abs(start - goal) : 0
+  const done = goal && start && current ? Math.max(0, Math.min(total, Math.abs(start - current) * (Math.sign(start - goal) === Math.sign(start - current) ? 1 : 0))) : 0
+  const left = goal && current ? Math.abs(current - goal) : null
+  if (!height || !goal || edit) return (
+    <Card className="space-y-3">
+      <p className="text-[15px] font-bold">Mis medidas y objetivo</p>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Altura (cm)"><Input type="number" inputMode="decimal" min={100} max={250} value={h} onChange={e => setH(e.target.value)} placeholder="Ej.: 170" /></Field>
+        <Field label="Peso objetivo (kg)"><Input type="number" inputMode="decimal" step="0.1" min={30} max={300} value={g} onChange={e => setG(e.target.value)} placeholder="Ej.: 65" /></Field>
+      </div>
+      <p className="muted text-[12px]">Tu peso actual sale de tus registros de abajo. Solo tú ves estos datos.</p>
+      <Button variant="ember" className="w-full" loading={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: () => setEdit(false) })}>Guardar</Button>
+    </Card>
+  )
+  return (
+    <Card>
+      <div className="flex items-center justify-between"><p className="text-[15px] font-bold">Mi objetivo</p><button className="text-[13px] font-semibold text-fuego-600" onClick={() => setEdit(true)}>Editar</button></div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-2xl bg-fuego-50 py-2.5 dark:bg-noche-900"><p className="tabular text-[20px] font-bold">{height}</p><p className="muted text-[11px]">cm de altura</p></div>
+        <div className="rounded-2xl bg-fuego-50 py-2.5 dark:bg-noche-900"><p className="tabular text-[20px] font-bold">{current?.toFixed(1) ?? '—'}</p><p className="muted text-[11px]">kg actual</p></div>
+        <div className="rounded-2xl bg-fuego-50 py-2.5 dark:bg-noche-900"><p className="tabular text-[20px] font-bold text-ember">{goal}</p><p className="muted text-[11px]">kg objetivo</p></div>
+      </div>
+      {current && (
+        <>
+          <ProgressBar className="mt-4" size="lg" value={done} max={total || 1} showPct label={<span className="font-semibold">{left !== null && left < 0.05 ? '¡Llegaste a tu objetivo! 🎉' : `Te faltan ${left?.toFixed(1)} kg`}</span>} />
+          <p className="muted mt-1.5 text-[12px]">Empezaste en {start?.toFixed(1)} kg{bmi ? ` · IMC ${bmi.toFixed(1)} (${bmiLabel})` : ''}</p>
+        </>
+      )}
+    </Card>
   )
 }

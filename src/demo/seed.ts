@@ -91,7 +91,10 @@ begin
   select h.id, h.user_id, t - g, now() - make_interval(days => g), now() - make_interval(days => g)
   from public.habits h cross join generate_series(1, 5) g where (g + length(h.name)) % 3 <> 0;
 
-  insert into public.body_weights(user_id, day, weight_kg) values (a, t - 21, 63.4), (a, t - 14, 63.0), (a, t - 7, 62.6), (a, t, 62.3);
+  insert into public.body_weights(user_id, day, weight_kg) values (a, t - 28, 76.2), (a, t - 21, 75.4), (a, t - 14, 74.8), (a, t - 7, 74.1), (a, t, 73.6),
+    (b, t - 21, 58.4), (b, t - 14, 58.0), (b, t - 7, 57.5), (b, t, 57.2);
+  update public.profiles set height_cm = 176, goal_weight_kg = 72, start_weight_kg = 76.2 where id = a;
+  update public.profiles set height_cm = 162, goal_weight_kg = 55, start_weight_kg = 58.4 where id = b;
 
   alter table public.workouts enable trigger tg_before; alter table public.workouts enable trigger tg_after;
   alter table public.activity_logs enable trigger tg_before; alter table public.activity_logs enable trigger tg_after;
@@ -113,6 +116,12 @@ begin
   insert into public.goals(couple_id, created_by, name, metric, target, frequency, category_label) values (c, a, 'Tomar 2 L de agua', 'water_goal_days', 5, 'weekly', 'Salud');
   insert into public.challenges(couple_id, created_by, name, metric, target, mode, start_date, end_date, badge, reward)
     values (c, b, '10 entrenamientos entre los dos', 'workouts', 10, 'together', t - 6, t + 7, '🏆', 'Quien entrene menos cocina en la visita');
+  insert into public.records(user_id, kind, label, value, unit, better, achieved_on) values
+    (a, 'run_3k', '3 km', 958, 's', 'lower', t - 20), (a, 'run_3k', '3 km', 905, 's', 'lower', t - 6),
+    (a, 'run_5k', '5 km', 1625, 's', 'lower', t - 9), (a, 'pushups', 'Flexiones seguidas', 35, 'reps', 'higher', t - 4),
+    (a, 'bench_1rm', 'Press banca (máx.)', 70, 'kg', 'higher', t - 3), (a, 'pullups', 'Dominadas seguidas', 9, 'reps', 'higher', t - 8),
+    (b, 'run_3k', '3 km', 1030, 's', 'lower', t - 5), (b, 'plank', 'Plancha', 95, 's', 'higher', t - 2),
+    (b, 'squat_1rm', 'Sentadilla (máx.)', 55, 'kg', 'higher', t - 7), (b, 'pushups', 'Flexiones seguidas', 18, 'reps', 'higher', t - 3);
   delete from public.notifications;
   insert into public.notifications(user_id, kind, title, body) values
     (b, 'partner_activity', 'Diego completó su día 💪', '¡Ahora te toca a ti para sumar a la racha!'),

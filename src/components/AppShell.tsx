@@ -1,8 +1,10 @@
-import { Suspense, useEffect, type ReactNode } from 'react'
+import { Suspense, useCallback, useEffect, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { House, Flame as FlameIcon, Dumbbell, CircleCheckBig, Heart } from 'lucide-react'
 import { cx, Loading } from './ui'
-import { useEnsureToday, useRealtimeSync } from '../lib/queries'
+import { useEnsureToday, useMidnightRollover, useRealtimeSync } from '../lib/queries'
+import { useUi } from './ui'
+import { celebrate } from './Celebration'
 import { InstallBanner } from './InstallBanner'
 import { DemoBar } from '../demo/DemoBar'
 import { ErrorBoundary } from './ErrorBoundary'
@@ -23,6 +25,9 @@ export function AppShell() {
   useRealtimeSync()
   useEnsureToday()
   useFirstTour()
+  const { toast } = useUi()
+  const onNewDay = useCallback(() => { toast('☀️ ¡Nuevo día! Lo de ayer quedó guardado. A sumar otra vez'); celebrate(['☀️', '🔥', '✨']) }, [toast])
+  useMidnightRollover(onNewDay)
   const loc = useLocation()
   const nav = useNavigate()
   useEffect(() => { const h = () => nav('/'); window.addEventListener('fj-go-home', h); return () => window.removeEventListener('fj-go-home', h) }, [nav])

@@ -182,3 +182,26 @@ export function useTodayWindow() {
 
 /** Invalidar todo lo que depende de mis registros personales. */
 export const LOG_KEYS: QueryKey[] = [['member_days'], ['streak_days'], ['streak'], ['stats'], ['goals'], ['challenges']]
+
+/**
+ * Cambio de día: a medianoche (hora del teléfono) todo se recarga solo.
+ * El historial NO se pierde: cada día queda guardado por separado en el servidor.
+ */
+export function useMidnightRollover(onNewDay?: () => void) {
+  const qc = useQueryClient()
+  const { couple } = useAuth()
+  useEffect(() => {
+    let last = new Date().toDateString()
+    const check = async () => {
+      const now = new Date().toDateString()
+      if (now === last) return
+      last = now
+      if (couple) await supabase.rpc('refresh_today')
+      qc.invalidateQueries()
+      onNewDay?.()
+    }
+    const t = setInterval(check, 20_000)
+    document.addEventListener('visibilitychange', check)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', check) }
+  }, [qc, couple, onNewDay])
+}

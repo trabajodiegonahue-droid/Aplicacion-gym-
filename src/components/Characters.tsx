@@ -6,6 +6,7 @@ import { colorFor, levelFromXp, STAGES, stageForLevel, useLevels, type BuddyColo
 import type { MemberDay, Rules } from '../lib/types'
 import { type Mood } from './Buddy'
 import { Character } from './Character'
+import { Mascot, MASCOTS } from './Mascot'
 import type { Profile } from '../lib/types'
 import { ProgressBar, cx } from './ui'
 import { CONDITION_LABEL, dayProgress } from './Today'
@@ -114,7 +115,7 @@ export function EvolutionPath({ xp, color, name, profile }: { xp: number; color:
 export function LevelUpWatcher() {
   const { uid, partner, profile } = useAuth()
   const levels = useLevels().data
-  const [show, setShow] = useState<{ level: number; stage: number; evolved: boolean } | null>(null)
+  const [show, setShow] = useState<{ level: number; stage: number; evolved: boolean; unlocked: (typeof MASCOTS)[number] | null } | null>(null)
   useEffect(() => {
     if (!uid || !levels) return
     const me = levels.find(l => l.user_id === uid)
@@ -125,7 +126,8 @@ export function LevelUpWatcher() {
     try { const v = localStorage.getItem(key); prev = v ? Number(v) : null; localStorage.setItem(key, String(level)) } catch { /* sin almacenamiento */ }
     if (prev !== null && level > prev) {
       const evolved = stageForLevel(level) > stageForLevel(prev)
-      setShow({ level, stage: stageForLevel(level), evolved })
+      const unlocked = MASCOTS.find(m => m.level > prev! && m.level <= level) ?? null
+      setShow({ level, stage: stageForLevel(level), evolved, unlocked })
       celebrate(['⭐', '🔥', '✨', '💪'])
     }
   }, [levels, uid])
@@ -136,10 +138,11 @@ export function LevelUpWatcher() {
       <div className="relative w-full max-w-[320px] overflow-hidden rounded-[28px] bg-white p-6 text-center shadow-2xl animate-pop dark:bg-noche-800">
         <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-orange-100 to-transparent dark:from-noche-700" />
         <div className="relative">
-          <p className="text-[13px] font-bold uppercase tracking-[.1em] text-fuego-500">{show.evolved ? '¡Evolución!' : '¡Subiste de nivel!'}</p>
-          <div className="my-2 flex justify-center"><Character profile={profile} stage={show.stage} color={colorFor(uid, partner?.id)} mood="happy" size={130} /></div>
+          <p className="text-[13px] font-bold uppercase tracking-[.1em] text-fuego-500">{show.unlocked ? '¡Nuevo personaje!' : show.evolved ? '¡Evolución!' : '¡Subiste de nivel!'}</p>
+          <div className="my-2 flex justify-center">{show.unlocked ? <Mascot species={show.unlocked.species} stage={show.stage} mood="happy" size={130} /> : <Character profile={profile} stage={show.stage} color={colorFor(uid, partner?.id)} mood="happy" size={130} />}</div>
           <p className="tabular text-[44px] font-bold leading-none tracking-tight">Nivel {show.level}</p>
-          <p className="muted mt-2 text-[14px]">{show.evolved ? `¡Nueva etapa: ${STAGES[show.stage].name}! Desbloqueaste un accesorio nuevo.` : '¡Sigue así! Cada día suma experiencia.'}</p>
+          {show.unlocked && <p className="mt-2 text-[15px] font-bold">Desbloqueaste a {show.unlocked.name}</p>}
+          <p className="muted mt-2 text-[14px]">{show.unlocked ? `${show.unlocked.text} Elígelo en Perfil → Mi personaje.` : show.evolved ? `¡Nueva etapa: ${STAGES[show.stage].name}! Desbloqueaste un accesorio nuevo.` : '¡Sigue así! Cada día suma experiencia.'}</p>
           <button className="btn-ember mt-5 w-full" onClick={() => setShow(null)}>¡Genial!</button>
         </div>
       </div>
