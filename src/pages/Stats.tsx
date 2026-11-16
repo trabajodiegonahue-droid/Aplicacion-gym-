@@ -59,9 +59,9 @@ export default function Stats() {
         <Segmented value={range} onChange={setRange} options={[{ value: 'dia', label: 'Hoy' }, { value: 'semana', label: 'Semana' }, { value: 'mes', label: 'Mes' }]} />
         {couple && (
           <div className="grid grid-cols-3 gap-2">
-            <Card className="text-center"><p className="text-3xl font-black text-fuego-600">{streak?.current_count ?? 0}</p><p className="muted text-xs">racha actual</p></Card>
-            <Card className="text-center"><p className="text-3xl font-black text-fuego-600">{streak?.best_count ?? 0}</p><p className="muted text-xs">récord</p></Card>
-            <Card className="text-center"><p className="text-3xl font-black text-fuego-600">{goalsDone}</p><p className="muted text-xs">metas cumplidas</p></Card>
+            <Card className="text-center"><p className="tabular text-3xl font-semibold">{streak?.current_count ?? 0}</p><p className="muted text-xs">racha actual</p></Card>
+            <Card className="text-center"><p className="tabular text-3xl font-semibold">{streak?.best_count ?? 0}</p><p className="muted text-xs">récord</p></Card>
+            <Card className="text-center"><p className="tabular text-3xl font-semibold">{goalsDone}</p><p className="muted text-xs">metas cumplidas</p></Card>
           </div>
         )}
         {stats.isLoading ? <Loading /> : (
@@ -71,10 +71,10 @@ export default function Stats() {
               const a = m.num(me), b = m.num(pa)
               return (
                 <div key={m.label} className="grid grid-cols-[1fr_80px_80px] items-center border-t border-fuego-100 py-2.5 dark:border-noche-700">
-                  <span className="flex items-center gap-2 text-sm"><m.icon className="size-4 text-fuego-500" />{m.label}</span>
+                  <span className="flex items-center gap-2 text-sm"><m.icon className="size-4 text-ember" />{m.label}</span>
                   <span className="text-center font-bold">{m.val(me)}</span>
                   {partner && <span className="text-center font-bold">{m.val(pa)}</span>}
-                  {partner && (a + b) > 0 && <div className="col-span-3 mt-1 flex h-2 overflow-hidden rounded-full bg-fuego-100 dark:bg-noche-700"><div className="bg-fuego-500" style={{ width: `${(a / (a + b)) * 100}%` }} /><div className="bg-rosa-400" style={{ width: `${(b / (a + b)) * 100}%` }} /></div>}
+                  {partner && (a + b) > 0 && <div className="col-span-3 mt-1 flex h-2 overflow-hidden rounded-full bg-fuego-100 dark:bg-noche-700"><div className="bg-ink dark:bg-white" style={{ width: `${(a / (a + b)) * 100}%` }} /><div className="bg-ember" style={{ width: `${(b / (a + b)) * 100}%` }} /></div>}
                 </div>
               )
             })}
@@ -93,8 +93,8 @@ export default function Stats() {
               <div className="h-52"><ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chart} margin={{ left: -24, right: 4 }}>
                   <XAxis dataKey="day" tick={{ fontSize: 10 }} interval={range === 'mes' ? 4 : 0} /><YAxis tick={{ fontSize: 10 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="Tú" fill="#ef233c" radius={[4, 4, 0, 0]} />
-                  {partner && <Bar dataKey={pName} fill="#ff4d8d" radius={[4, 4, 0, 0]} />}
+                  <Bar dataKey="Tú" fill="#17130f" radius={[4, 4, 0, 0]} />
+                  {partner && <Bar dataKey={pName} fill="#e11d48" radius={[4, 4, 0, 0]} />}
                 </BarChart>
               </ResponsiveContainer></div>
             </Card>
@@ -103,8 +103,8 @@ export default function Stats() {
               <div className="h-52"><ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chart} margin={{ left: -24, right: 4 }}>
                   <XAxis dataKey="day" tick={{ fontSize: 10 }} interval={range === 'mes' ? 4 : 0} /><YAxis tick={{ fontSize: 10 }} /><Tooltip />
-                  <Bar dataKey="aguaTú" name="Tú" fill="#ef233c" radius={[4, 4, 0, 0]} />
-                  {partner && <Bar dataKey={`agua${pName}`} name={pName} fill="#ff4d8d" radius={[4, 4, 0, 0]} />}
+                  <Bar dataKey="aguaTú" name="Tú" fill="#17130f" radius={[4, 4, 0, 0]} />
+                  {partner && <Bar dataKey={`agua${pName}`} name={pName} fill="#e11d48" radius={[4, 4, 0, 0]} />}
                 </BarChart>
               </ResponsiveContainer></div>
             </Card>

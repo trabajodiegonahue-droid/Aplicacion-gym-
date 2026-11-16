@@ -1,31 +1,31 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, Circle, Moon, Timer, XCircle, Dumbbell, Droplets, Footprints, Activity, ListChecks, Plus } from 'lucide-react'
+import { CheckCircle2, Circle, Moon, Timer, XCircle, Dumbbell, Droplets, Footprints, Activity, ListChecks, Plus, Check, Bike, Waves, Trophy, Flower2, Zap, Sparkles, PersonStanding, GlassWater, Milk, Coffee, type LucideIcon } from 'lucide-react'
 import { supabase, must } from '../lib/supabase'
 import { useAuth } from '../context/AuthProvider'
 import { LOG_KEYS, useAction, useToday } from '../lib/queries'
 import type { ActivityKind, MemberDay, MemberStatus, Rules, WaterPreset } from '../lib/types'
 import { fmtLiters, fmtNum, localDateTimeToISO, nowTimeHHMM, toISODate } from '../lib/dates'
-import { Button, Field, Input, Segmented, Sheet, cx } from './ui'
+import { Button, Field, Input, Ring, Segmented, Sheet, cx } from './ui'
 import { Avatar } from './Avatar'
 import { celebrate } from './Celebration'
 
-export const STATUS: Record<MemberStatus | 'recovered', { label: string; cls: string; icon: typeof Circle }> = {
-  pending: { label: 'Pendiente', cls: 'bg-fuego-100 text-fuego-700 dark:bg-noche-700 dark:text-fuego-200', icon: Circle },
-  in_progress: { label: 'En progreso', cls: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200', icon: Timer },
-  completed: { label: 'Completado', cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200', icon: CheckCircle2 },
-  rest: { label: 'Descanso', cls: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200', icon: Moon },
-  missed: { label: 'No cumplido', cls: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300', icon: XCircle },
-  recovered: { label: 'Recuperado', cls: 'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-200', icon: CheckCircle2 },
+export const STATUS: Record<MemberStatus | 'recovered', { label: string; dot: string; icon: typeof Circle }> = {
+  pending: { label: 'Pendiente', dot: 'bg-fuego-300', icon: Circle },
+  in_progress: { label: 'En progreso', dot: 'bg-amber-400', icon: Timer },
+  completed: { label: 'Completado', dot: 'bg-emerald-500', icon: CheckCircle2 },
+  rest: { label: 'Descanso', dot: 'bg-sky-400', icon: Moon },
+  missed: { label: 'No cumplido', dot: 'bg-fuego-800/40', icon: XCircle },
+  recovered: { label: 'Recuperado', dot: 'bg-violet-400', icon: CheckCircle2 },
 }
 
 export function StatusChip({ status }: { status: MemberStatus | 'recovered' }) {
   const s = STATUS[status]
-  return <span className={cx('chip', s.cls)}><s.icon className="size-3.5" />{s.label}</span>
+  return <span className="chip"><span className={cx('size-1.5 rounded-full', s.dot)} />{s.label}</span>
 }
 
 export const CONDITION_LABEL: Record<string, string> = {
-  workout: 'Entrenamiento', activity: 'Actividad física', steps: 'Pasos', water: 'Agua', habits: 'Hábitos',
+  workout: 'Entreno', activity: 'Actividad', steps: 'Pasos', water: 'Agua', habits: 'Hábitos',
 }
 
 export function conditionText(r: Rules) {
@@ -39,26 +39,45 @@ export function conditionText(r: Rules) {
   return (r.require === 'any' && items.length > 1 ? 'Al menos una: ' : r.require === 'all' && items.length > 1 ? 'Todas: ' : '') + items.join(joiner)
 }
 
-/** Tarjeta con el estado de hoy de una persona. */
-export function MemberToday({ row, name, avatar, me }: { row?: MemberDay; name: string; avatar?: string | null; me?: boolean }) {
+/** Progreso del día (0..1) hacia lo que piden las reglas. */
+export function dayProgress(row?: MemberDay, rules?: Rules | null) {
+  if (!row) return 0
+  if (row.status === 'completed' || row.status === 'rest') return 1
+  if (!rules) return 0
+  const d = row.details
+  const f: Record<string, number> = {
+    workout: d.workouts >= 1 ? 1 : 0,
+    activity: Math.min(1, d.activity_minutes / Math.max(1, rules.min_activity_minutes)),
+    steps: Math.min(1, d.steps / Math.max(1, rules.min_steps)),
+    water: Math.min(1, d.water_ml / Math.max(1, rules.min_water_ml)),
+    habits: Math.min(1, d.habit_checks / Math.max(1, rules.min_habit_checks)),
+  }
+  const vals = (d.required ?? []).map(k => f[k] ?? 0)
+  if (!vals.length) return 0
+  return rules.require === 'any' ? Math.max(...vals) : vals.reduce((a, b) => a + b, 0) / vals.length
+}
+
+/** Anillo de progreso de una persona (estilo "anillos de actividad"). */
+export function PartnerRing({ row, rules, name, avatar, me, size = 112 }: { row?: MemberDay; rules?: Rules | null; name: string; avatar?: string | null; me?: boolean; size?: number }) {
   const st = row?.status ?? 'pending'
-  const d = row?.details
+  const p = dayProgress(row, rules)
+  const color = st === 'completed' ? '#10b981' : st === 'rest' ? '#38bdf8' : '#e11d48'
   const icons: Record<string, typeof Dumbbell> = { workout: Dumbbell, activity: Activity, steps: Footprints, water: Droplets, habits: ListChecks }
   return (
-    <div className={cx('flex-1 rounded-2xl p-3 transition', st === 'completed' ? 'bg-emerald-50 ring-2 ring-emerald-300 dark:bg-emerald-950/40 dark:ring-emerald-800' : 'bg-fuego-50 dark:bg-noche-900')}>
-      <div className="flex items-center gap-2">
-        <Avatar path={avatar} name={name} size={36} />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold">{me ? 'Tú' : name}</p>
-          <StatusChip status={st} />
-        </div>
-      </div>
-      {d && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {d.required.map(k => {
+    <div className="flex flex-1 flex-col items-center text-center">
+      <Ring value={p} max={1} size={size} stroke={7} color={color}>
+        <Avatar path={avatar} name={name} size={size - 30} />
+        {st === 'completed' && <span className="absolute bottom-1 right-1 flex size-7 items-center justify-center rounded-full bg-emerald-500 text-white ring-[3px] ring-white dark:ring-noche-800"><Check className="size-4" strokeWidth={3} /></span>}
+        {st === 'rest' && <span className="absolute bottom-1 right-1 flex size-7 items-center justify-center rounded-full bg-sky-400 text-white ring-[3px] ring-white dark:ring-noche-800"><Moon className="size-3.5" strokeWidth={2.5} /></span>}
+      </Ring>
+      <p className="mt-2.5 text-[15px] font-semibold">{me ? 'Tú' : name}</p>
+      <p className="muted text-[12px]">{STATUS[st].label}{st !== 'completed' && st !== 'rest' && p > 0 ? ` · ${Math.round(p * 100)}%` : ''}</p>
+      {row?.details && (
+        <div className="mt-2 flex gap-1">
+          {row.details.required.map(k => {
             const I = icons[k] ?? Circle
-            const ok = d.met.includes(k)
-            return <span key={k} className={cx('chip', ok ? 'bg-emerald-500 text-white' : 'bg-white text-fuego-800/60 dark:bg-noche-800 dark:text-fuego-100/50')}><I className="size-3" />{CONDITION_LABEL[k]}</span>
+            const ok = row.details.met.includes(k)
+            return <span key={k} title={CONDITION_LABEL[k]} className={cx('flex size-6 items-center justify-center rounded-full', ok ? 'bg-emerald-500/12 text-emerald-600' : 'bg-fuego-100 text-fuego-800/45 dark:bg-noche-700 dark:text-white/35')}><I className="size-3.5" /></span>
           })}
         </div>
       )}
@@ -126,13 +145,14 @@ export function QuickWorkoutSheet({ open, onClose }: { open: boolean; onClose: (
   )
 }
 
-export const ACTIVITY_KINDS: { value: ActivityKind; label: string; emoji: string }[] = [
-  { value: 'caminata', label: 'Caminata', emoji: '🚶' }, { value: 'correr', label: 'Correr', emoji: '🏃' },
-  { value: 'bicicleta', label: 'Bicicleta', emoji: '🚴' }, { value: 'cardio', label: 'Cardio', emoji: '❤️‍🔥' },
-  { value: 'natacion', label: 'Natación', emoji: '🏊' }, { value: 'deporte', label: 'Deporte', emoji: '⚽' },
-  { value: 'yoga', label: 'Yoga / estiramiento', emoji: '🧘' }, { value: 'pasos', label: 'Solo pasos', emoji: '👣' },
-  { value: 'otro', label: 'Otro', emoji: '✨' },
+export const ACTIVITY_KINDS: { value: ActivityKind; label: string; icon: LucideIcon }[] = [
+  { value: 'caminata', label: 'Caminata', icon: PersonStanding }, { value: 'correr', label: 'Correr', icon: Zap },
+  { value: 'bicicleta', label: 'Bicicleta', icon: Bike }, { value: 'cardio', label: 'Cardio', icon: Activity },
+  { value: 'natacion', label: 'Natación', icon: Waves }, { value: 'deporte', label: 'Deporte', icon: Trophy },
+  { value: 'yoga', label: 'Yoga', icon: Flower2 }, { value: 'pasos', label: 'Pasos', icon: Footprints },
+  { value: 'otro', label: 'Otro', icon: Sparkles },
 ]
+export const presetIcon = (icon: string): LucideIcon => icon === 'bottle' ? Milk : icon === 'cup' ? Coffee : GlassWater
 
 export function ActivitySheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { uid } = useAuth()
@@ -155,8 +175,8 @@ export function ActivitySheet({ open, onClose }: { open: boolean; onClose: () =>
         <div className="grid grid-cols-3 gap-2">
           {ACTIVITY_KINDS.map(k => (
             <button type="button" key={k.value} onClick={() => setKind(k.value)}
-              className={cx('flex min-h-16 flex-col items-center justify-center rounded-2xl text-xs font-semibold transition', kind === k.value ? 'bg-gradient-to-br from-fuego-500 to-rosa-400 text-white' : 'bg-white dark:bg-noche-800')}>
-              <span className="text-xl">{k.emoji}</span>{k.label}
+              className={cx('flex min-h-[68px] flex-col items-center justify-center gap-1.5 rounded-2xl text-[12px] font-medium transition', kind === k.value ? 'bg-ink text-white dark:bg-white dark:text-ink' : 'bg-white ring-1 ring-black/[.05] dark:bg-noche-800')}>
+              <k.icon className="size-5" strokeWidth={1.8} />{k.label}
             </button>
           ))}
         </div>
@@ -187,9 +207,9 @@ export function WaterSheet({ open, onClose }: { open: boolean; onClose: () => vo
       <div className="mt-3 grid grid-cols-3 gap-2">
         {presets.map(p => (
           <button key={p.id} onClick={() => add.mutate({ ml: sign === 'add' ? p.amount_ml : -p.amount_ml, label: p.label })}
-            className="flex min-h-20 flex-col items-center justify-center rounded-2xl bg-white text-sm font-semibold active:scale-95 dark:bg-noche-800">
-            <span className="text-2xl">{p.icon === 'bottle' ? '🍶' : p.icon === 'cup' ? '☕' : '🥛'}</span>
-            {p.label}<span className="muted text-xs">{p.amount_ml} ml</span>
+            className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl bg-white text-[13px] font-medium ring-1 ring-black/[.05] active:scale-95 dark:bg-noche-800">
+            {(() => { const I = presetIcon(p.icon); return <I className="size-5 text-sky-500" strokeWidth={1.8} /> })()}
+            {p.label}<span className="muted text-[11px]">{p.amount_ml} ml</span>
           </button>
         ))}
       </div>

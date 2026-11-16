@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Star, Trash2, Pencil, Play, Dumbbell, Timer, Trophy, ChevronDown, ChevronUp, X, Copy } from 'lucide-react'
+import { Plus, Star, Trash2, Pencil, Play, Dumbbell, Timer, Trophy, ChevronDown, ChevronUp, X, Copy, Check } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { supabase, must } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthProvider'
@@ -68,7 +68,7 @@ function StartTab({ onStart }: { onStart: (r?: Routine) => void }) {
   const suggested = routines.filter(r => r.weekdays.includes(todayWd))
   return (
     <div className="space-y-3">
-      <Button className="w-full min-h-14 text-lg" onClick={() => onStart()}><Play className="size-5" />Entrenamiento libre</Button>
+      <Button variant="ember" className="w-full min-h-14 text-[16px]" onClick={() => onStart()}><Play className="size-5" />Empezar entrenamiento libre</Button>
       {suggested.length > 0 && <p className="px-1 pt-2 font-bold">Para hoy ({WEEKDAYS[todayWd]})</p>}
       {suggested.map(r => <RoutineCard key={r.id} r={r} onStart={onStart} />)}
       <p className="px-1 pt-2 font-bold">Tus rutinas</p>
@@ -85,12 +85,12 @@ function RoutineCard({ r, onStart, onEdit }: { r: Routine; onStart: (r: Routine)
   return (
     <Card>
       <div className="flex items-start gap-3">
-        <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-fuego-500 to-rosa-400 text-white"><Dumbbell /></div>
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-fuego-100 text-ink dark:bg-noche-700 dark:text-white"><Dumbbell className="size-5" strokeWidth={1.8} /></div>
         <div className="min-w-0 flex-1">
           <p className="truncate font-bold">{r.name}</p>
           <p className="muted text-xs">{r.routine_exercises?.length ?? 0} ejercicios{r.weekdays.length ? ` · ${r.weekdays.map(d => WEEKDAYS[d]).join(', ')}` : ''}</p>
         </div>
-        <button onClick={() => fav.mutate()} aria-label="Favorita" className="p-2"><Star className={cx('size-5', r.is_favorite ? 'fill-amber-400 text-amber-400' : 'text-fuego-300')} /></button>
+        <button onClick={() => fav.mutate()} aria-label="Favorita" className="p-2"><Star className={cx('size-5', r.is_favorite ? 'fill-ember text-ember' : 'text-fuego-300')} strokeWidth={1.8} /></button>
       </div>
       <div className="mt-3 flex gap-2">
         <Button className="min-h-10 flex-1 text-sm" onClick={() => onStart(r)}><Play className="size-4" />Empezar</Button>
@@ -192,7 +192,7 @@ function ExercisePicker({ open, onClose, onPick }: { open: boolean; onClose: () 
         {MUSCLES.map(m => {
           const xs = list.filter(e => e.muscle_group === m.value)
           if (!xs.length) return null
-          return <div key={m.value}><p className="muted mb-1 text-xs font-bold uppercase">{m.emoji} {m.label}</p>
+          return <div key={m.value}><p className="eyebrow mb-1.5">{m.label}</p>
             <div className="space-y-1">{xs.map(e => <button key={e.id} onClick={() => onPick(e)} className="w-full rounded-xl bg-white px-4 py-3 text-left font-semibold dark:bg-noche-800">{e.name}</button>)}</div></div>
         })}
         {list.length === 0 && <p className="muted text-center text-sm">No hay ejercicios{q ? ' con ese nombre' : ''}.</p>}
@@ -222,7 +222,7 @@ function ExerciseEditor({ exercise, initialName, onClose, onSaved }: { exercise?
           <p className="label">Grupo muscular</p>
           <div className="grid grid-cols-3 gap-1.5">
             {MUSCLES.map(m => <button type="button" key={m.value} onClick={() => setGroup(m.value)}
-              className={cx('min-h-11 rounded-xl text-sm font-semibold', group === m.value ? 'bg-fuego-500 text-white' : 'bg-white dark:bg-noche-800')}>{m.emoji} {m.label}</button>)}
+              className={cx('min-h-11 rounded-xl text-sm font-semibold', group === m.value ? 'bg-ink text-white dark:bg-white dark:text-ink' : 'bg-white ring-1 ring-black/[.05] dark:bg-noche-800')}>{m.label}</button>)}
           </div>
         </div>
         <Field label="Notas / técnica"><Input maxLength={500} value={notes} onChange={e => setNotes(e.target.value)} /></Field>
@@ -249,7 +249,7 @@ function ExercisesTab() {
         if (!xs.length) return null
         return (
           <Card key={m.value}>
-            <p className="mb-2 font-bold">{m.emoji} {m.label}</p>
+            <p className="eyebrow mb-1">{m.label}</p>
             <ul className="divide-y divide-fuego-100 dark:divide-noche-700">
               {xs.map(e => (
                 <li key={e.id} className="flex items-center gap-2 py-2">
@@ -337,9 +337,9 @@ function WorkoutLogger({ routine, workout, onClose }: { routine?: Routine; worko
           <Field label="Minutos"><Input type="number" inputMode="numeric" min={0} placeholder="auto" value={duration} onChange={e => setDuration(e.target.value)} /></Field>
         </div>
         {rest !== null && (
-          <div className="sticky top-0 z-10 flex items-center justify-between rounded-2xl bg-gradient-to-r from-fuego-500 to-rosa-400 px-4 py-3 text-white shadow-lg">
+          <div className="sticky top-0 z-10 flex items-center justify-between rounded-2xl bg-ink px-4 py-3 text-white shadow-lg dark:bg-white dark:text-ink">
             <span className="flex items-center gap-2 font-bold"><Timer className="size-5" />Descanso</span>
-            <span className="font-mono text-2xl font-black">{Math.floor(rest / 60)}:{String(rest % 60).padStart(2, '0')}</span>
+            <span className="tabular text-2xl font-semibold">{Math.floor(rest / 60)}:{String(rest % 60).padStart(2, '0')}</span>
             <button onClick={() => setRest(null)} className="rounded-full bg-white/25 px-3 py-1 text-sm font-semibold">Saltar</button>
           </div>
         )}
@@ -363,7 +363,7 @@ function WorkoutLogger({ routine, workout, onClose }: { routine?: Routine; worko
                         <input key={k} className="input min-h-10 px-2 py-1 text-center" type="number" inputMode="decimal" min={0} step={k === 'weight_kg' ? 0.5 : 1} value={s[k]} onChange={e => updSet(i, j, { [k]: e.target.value })} />
                       ))}
                       <button onClick={() => { updSet(i, j, { done: !s.done }); if (!s.done && s.rest_sec) setRest(Number(s.rest_sec)) }}
-                        className={cx('flex size-10 items-center justify-center rounded-xl text-lg', s.done ? 'bg-emerald-500 text-white' : 'bg-fuego-100 dark:bg-noche-700')} aria-label="Serie hecha">✓</button>
+                        className={cx('flex size-10 items-center justify-center rounded-xl', s.done ? 'bg-emerald-500 text-white' : 'bg-fuego-100 text-fuego-800/40 dark:bg-noche-700')} aria-label="Serie hecha"><Check className="size-4" strokeWidth={3} /></button>
                     </div>
                   ))}
                   <div className="flex gap-2 pt-1">
@@ -405,7 +405,7 @@ function HistoryTab({ onEdit }: { onEdit: (w: Workout) => void }) {
         return (
           <Card key={w.id} onClick={() => onEdit(w)}>
             <div className="flex items-start justify-between gap-2">
-              <div><p className="font-bold">{w.title}</p><p className="muted text-xs capitalize">{fmtDay(w.local_day)} · {w.duration_min ?? '—'} min</p></div>
+              <div><p className="font-bold">{w.title}</p><p className="muted text-xs first-letter:uppercase">{fmtDay(w.local_day)} · {w.duration_min ?? '—'} min</p></div>
               <Pencil className="size-4 text-fuego-400" />
             </div>
             {sets.length > 0 && <p className="mt-2 text-sm">{sets.length} series · {Math.round(volume).toLocaleString('es')} kg de volumen</p>}
@@ -460,23 +460,23 @@ function ProgressTab() {
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={series} margin={{ left: -20, right: 8, top: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffc2d1" strokeOpacity={0.5} />
+              <CartesianGrid vertical={false} stroke="#e7e5e2" />
               <XAxis dataKey="day" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Line type="monotone" dataKey="kg" stroke="#ef233c" strokeWidth={3} dot={{ r: 4, fill: '#ff4d8d' }} />
+              <Line type="monotone" dataKey="kg" stroke="#e11d48" strokeWidth={2.5} dot={{ r: 3, fill: '#e11d48', strokeWidth: 0 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </Card>
-      <p className="px-1 pt-2 font-bold"><Trophy className="mr-1 inline size-4 text-amber-500" />Récords personales</p>
+      <p className="eyebrow px-1 pt-4"><Trophy className="mr-1 inline size-3.5 -translate-y-px" />Récords personales</p>
       {[...records.entries()].map(([id, r]) => (
         <Card key={id} className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate font-bold">{exercises.find(e => e.id === id)?.name ?? 'Ejercicio'}</p>
             <p className="muted text-xs">1RM estimado {r.best1rm.toFixed(1)} kg · máx. {r.maxReps} reps · volumen total {Math.round(r.vol).toLocaleString('es')} kg</p>
           </div>
-          <div className="text-right"><p className="text-xl font-black text-fuego-600">{r.maxW} kg</p>{r.maxWDay && <p className="muted text-[11px]">{fmtShort(r.maxWDay)}</p>}</div>
+          <div className="text-right"><p className="tabular text-xl font-semibold">{r.maxW} kg</p>{r.maxWDay && <p className="muted text-[11px]">{fmtShort(r.maxWDay)}</p>}</div>
         </Card>
       ))}
     </div>

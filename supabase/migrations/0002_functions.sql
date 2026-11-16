@@ -745,6 +745,42 @@ $$;
 drop trigger if exists tg_check on public.routine_exercises;
 create trigger tg_check before insert or update on public.routine_exercises for each row execute function private.tg_routine_ex_check();
 
+-- Los navegadores (ICU) a veces devuelven nombres antiguos de zona horaria.
+-- Se traducen al nombre actual; si no se reconoce, devuelve null.
+create or replace function private.normalize_tz(p_tz text)
+returns text language plpgsql stable set search_path = '' as $$
+declare
+  t text := case p_tz
+    when 'America/Buenos_Aires' then 'America/Argentina/Buenos_Aires'
+    when 'America/Cordoba' then 'America/Argentina/Cordoba'
+    when 'America/Catamarca' then 'America/Argentina/Catamarca'
+    when 'America/Jujuy' then 'America/Argentina/Jujuy'
+    when 'America/Mendoza' then 'America/Argentina/Mendoza'
+    when 'America/Indianapolis' then 'America/Indiana/Indianapolis'
+    when 'America/Louisville' then 'America/Kentucky/Louisville'
+    when 'Asia/Calcutta' then 'Asia/Kolkata'
+    when 'Asia/Saigon' then 'Asia/Ho_Chi_Minh'
+    when 'Asia/Katmandu' then 'Asia/Kathmandu'
+    when 'Asia/Rangoon' then 'Asia/Yangon'
+    when 'Europe/Kiev' then 'Europe/Kyiv'
+    when 'Atlantic/Faeroe' then 'Atlantic/Faroe'
+    when 'Pacific/Truk' then 'Pacific/Chuuk'
+    when 'Pacific/Ponape' then 'Pacific/Pohnpei'
+    else p_tz end;
+begin
+  if t is null then return null; end if;
+  perform now() at time zone t;
+  return t;
+exception when others then
+  begin
+    perform now() at time zone p_tz;  -- quizá el servidor sí conoce el nombre original
+    return p_tz;
+  exception when others then
+    return null;
+  end;
+end;
+$$;
+
 -- ---------------------------------------------------------------------
 -- Perfiles: creación automática y validaciones
 -- ---------------------------------------------------------------------
@@ -752,9 +788,8 @@ create or replace function private.tg_new_user()
 returns trigger language plpgsql security definer set search_path = '' as $$
 declare
   nm text := left(coalesce(nullif(trim(new.raw_user_meta_data->>'display_name'), ''), split_part(new.email, '@', 1), 'Sin nombre'), 40);
-  tz text := coalesce(new.raw_user_meta_data->>'timezone', 'UTC');
+  tz text := coalesce(private.normalize_tz(new.raw_user_meta_data->>'timezone'), 'UTC');
 begin
-  if not exists (select 1 from pg_catalog.pg_timezone_names where name = tz) then tz := 'UTC'; end if;
   insert into public.profiles(id, display_name, timezone) values (new.id, nm, tz) on conflict (id) do nothing;
   insert into public.water_presets(user_id, label, amount_ml, icon, position) values
     (new.id, 'Vaso', 250, 'glass', 0), (new.id, 'Botella', 500, 'bottle', 1), (new.id, 'Botella grande', 1000, 'bottle', 2);
@@ -769,9 +804,10 @@ create trigger on_auth_user_created after insert on auth.users for each row exec
 create or replace function private.tg_profile_before()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
-  if not exists (select 1 from pg_catalog.pg_timezone_names where name = new.timezone) then
+  if private.normalize_tz(new.timezone) is null then
     raise exception 'Zona horaria no válida: %', new.timezone;
   end if;
+  new.timezone := private.normalize_tz(new.timezone);
   new.id := old.id;
   new.created_at := old.created_at;
   new.updated_at := now();

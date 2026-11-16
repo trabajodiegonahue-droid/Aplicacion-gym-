@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Trash2, Pencil, Check, Droplets, Archive, Target, Trophy, Users, User } from 'lucide-react'
+import { Plus, Trash2, Pencil, Check, Droplets, Archive, Target, Users, User } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { supabase, must } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthProvider'
@@ -10,7 +10,7 @@ import type { ActivityLog, Badge, Category, Challenge, Goal, Habit, HabitLog, Me
 import { addDays, fmtDay, fmtLiters, fmtNum, fmtShort, fmtTime, startOfWeek } from '../../lib/dates'
 import { Button, Card, Empty, Field, Input, Loading, ProgressBar, Ring, Segmented, Sheet, cx, useUi } from '../../components/ui'
 import { PageHeader } from '../../components/AppShell'
-import { ACTIVITY_KINDS, ActivitySheet, useAddWater, useWaterPresets, useWaterToday } from '../../components/Today'
+import { ACTIVITY_KINDS, ActivitySheet, presetIcon, useAddWater, useWaterPresets, useWaterToday } from '../../components/Today'
 import { celebrate } from '../../components/Celebration'
 
 type Tab = 'hoy' | 'agua' | 'actividad' | 'metas' | 'retos'
@@ -73,7 +73,7 @@ function HabitsTab() {
     <div className="space-y-3">
       {active.length > 0 && (
         <Card className="flex items-center gap-4">
-          <Ring value={doneToday} max={active.length} size={72} stroke={8}><span className="text-lg font-black">{doneToday}/{active.length}</span></Ring>
+          <Ring value={doneToday} max={active.length} size={72} stroke={8}><span className="text-lg font-bold">{doneToday}/{active.length}</span></Ring>
           <div><p className="font-bold">{doneToday === active.length ? '¡Todo listo por hoy! ✨' : 'Sigue así'}</p><p className="muted text-sm">Toca un hábito para marcarlo.</p></div>
         </Card>
       )}
@@ -91,7 +91,7 @@ function HabitsTab() {
             <div className="min-w-0 flex-1" onClick={() => setEdit(h)}>
               <p className={cx('truncate font-bold', done && 'line-through opacity-60')}>{h.name}</p>
               <p className="muted text-xs">
-                {c && <span style={{ color: c.color }}>{c.emoji} {c.name} · </span>}
+                {c && <span><span className="mr-1 inline-block size-1.5 -translate-y-px rounded-full" style={{ background: c.color }} />{c.name} · </span>}
                 {h.frequency === 'daily' ? 'Diario' : `${weekCount}/${h.times_per_week} esta semana`}
                 {h.reminder_time ? ` · ⏰ ${h.reminder_time.slice(0, 5)}` : ''}
               </p>
@@ -228,9 +228,9 @@ function WaterTab() {
   return (
     <div className="space-y-3">
       <Card className="flex flex-col items-center py-6">
-        <Ring value={total} max={goal} size={180} stroke={16} color="#ff4d8d">
-          <Droplets className="size-7 text-rosa-400" />
-          <span className="text-3xl font-black">{fmtLiters(total)}</span>
+        <Ring value={total} max={goal} size={180} stroke={12} color="#0ea5e9">
+          <Droplets className="size-6 text-sky-500" strokeWidth={1.8} />
+          <span className="tabular text-3xl font-semibold tracking-tight">{fmtLiters(total)}</span>
           <span className="muted text-sm">de {fmtLiters(goal)} · {pct}%</span>
         </Ring>
         <button className="mt-3 text-sm font-semibold text-fuego-600" onClick={() => setGoalEdit(true)}>Cambiar meta diaria</button>
@@ -239,7 +239,7 @@ function WaterTab() {
         {presets.map(p => (
           <button key={p.id} onClick={() => add.mutate({ ml: p.amount_ml, label: p.label }, { onSuccess: () => { if (total < goal && total + p.amount_ml >= goal) celebrate(['💧', '💦', '✨']) } })}
             className="card flex min-h-20 flex-col items-center justify-center p-2 text-sm font-bold active:scale-95">
-            <span className="text-2xl">{p.icon === 'bottle' ? '🍶' : p.icon === 'cup' ? '☕' : '🥛'}</span>{p.label}<span className="muted text-xs">+{p.amount_ml} ml</span>
+            {(() => { const I = presetIcon(p.icon); return <I className="size-5 text-sky-500" strokeWidth={1.8} /> })()}<span className="mt-1">{p.label}</span><span className="muted text-xs">+{p.amount_ml} ml</span>
           </button>
         ))}
       </div>
@@ -273,8 +273,8 @@ function WaterTab() {
               <XAxis dataKey="day" tick={{ fontSize: 10 }} interval={range === '30' ? 4 : 0} />
               <YAxis tick={{ fontSize: 10 }} />
               <Tooltip formatter={v => `${v} L`} />
-              <ReferenceLine y={goal / 1000} stroke="#ef233c" strokeDasharray="4 4" />
-              <Bar dataKey="litros" fill="#ff4d8d" radius={[6, 6, 0, 0]} />
+              <ReferenceLine y={goal / 1000} stroke="#a8a29e" strokeDasharray="3 3" />
+              <Bar dataKey="litros" fill="#0ea5e9" radius={[5, 5, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -346,8 +346,8 @@ function ActivityTab() {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <Card className="flex flex-col items-center"><Ring value={tMin} max={profile?.activity_goal_min || 30} size={110} color="#ef233c"><span className="text-2xl font-black">{tMin}</span><span className="muted text-xs">/ {profile?.activity_goal_min} min</span></Ring></Card>
-        <Card className="flex flex-col items-center"><Ring value={tSteps} max={profile?.steps_goal || 8000} size={110} color="#ff4d8d"><span className="text-xl font-black">{fmtNum(tSteps)}</span><span className="muted text-xs">/ {fmtNum(profile?.steps_goal ?? 0)} pasos</span></Ring></Card>
+        <Card className="flex flex-col items-center"><Ring value={tMin} max={profile?.activity_goal_min || 30} size={110} color="#e11d48"><span className="tabular text-2xl font-semibold">{tMin}</span><span className="muted text-xs">/ {profile?.activity_goal_min} min</span></Ring></Card>
+        <Card className="flex flex-col items-center"><Ring value={tSteps} max={profile?.steps_goal || 8000} size={110} color="#0ea5e9"><span className="tabular text-xl font-semibold">{fmtNum(tSteps)}</span><span className="muted text-xs">/ {fmtNum(profile?.steps_goal ?? 0)} pasos</span></Ring></Card>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <Button onClick={() => setSheet(true)}><Plus className="size-4" />Registrar</Button>
@@ -360,8 +360,8 @@ function ActivityTab() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chart} margin={{ left: -24, right: 4 }}>
               <XAxis dataKey="day" tick={{ fontSize: 10 }} interval={1} /><YAxis tick={{ fontSize: 10 }} /><Tooltip />
-              <ReferenceLine y={profile?.activity_goal_min} stroke="#ef233c" strokeDasharray="4 4" />
-              <Bar dataKey="min" fill="#ef233c" radius={[6, 6, 0, 0]} />
+              <ReferenceLine y={profile?.activity_goal_min} stroke="#a8a29e" strokeDasharray="3 3" />
+              <Bar dataKey="min" fill="#e11d48" radius={[5, 5, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -370,10 +370,10 @@ function ActivityTab() {
         const k = ACTIVITY_KINDS.find(x => x.value === a.kind)
         return (
           <Card key={a.id} className="flex items-center gap-3">
-            <span className="text-3xl">{k?.emoji}</span>
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-fuego-100 dark:bg-noche-700">{k && <k.icon className="size-5" strokeWidth={1.8} />}</span>
             <div className="min-w-0 flex-1">
               <p className="font-bold">{k?.label}</p>
-              <p className="muted text-xs capitalize">{fmtDay(a.local_day)} · {a.minutes} min{a.steps ? ` · ${fmtNum(a.steps)} pasos` : ''}{a.distance_km ? ` · ${a.distance_km} km` : ''}</p>
+              <p className="muted text-xs first-letter:uppercase">{fmtDay(a.local_day)} · {a.minutes} min{a.steps ? ` · ${fmtNum(a.steps)} pasos` : ''}{a.distance_km ? ` · ${a.distance_km} km` : ''}</p>
               {a.notes && <p className="muted text-xs italic">{a.notes}</p>}
             </div>
             <button className="p-2 text-red-500" aria-label="Eliminar" onClick={async () => { if (await confirm({ title: '¿Eliminar esta actividad?', danger: true, confirm: 'Eliminar' })) del.mutate(a.id) }}><Trash2 className="size-4" /></button>
@@ -455,7 +455,7 @@ function GoalsTab() {
               <div className="flex flex-wrap gap-1">
                 <span className="chip bg-fuego-100 text-fuego-700 dark:bg-noche-700 dark:text-fuego-100">{g.couple_id ? '💞 En pareja' : 'Personal'}</span>
                 <span className="chip bg-fuego-50 text-fuego-700 dark:bg-noche-900 dark:text-fuego-200">{FREQ[g.frequency]}</span>
-                {g.category_label && <span className="chip bg-rosa-400/15 text-rosa-500">{g.category_label}</span>}
+                {g.category_label && <span className="chip bg-blush text-ember">{g.category_label}</span>}
                 {g.status !== 'active' && <span className="chip bg-zinc-200 text-zinc-700">{g.status === 'paused' ? 'Pausada' : g.status === 'completed' ? 'Cumplida ✅' : 'Archivada'}</span>}
               </div>
               <p className="mt-1 font-bold">{g.name}</p>
@@ -527,7 +527,7 @@ function ChallengeCard({ c }: { c: Challenge }) {
   return (
     <Card>
       <div className="flex items-start gap-3">
-        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-fuego-100 to-rosa-400/20 text-3xl">{c.badge}</span>
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-fuego-100 text-2xl dark:bg-noche-700">{c.badge}</span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap gap-1">
             <span className="chip bg-fuego-100 text-fuego-700 dark:bg-noche-700 dark:text-fuego-100">{c.couple_id ? (c.mode === 'together' ? '💞 Juntos (suma)' : '💞 Cada uno') : 'Personal'}</span>
@@ -535,7 +535,7 @@ function ChallengeCard({ c }: { c: Challenge }) {
           </div>
           <p className="mt-1 font-bold">{c.name}</p>
           <p className="muted text-xs">{fmtShort(c.start_date)} → {fmtShort(c.end_date)} · objetivo {fmtNum(Number(c.target))} {unit}{c.consecutive ? ' seguidos' : ''}</p>
-          {c.reward && <p className="mt-1 text-xs font-semibold text-rosa-500">🎁 {c.reward}</p>}
+          {c.reward && <p className="mt-1 text-xs font-semibold text-ember">🎁 {c.reward}</p>}
         </div>
       </div>
       <div className="mt-3 space-y-2">
@@ -565,11 +565,11 @@ function ChallengesTab() {
       </div>
       {badges.length > 0 && (
         <Card>
-          <p className="mb-2 font-bold"><Trophy className="mr-1 inline size-4 text-amber-500" />Insignias</p>
+          <p className="eyebrow mb-3">Insignias</p>
           <div className="no-scrollbar flex gap-3 overflow-x-auto">
             {badges.map(b => (
               <div key={b.id} className="flex w-20 shrink-0 flex-col items-center text-center">
-                <span className="flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-200 to-fuego-200 text-3xl shadow">{b.badge}</span>
+                <span className="flex size-14 items-center justify-center rounded-full bg-blush text-2xl ring-1 ring-ember/20 dark:bg-noche-700">{b.badge}</span>
                 <span className="mt-1 line-clamp-2 text-[11px] font-semibold">{b.title}</span>
                 <span className="muted text-[10px]">{b.user_id === uid ? 'Tú' : partner?.display_name}</span>
               </div>

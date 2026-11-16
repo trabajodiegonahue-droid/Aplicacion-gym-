@@ -57,11 +57,11 @@ export default function LinkPartner() {
       <PageHeader title="Vincular pareja" subtitle="Un código, dos cuentas, una sola racha" />
       <div className="space-y-4 px-4">
         <Card>
-          <div className="flex items-center gap-3"><HeartHandshake className="size-7 text-fuego-500" /><h2 className="text-lg font-bold">Opción 1: invita a tu pareja</h2></div>
+          <div className="flex items-center gap-3"><HeartHandshake className="size-7 text-ember" /><h2 className="text-lg font-bold">Opción 1: invita a tu pareja</h2></div>
           <p className="muted mt-1 text-sm">Genera un código y envíaselo. Es válido 7 días y solo sirve una vez.</p>
           {inv ? (
             <div className="mt-4 text-center">
-              <div className="rounded-2xl bg-fuego-100 py-5 font-mono text-4xl font-black tracking-[0.3em] text-fuego-700 dark:bg-noche-700 dark:text-fuego-100">{inv.code}</div>
+              <div data-testid="invite-code" className="tabular rounded-2xl bg-fuego-100 py-6 font-mono text-[34px] font-semibold tracking-[0.32em] text-ink dark:bg-noche-700 dark:text-white">{inv.code}</div>
               <p className="muted mt-2 text-xs">Expira el {new Date(inv.expires_at).toLocaleDateString('es')}. Esta pantalla se actualizará sola cuando tu pareja lo use.</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <Button variant="soft" onClick={async () => { await navigator.clipboard?.writeText(inv.code); toast('Código copiado') }}><Copy className="size-4" />Copiar</Button>
@@ -75,7 +75,7 @@ export default function LinkPartner() {
         </Card>
 
         <Card>
-          <div className="flex items-center gap-3"><KeyRound className="size-7 text-rosa-500" /><h2 className="text-lg font-bold">Opción 2: tengo un código</h2></div>
+          <div className="flex items-center gap-3"><KeyRound className="size-7 text-ember" /><h2 className="text-lg font-bold">Opción 2: tengo un código</h2></div>
           <form className="mt-3 space-y-3" onSubmit={e => { e.preventDefault(); if (code.trim().length >= 6) accept.mutate(code) }}>
             <Field label="Código de tu pareja">
               <Input value={code} onChange={e => setCode(e.target.value.toUpperCase())} maxLength={6} autoCapitalize="characters" autoCorrect="off"

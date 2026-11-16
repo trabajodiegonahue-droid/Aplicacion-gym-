@@ -70,7 +70,7 @@ export default function Profile() {
             <input type="file" accept="image/*" className="hidden" onChange={e => onAvatar(e.target.files?.[0])} />
           </label>
           <div className="min-w-0">
-            <p className="truncate text-xl font-extrabold">{profile.display_name}</p>
+            <p className="truncate text-xl font-bold">{profile.display_name}</p>
             <p className="muted text-sm">{couple ? `Vinculado/a con ${partner?.display_name ?? 'tu pareja'} 💞` : 'Sin pareja vinculada'}</p>
           </div>
         </Card>
@@ -107,15 +107,15 @@ export default function Profile() {
             { icon: BarChart3, label: 'Estadísticas', to: '/estadisticas' },
           ].filter(x => !x.hide).map(x => (
             <button key={x.label} onClick={() => nav(x.to)} className="flex min-h-14 w-full items-center gap-3 px-4 text-left font-semibold">
-              <x.icon className="size-5 text-fuego-500" /><span className="flex-1">{x.label}</span><ChevronRight className="size-4 opacity-50" />
+              <x.icon className="size-5 text-ember" /><span className="flex-1">{x.label}</span><ChevronRight className="size-4 opacity-50" />
             </button>
           ))}
-          <button onClick={() => setPwd(true)} className="flex min-h-14 w-full items-center gap-3 px-4 text-left font-semibold"><KeyRound className="size-5 text-fuego-500" /><span className="flex-1">Cambiar contraseña</span><ChevronRight className="size-4 opacity-50" /></button>
+          <button onClick={() => setPwd(true)} className="flex min-h-14 w-full items-center gap-3 px-4 text-left font-semibold"><KeyRound className="size-5 text-ember" /><span className="flex-1">Cambiar contraseña</span><ChevronRight className="size-4 opacity-50" /></button>
         </Card>
 
         {!isStandalone() && (
           <Card>
-            <p className="flex items-center gap-2 font-bold"><Smartphone className="size-5 text-fuego-500" />Instalar en iPhone</p>
+            <p className="flex items-center gap-2 font-bold"><Smartphone className="size-5 text-ember" />Instalar en iPhone</p>
             <ol className="muted mt-2 list-decimal space-y-1 pl-5 text-sm">
               <li>Abre este enlace en <b>Safari</b>.</li>
               <li>Toca <Share className="inline size-4" /> <b>Compartir</b> (abajo en el centro).</li>
@@ -143,7 +143,7 @@ function PushCard() {
   return (
     <Card>
       <div className="flex items-center gap-3">
-        <BellRing className="size-6 text-fuego-500" />
+        <BellRing className="size-6 text-ember" />
         <div className="flex-1"><p className="font-bold">Notificaciones push</p><p className="muted text-xs">Avisos aunque la app esté cerrada.</p></div>
       </div>
       {support === 'ok' && on !== null && (

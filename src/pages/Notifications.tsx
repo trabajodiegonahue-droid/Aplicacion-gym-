@@ -28,7 +28,7 @@ export default function Notifications() {
         right={list.some(n => n.read_at) ? <Button variant="ghost" className="min-h-10 px-2 text-sm" onClick={() => clear.mutate()}><Trash2 className="size-4" /></Button> : undefined} />
       <div className="space-y-2 px-4">
         {q.isLoading ? <Loading /> : list.length === 0 ? <Empty icon="🔔" title="Sin notificaciones" text="Aquí verás avisos de tu pareja, la racha, recordatorios y propuestas." /> : list.map(n => (
-          <Card key={n.id} onClick={() => LINK[n.kind] && nav(LINK[n.kind])} className={cx(!n.read_at && 'ring-2 ring-fuego-300')}>
+          <Card key={n.id} onClick={() => LINK[n.kind] && nav(LINK[n.kind])} className={cx(!n.read_at && 'ring-1 ring-ember/30')}>
             <div className="flex items-start gap-2">
               {!n.read_at && <span className="mt-2 size-2 shrink-0 rounded-full bg-fuego-500" />}
               <div className="min-w-0 flex-1">

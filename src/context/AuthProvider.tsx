@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const apply = () => {
       const dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
       document.documentElement.classList.toggle('dark', dark)
-      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#17090d' : '#ef233c')
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0b0b0c' : '#fafaf9')
     }
     apply()
     const mq = window.matchMedia('(prefers-color-scheme: dark)')

@@ -84,7 +84,7 @@ function Chat() {
   return (
     <div className="flex flex-col">
       <div className="no-scrollbar -mx-4 mb-3 flex gap-2 overflow-x-auto px-4">
-        {MOTIVATION.map(m => <button key={m} onClick={() => send.mutate({ kind: 'motivation', body: m })} className="chip shrink-0 bg-white py-2 text-sm text-fuego-700 shadow-sm dark:bg-noche-800 dark:text-fuego-100">{m}</button>)}
+        {MOTIVATION.map(m => <button key={m} onClick={() => send.mutate({ kind: 'motivation', body: m })} className="chip shrink-0 bg-white py-2 text-[13px] ring-1 ring-black/[.05] dark:bg-noche-800">{m}</button>)}
       </div>
       {q.isLoading ? <Loading /> : msgs.length === 0 ? <Empty icon="💌" title="Escríbele algo bonito" text={`Los mensajes son privados entre tú y ${partner?.display_name ?? 'tu pareja'}.`} /> : (
         <div className="space-y-2">
@@ -93,14 +93,14 @@ function Chat() {
             const showDay = i === 0 || toISODate(new Date(msgs[i - 1].created_at)) !== toISODate(new Date(m.created_at))
             return (
               <div key={m.id}>
-                {showDay && <p className="muted my-3 text-center text-xs font-semibold capitalize">{fmtLongDay(toISODate(new Date(m.created_at)))}</p>}
+                {showDay && <p className="muted my-3 text-center text-xs font-semibold first-letter:uppercase">{fmtLongDay(toISODate(new Date(m.created_at)))}</p>}
                 <div className={cx('flex', mine ? 'justify-end' : 'justify-start')}>
                   <div onContextMenu={e => e.preventDefault()}
                     onDoubleClick={async () => { if (mine && await confirm({ title: '¿Eliminar mensaje?', danger: true, confirm: 'Eliminar' })) del.mutate(m) }}
-                    className={cx('max-w-[80%] rounded-3xl px-4 py-2.5 shadow-sm',
+                    className={cx('max-w-[80%] rounded-[20px] px-3.5 py-2 text-[15px]',
                       m.kind === 'heart' ? 'bg-transparent px-1 text-5xl shadow-none'
-                        : mine ? 'rounded-br-lg bg-gradient-to-br from-fuego-500 to-rosa-400 text-white' : 'rounded-bl-lg bg-white dark:bg-noche-800',
-                      m.kind === 'motivation' && !mine && 'ring-2 ring-rosa-400')}>
+                        : mine ? 'rounded-br-md bg-ink text-white dark:bg-white dark:text-ink' : 'rounded-bl-md bg-white ring-1 ring-black/[.05] dark:bg-noche-800',
+                      m.kind === 'motivation' && !mine && 'ring-1 ring-ember/40')}>
                     {m.kind === 'heart' ? <span className="inline-block animate-pop">❤️</span> : <>
                       {m.kind === 'motivation' && <Sparkles className="mb-0.5 inline size-3.5" />} {m.body}
                       {m.image_path && <MsgPhoto path={m.image_path} />}
@@ -117,11 +117,11 @@ function Chat() {
       <div ref={endRef} />
       <form className="sticky z-20 mt-3 flex items-end gap-2 rounded-3xl bg-fuego-50/95 py-2 backdrop-blur dark:bg-noche-900/95" style={{ bottom: 'calc(64px + var(--safe-bottom))' }}
         onSubmit={e => { e.preventDefault(); if (text.trim()) { send.mutate({ kind: 'text', body: text.trim() }); setText('') } }}>
-        <button type="button" onClick={() => { send.mutate({ kind: 'heart' }); celebrate(['❤️', '💖', '💕']) }} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-rosa-400 text-white active:scale-90" aria-label="Enviar corazón"><Heart className="size-6 fill-white" /></button>
+        <button type="button" onClick={() => { send.mutate({ kind: 'heart' }); celebrate(['❤️', '💖', '💕']) }} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blush text-ember active:scale-90 dark:bg-noche-700" aria-label="Enviar corazón"><Heart className="size-5 fill-current" /></button>
         <button type="button" disabled={busyPhoto} onClick={() => fileRef.current?.click()} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white dark:bg-noche-800" aria-label="Enviar foto">{busyPhoto ? '…' : <Camera className="size-5" />}</button>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => onPhoto(e.target.files?.[0])} />
         <textarea rows={1} value={text} onChange={e => setText(e.target.value)} maxLength={2000} placeholder="Mensaje…" className="input max-h-32 min-h-12 flex-1 resize-none rounded-3xl" />
-        <button type="submit" disabled={!text.trim()} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-fuego-500 to-rosa-400 text-white disabled:opacity-40" aria-label="Enviar"><Send className="size-5" /></button>
+        <button type="submit" disabled={!text.trim()} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-ink text-white dark:bg-white dark:text-ink disabled:opacity-40" aria-label="Enviar"><Send className="size-5" /></button>
       </form>
     </div>
   )
@@ -133,7 +133,7 @@ function Chat() {
 function MemoryThumb({ m, onClick }: { m: Memory; onClick: () => void }) {
   const url = useSignedUrl(m.image_path)
   return (
-    <button onClick={onClick} className="relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-fuego-200 to-rosa-400/40 text-left">
+    <button onClick={onClick} className="relative aspect-square overflow-hidden rounded-2xl bg-fuego-100 text-left dark:bg-noche-800">
       {url && <img src={url} alt={m.title} loading="lazy" className="absolute inset-0 size-full object-cover" />}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 text-white">
         <p className="truncate text-sm font-bold">{m.title}</p><p className="text-[11px] opacity-80">{fmtShort(m.memory_date)}</p>
@@ -179,7 +179,7 @@ function Album() {
       <Sheet open={!!view} onClose={() => setView(null)} title={view?.title}>
         {view && <div className="space-y-3">
           {viewUrl && <img src={viewUrl} alt={view.title} className="w-full rounded-2xl" />}
-          <p className="muted text-sm capitalize">{fmtLongDay(view.memory_date)}</p>
+          <p className="muted text-sm first-letter:uppercase">{fmtLongDay(view.memory_date)}</p>
           {view.description && <p>{view.description}</p>}
           {view.created_by === uid && <Button variant="ghost" className="w-full text-red-600" onClick={async () => { if (await confirm({ title: '¿Eliminar este recuerdo?', text: 'Se borrará también la foto, para los dos.', danger: true, confirm: 'Eliminar' })) del.mutate(view, { onSuccess: () => setView(null) }) }}><Trash2 className="size-4" />Eliminar</Button>}
         </div>}
@@ -240,7 +240,7 @@ function SharedCalendar() {
       <Card>
         <div className="mb-3 flex items-center justify-between">
           <button className="flex size-10 items-center justify-center rounded-full bg-fuego-100 dark:bg-noche-700" onClick={() => m && setMonth(startOfMonth(addDays(m, -1)))} aria-label="Mes anterior"><ChevronLeft className="size-5" /></button>
-          <p className="font-bold capitalize">{m ? fmtMonth(m) : ''}</p>
+          <p className="font-bold first-letter:uppercase">{m ? fmtMonth(m) : ''}</p>
           <button className="flex size-10 items-center justify-center rounded-full bg-fuego-100 dark:bg-noche-700" onClick={() => m && setMonth(addDays(end!, 1))} aria-label="Mes siguiente"><ChevronRight className="size-5" /></button>
         </div>
         <div className="grid grid-cols-7 gap-1 text-center">
@@ -251,9 +251,9 @@ function SharedCalendar() {
             const fire = days.find(x => x.day === d)?.status === 'completed'
             return (
               <button key={d} onClick={() => setSel(d)} className={cx('flex aspect-square flex-col items-center justify-center rounded-xl text-sm font-semibold',
-                sel === d ? 'bg-fuego-500 text-white' : fire ? 'bg-fuego-100 dark:bg-noche-700' : '', d === today && sel !== d && 'ring-2 ring-fuego-400')}>
+                sel === d ? 'bg-ink text-white dark:bg-white dark:text-ink' : fire ? 'text-ember' : '', d === today && sel !== d && 'ring-1 ring-ink dark:ring-white')}>
                 {Number(d.slice(8))}
-                <span className="flex h-1.5 gap-0.5">{its.slice(0, 3).map((_, k) => <span key={k} className={cx('size-1.5 rounded-full', sel === d ? 'bg-white' : 'bg-rosa-400')} />)}</span>
+                <span className="flex h-1.5 gap-0.5">{its.slice(0, 3).map((_, k) => <span key={k} className={cx('size-1 rounded-full', sel === d ? 'bg-white dark:bg-ink' : 'bg-ember')} />)}</span>
               </button>
             )
           })}
@@ -261,7 +261,7 @@ function SharedCalendar() {
       </Card>
       {sel && (
         <Card>
-          <div className="flex items-center justify-between"><p className="font-bold capitalize">{fmtLongDay(sel)}</p><Button variant="soft" className="min-h-9 px-3 text-sm" onClick={() => setAdd(true)}><Plus className="size-4" />Evento</Button></div>
+          <div className="flex items-center justify-between"><p className="font-bold first-letter:uppercase">{fmtLongDay(sel)}</p><Button variant="soft" className="min-h-9 px-3 text-sm" onClick={() => setAdd(true)}><Plus className="size-4" />Evento</Button></div>
           {selItems.length === 0 ? <p className="muted mt-2 text-sm">Nada este día.</p> : (
             <ul className="mt-2 space-y-1.5">
               {selItems.map(it => (
@@ -372,7 +372,7 @@ function Together() {
           <Avatar path={partner?.avatar_path} name={partner?.display_name} size={72} ring="ring-4 ring-white dark:ring-noche-800" />
         </div>
         {daysTogether !== null ? <>
-          <p className="mt-3 text-5xl font-black text-fuego-600 dark:text-fuego-300">{daysTogether.toLocaleString('es')}</p>
+          <p className="tabular mt-4 text-5xl font-bold tracking-tight">{daysTogether.toLocaleString('es')}</p>
           <p className="font-bold">días juntos 💞</p>
           <p className="muted text-sm">desde el {fmtLongDay(couple.together_since!)}</p>
         </> : <p className="muted mt-3 text-sm">Propongan la fecha en que empezaron para ver su contador.</p>}

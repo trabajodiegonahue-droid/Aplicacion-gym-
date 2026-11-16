@@ -8,7 +8,7 @@ mkdirSync('public/splash', { recursive: true })
 
 const icon = (size, file, pad = 0) =>
   sharp(svg).resize(size - pad * 2, size - pad * 2)
-    .extend({ top: pad, bottom: pad, left: pad, right: pad, background: '#ef233c' })
+    .extend({ top: pad, bottom: pad, left: pad, right: pad, background: '#e11d48' })
     .png().toFile(`public/icons/${file}`)
 
 await icon(192, 'icon-192.png')
@@ -32,7 +32,7 @@ const rounded = await sharp(logo).composite([{
   input: Buffer.from('<svg><rect width="360" height="360" rx="80" ry="80"/></svg>'), blend: 'dest-in',
 }]).png().toBuffer()
 for (const [w, h] of splash) {
-  await sharp({ create: { width: w, height: h, channels: 4, background: '#fff5f7' } })
+  await sharp({ create: { width: w, height: h, channels: 4, background: '#fafaf9' } })
     .composite([{ input: rounded, top: Math.round(h / 2 - 260), left: Math.round(w / 2 - 180) }])
     .png().toFile(`public/splash/splash-${w}x${h}.png`)
 }

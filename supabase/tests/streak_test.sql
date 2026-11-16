@@ -37,6 +37,9 @@ insert into auth.users(id, email, raw_user_meta_data) values
   (:C, 'intruso@example.com', '{"display_name":"Intruso","timezone":"Mars/Olympus"}');
 select pg_temp.check((select count(*) from public.profiles) = 3, 'se crea un perfil por cada cuenta');
 select pg_temp.check((select timezone from public.profiles where id = :C) = 'UTC', 'zona horaria inválida cae a UTC');
+insert into auth.users(id, email, raw_user_meta_data) values ('ffffffff-0000-0000-0000-000000000006', 'legacy@example.com', '{"display_name":"Leg","timezone":"America/Buenos_Aires"}');
+select pg_temp.check((select timezone from public.profiles where id = 'ffffffff-0000-0000-0000-000000000006') = 'America/Argentina/Buenos_Aires', 'nombre antiguo de zona horaria se traduce');
+delete from auth.users where id = 'ffffffff-0000-0000-0000-000000000006';
 select pg_temp.check((select count(*) from public.water_presets where user_id = :A) = 3, 'presets de agua iniciales');
 
 -- 2) VINCULACIÓN ------------------------------------------------------

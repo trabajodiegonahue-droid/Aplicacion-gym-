@@ -1,25 +1,25 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, Dumbbell, Droplets, Activity, Moon, HeartHandshake, ChevronRight, Vote, ListChecks, BarChart3 } from 'lucide-react'
+import { Bell, Dumbbell, Droplets, Activity, Moon, ChevronRight, Vote, CircleCheckBig, Hand, ArrowUpRight, Link2, Check } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { supabase, must } from '../lib/supabase'
-import { LOG_KEYS, rulesFor, useAction, useMemberDays, useNotifications, useProposals, useRules, useStreak, useToday, useTodayWindow } from '../lib/queries'
-import { addDays, fmtLiters, fmtLongDay, startOfWeek } from '../lib/dates'
-import { Card, ProgressBar, Ring, SectionTitle, cx, useUi } from '../components/ui'
+import { LOG_KEYS, rulesFor, useAction, useMemberDays, useProposals, useRules, useStreak, useStreakDays, useToday, useTodayWindow } from '../lib/queries'
+import { addDays, fmtLiters, fmtLongDay, startOfWeek, WEEKDAYS_MON } from '../lib/dates'
+import { Card, ProgressBar, SectionTitle, cx, useUi } from '../components/ui'
 import { Flame } from '../components/Flame'
 import { Avatar } from '../components/Avatar'
-import { ActivitySheet, MemberToday, QuickWorkoutSheet, WaterSheet, conditionText, useWaterToday } from '../components/Today'
-import type { Habit, HabitLog, MemberDay } from '../lib/types'
+import { ActivitySheet, PartnerRing, QuickWorkoutSheet, WaterSheet, conditionText, useWaterToday } from '../components/Today'
+import type { Habit, HabitLog, MemberDay, StreakDay } from '../lib/types'
 
 const QUOTES = [
-  'La constancia les gana a las ganas. ¡Hoy suman los dos! 🔥',
-  'Lejos en kilómetros, juntos en cada repetición. 💪',
-  'Un día a la vez, una llama para dos. ❤️',
+  'La constancia les gana a las ganas.',
+  'Lejos en kilómetros, juntos en cada repetición.',
+  'Un día a la vez, una llama para dos.',
   'No tiene que ser perfecto, tiene que ser hoy.',
-  'Tu pareja cuenta contigo. ¡Tú cuentas con tu pareja!',
-  'Pequeños pasos, gran equipo. ✨',
+  'Pequeños pasos, gran equipo.',
   'La distancia no apaga lo que alimentan todos los días.',
+  'Hoy suma. Mañana también.',
 ]
 
 export function useMyAndPartnerToday() {
@@ -32,6 +32,35 @@ export function useMyAndPartnerToday() {
   return { today, mine, theirs }
 }
 
+/** Tira de 7 días (lunes a domingo) con el estado de la racha. */
+export function WeekStrip({ today, days, dark }: { today: string | null; days: StreakDay[]; dark?: boolean }) {
+  if (!today) return null
+  const ws = startOfWeek(today)
+  return (
+    <div className="grid grid-cols-7 gap-1.5">
+      {Array.from({ length: 7 }, (_, i) => {
+        const d = addDays(ws, i)
+        const st = days.find(x => x.day === d)?.status
+        const future = d > today
+        return (
+          <div key={d} className="flex flex-col items-center gap-1.5">
+            <span className={cx('text-[11px] font-medium', dark ? 'text-white/45' : 'muted')}>{WEEKDAYS_MON[i]}</span>
+            <span className={cx('flex size-8 items-center justify-center rounded-full text-[12px] font-semibold tabular transition',
+              st === 'completed' ? 'bg-ember text-white'
+                : st === 'rest' || st === 'recovered' ? (dark ? 'bg-white/15 text-white' : 'bg-sky-100 text-sky-700')
+                : st === 'missed' ? (dark ? 'text-white/25' : 'text-fuego-800/30')
+                : future ? (dark ? 'text-white/25' : 'text-fuego-800/30')
+                : (dark ? 'bg-white/[.07] text-white/80' : 'bg-fuego-100 text-ink'),
+              d === today && st !== 'completed' && (dark ? 'ring-1 ring-white/60' : 'ring-1 ring-ink/40'))}>
+              {st === 'completed' ? <Check className="size-4" strokeWidth={3} /> : st === 'rest' ? <Moon className="size-3.5" /> : Number(d.slice(8))}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function Home() {
   const { profile, couple, partner, uid } = useAuth()
   const nav = useNavigate()
@@ -41,10 +70,11 @@ export default function Home() {
   const rulesAll = useRules().data
   const rules = rulesFor(rulesAll, today)?.rules
   const { mine, theirs } = useMyAndPartnerToday()
+  const ws = today ? startOfWeek(today) : null
+  const weekDays = useStreakDays(ws, ws ? addDays(ws, 6) : null).data ?? []
   const water = useWaterToday().data ?? 0
-  const unread = (useNotifications().data ?? []).filter(n => !n.read_at).length
-  const pending = (useProposals().data ?? []).filter(p => p.status === 'pending')
-  const toApprove = pending.filter(p => p.proposed_by !== uid)
+  const unread = (useQuery({ queryKey: ['notifications', uid], enabled: !!uid, queryFn: () => must(supabase.from('notifications').select('id, read_at').order('created_at', { ascending: false }).limit(60)) as Promise<{ id: string; read_at: string | null }[]> }).data ?? []).filter(n => !n.read_at).length
+  const toApprove = (useProposals().data ?? []).filter(p => p.status === 'pending' && p.proposed_by !== uid)
   const [sheet, setSheet] = useState<null | 'workout' | 'water' | 'activity'>(null)
   const quote = useMemo(() => QUOTES[new Date().getDate() % QUOTES.length], [])
 
@@ -52,151 +82,147 @@ export default function Home() {
     queryKey: ['week_summary', uid, today],
     enabled: !!today,
     queryFn: async () => {
-      const ws = startOfWeek(today!)
+      const s = startOfWeek(today!)
       const [w, habits, logs] = await Promise.all([
-        must(supabase.from('workouts').select('local_day').gte('local_day', ws).lte('local_day', addDays(ws, 6))),
+        must(supabase.from('workouts').select('local_day').gte('local_day', s).lte('local_day', addDays(s, 6))),
         must(supabase.from('habits').select('*').eq('archived', false)),
         must(supabase.from('habit_logs').select('habit_id, local_day').eq('local_day', today!)),
       ])
-      return { workouts: (w as { local_day: string }[]).length, habits: habits as Habit[], logs: logs as HabitLog[], daysLeft: 6 - Math.round((new Date(today!).getTime() - new Date(ws).getTime()) / 86400000) }
+      return { workouts: (w as { local_day: string }[]).length, habits: habits as Habit[], logs: logs as HabitLog[] }
     },
   })
   const dailyHabits = (week.data?.habits ?? []).filter(h => h.frequency === 'daily' && h.start_date <= (today ?? '') && (!h.end_date || h.end_date >= (today ?? '')))
-  const habitsPending = dailyHabits.filter(h => !week.data?.logs.some(l => l.habit_id === h.id))
+  const habitsDone = dailyHabits.filter(h => week.data?.logs.some(l => l.habit_id === h.id)).length
 
-  const rest = useAction(async () => {
-    await must(supabase.from('rest_days').insert({ user_id: uid, day: today }))
-  }, { invalidate: LOG_KEYS, success: 'Día de descanso marcado 😴' })
+  const rest = useAction(async () => { await must(supabase.from('rest_days').insert({ user_id: uid, day: today })) }, { invalidate: LOG_KEYS, success: 'Día de descanso marcado' })
+  const nudgeKey = `fj-nudge-${today}`
+  const [nudged, setNudged] = useState(() => { try { return localStorage.getItem(nudgeKey) === '1' } catch { return false } })
+  const nudge = useAction(async () => must(supabase.from('messages').insert({ couple_id: couple!.id, sender_id: uid, kind: 'motivation', body: `👋 ${profile?.display_name ?? 'Tu pareja'} te da un toque: ¡vamos por la racha de hoy!` })),
+    { invalidate: [['messages']], success: `Toque enviado a ${partner?.display_name ?? 'tu pareja'}` })
 
   const goal = profile?.water_goal_ml ?? 2500
-  const bothDone = mine?.status && ['completed', 'rest'].includes(mine.status) && theirs?.status && ['completed', 'rest'].includes(theirs.status)
-  const lit = !!bothDone || (streak?.current_count ?? 0) > 0
+  const done = (s?: string) => s === 'completed' || s === 'rest'
+  const bothDone = done(mine?.status) && done(theirs?.status)
+  const count = streak?.current_count ?? 0
   const hour = new Date().getHours()
   const greet = hour < 12 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches'
+  const status = bothDone ? 'Los dos cumplieron hoy. La llama sigue viva.'
+    : done(mine?.status) ? `Falta ${partner?.display_name ?? 'tu pareja'} para sumar el día.`
+    : done(theirs?.status) ? `${partner?.display_name ?? 'Tu pareja'} ya cumplió. Te toca a ti.`
+    : rules ? `Para sumar: ${conditionText(rules).toLowerCase()}.` : 'Registren su actividad de hoy.'
 
   return (
     <div>
-      <header className="safe-top flex items-center gap-3 px-4 pb-2 pt-2">
+      <header className="safe-top flex items-end gap-3 px-5 pb-4 pt-3">
         <div className="min-w-0 flex-1">
-          <p className="muted text-sm capitalize">{today ? fmtLongDay(today) : ''}</p>
-          <h1 className="truncate text-2xl font-extrabold">{greet}, {profile?.display_name?.split(' ')[0] ?? ''} 👋</h1>
+          <p className="eyebrow first-letter:uppercase">{today ? fmtLongDay(today) : ' '}</p>
+          <h1 className="mt-0.5 truncate text-[30px] font-bold leading-tight tracking-[-0.03em]">{greet}, {profile?.display_name?.split(' ')[0] ?? ''}</h1>
         </div>
-        <Link to="/notificaciones" className="relative flex size-11 items-center justify-center rounded-full bg-white shadow-sm dark:bg-noche-800" aria-label="Notificaciones">
-          <Bell className="size-5" />
-          {unread > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-fuego-500 px-1 text-[11px] font-bold text-white">{unread > 9 ? '9+' : unread}</span>}
+        <Link to="/notificaciones" className="icon-btn relative mb-1" aria-label="Notificaciones">
+          <Bell className="size-[18px]" strokeWidth={1.9} />
+          {unread > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-ember px-1 text-[10px] font-bold text-white ring-2 ring-fuego-50 dark:ring-noche-900">{unread > 9 ? '9+' : unread}</span>}
         </Link>
-        <Link to="/perfil" aria-label="Perfil"><Avatar path={profile?.avatar_path} name={profile?.display_name} size={44} /></Link>
+        <Link to="/perfil" aria-label="Perfil" className="mb-1"><Avatar path={profile?.avatar_path} name={profile?.display_name} size={40} /></Link>
       </header>
 
-      <div className="space-y-4 px-4">
+      <div className="space-y-3 px-4">
         {!couple && (
-          <Card onClick={() => nav('/vincular')} className="flex items-center gap-4 bg-gradient-to-r from-fuego-500 to-rosa-400 text-white ring-0">
-            <HeartHandshake className="size-10 shrink-0" />
+          <Card onClick={() => nav('/vincular')} className="flex items-center gap-4">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blush text-ember dark:bg-noche-700"><Link2 className="size-5" /></span>
             <div className="flex-1">
-              <p className="text-lg font-bold">Vincula a tu pareja</p>
-              <p className="text-sm opacity-90">La racha compartida empieza cuando estén los dos.</p>
+              <p className="text-[15px] font-semibold">Vincula a tu pareja</p>
+              <p className="muted text-[13px]">La racha compartida empieza cuando estén los dos.</p>
             </div>
-            <ChevronRight />
+            <ChevronRight className="size-5 text-fuego-800/40" />
           </Card>
         )}
 
         {couple && (
-          <Card onClick={() => nav('/racha')} className="overflow-hidden">
-            <div className="flex items-center gap-4">
-              <Flame size={96} lit={lit} intensity={Math.min(1, (streak?.current_count ?? 0) / 30)} />
-              <div className="flex-1">
-                <p className="muted text-sm font-semibold">Racha compartida</p>
-                <p className="text-5xl font-black leading-none tracking-tight text-fuego-600 dark:text-fuego-300">{streak?.current_count ?? 0}</p>
-                <p className="text-sm font-semibold">{(streak?.current_count ?? 0) === 1 ? 'día' : 'días'} juntos 🔥 · récord {streak?.best_count ?? 0}</p>
+          <>
+            {/* Tarjeta principal de la racha */}
+            <button onClick={() => nav('/racha')} className="relative block w-full overflow-hidden rounded-[26px] bg-ink p-5 text-left text-white shadow-[0_20px_40px_-20px_rgba(23,19,15,.6)] transition active:scale-[.99] dark:bg-noche-800 dark:ring-1 dark:ring-white/[.06]">
+              <div className="pointer-events-none absolute -right-10 -top-16 size-56 rounded-full bg-ember opacity-25 blur-3xl" />
+              <div className="relative flex items-center gap-4">
+                <div className="flex-1">
+                  <p className="text-[12px] font-medium uppercase tracking-[.08em] text-white/50">Racha compartida</p>
+                  <p className="mt-1 flex items-baseline gap-2">
+                    <span data-testid="streak-count" className="tabular text-[64px] font-bold leading-none tracking-[-0.05em]">{count}</span>
+                    <span className="text-[15px] font-medium text-white/70">{count === 1 ? 'día' : 'días'}</span>
+                  </p>
+                  <p className="mt-1.5 text-[13px] text-white/50">Récord {streak?.best_count ?? 0} · {couple.name ?? `Tú y ${partner?.display_name ?? ''}`}</p>
+                </div>
+                <Flame size={92} lit={count > 0 || bothDone} intensity={Math.min(1, count / 30)} />
               </div>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <MemberToday row={mine} name={profile?.display_name ?? 'Tú'} avatar={profile?.avatar_path} me />
-              <MemberToday row={theirs} name={partner?.display_name ?? 'Pareja'} avatar={partner?.avatar_path} />
-            </div>
-            <p className={cx('mt-3 rounded-xl px-3 py-2 text-center text-sm font-semibold',
-              bothDone ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200' : 'bg-fuego-100 text-fuego-700 dark:bg-noche-700 dark:text-fuego-100')}>
-              {bothDone ? '¡Hoy los dos cumplieron! La llama sigue viva 🔥'
-                : mine?.status === 'completed' || mine?.status === 'rest' ? `Falta ${partner?.display_name ?? 'tu pareja'} para sumar hoy. ¡Mándale ánimo!`
-                : theirs?.status === 'completed' || theirs?.status === 'rest' ? `${partner?.display_name ?? 'Tu pareja'} ya cumplió. ¡Te toca!`
-                : rules ? `Para sumar: ${conditionText(rules)}` : 'Registren su actividad de hoy'}
-            </p>
-          </Card>
+              <div className="relative mt-5 border-t border-white/10 pt-4"><WeekStrip today={today} days={weekDays} dark /></div>
+              <ArrowUpRight className="absolute right-4 top-4 size-4 text-white/30" />
+            </button>
+
+            {/* Hoy: los dos */}
+            <Card className="pb-5 pt-5">
+              <div className="flex items-start">
+                <PartnerRing row={mine} rules={rules} name={profile?.display_name ?? 'Tú'} avatar={profile?.avatar_path} me />
+                <div className="mt-12 flex flex-col items-center gap-1 px-1 text-fuego-300">
+                  <span className="h-px w-6 bg-fuego-200 dark:bg-noche-700" />
+                </div>
+                <PartnerRing row={theirs} rules={rules} name={partner?.display_name ?? 'Pareja'} avatar={partner?.avatar_path} />
+              </div>
+              <p className={cx('mx-auto mt-4 max-w-[300px] text-center text-[13.5px] leading-snug', bothDone ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'muted')}>{status}</p>
+              {!done(theirs?.status) && (
+                <button disabled={nudged || nudge.isPending}
+                  onClick={() => nudge.mutate(undefined, { onSuccess: () => { setNudged(true); try { localStorage.setItem(nudgeKey, '1') } catch { /* */ } } })}
+                  className="mx-auto mt-3 flex min-h-10 items-center gap-2 rounded-full bg-fuego-100 px-4 text-[13px] font-semibold text-ink transition active:scale-95 disabled:opacity-45 dark:bg-noche-700 dark:text-white">
+                  <Hand className="size-4" />{nudged ? 'Toque enviado hoy' : `Dar un toque a ${partner?.display_name ?? 'tu pareja'}`}
+                </button>
+              )}
+            </Card>
+          </>
         )}
 
         {toApprove.length > 0 && (
-          <Card onClick={() => nav('/propuestas')} className="flex items-center gap-3 ring-2 ring-rosa-400">
-            <Vote className="size-7 text-rosa-500" />
-            <div className="flex-1"><p className="font-bold">{toApprove.length} cambio(s) esperan tu aprobación</p><p className="muted text-sm">{toApprove[0].title}</p></div>
-            <ChevronRight />
+          <Card onClick={() => nav('/propuestas')} className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-full bg-blush text-ember dark:bg-noche-700"><Vote className="size-5" /></span>
+            <div className="min-w-0 flex-1"><p className="text-[15px] font-semibold">{toApprove.length === 1 ? 'Un cambio espera tu respuesta' : `${toApprove.length} cambios esperan tu respuesta`}</p><p className="muted truncate text-[13px]">{toApprove[0].title}</p></div>
+            <ChevronRight className="size-5 text-fuego-800/40" />
           </Card>
         )}
 
+        <SectionTitle>Registrar</SectionTitle>
         <div className="grid grid-cols-4 gap-2">
           {[
-            { k: 'workout', label: 'Entrené', icon: Dumbbell, onClick: () => setSheet('workout') },
+            { k: 'workout', label: 'Entreno', icon: Dumbbell, onClick: () => setSheet('workout') },
             { k: 'water', label: 'Agua', icon: Droplets, onClick: () => setSheet('water') },
             { k: 'activity', label: 'Actividad', icon: Activity, onClick: () => setSheet('activity') },
             { k: 'rest', label: 'Descanso', icon: Moon, onClick: async () => {
               if (!couple) return toast('El descanso se usa en la racha compartida: vincula a tu pareja primero.', 'error')
-              if (await confirm({ title: '¿Usar día de descanso hoy?', text: `Las reglas permiten ${rulesFor(rulesAll, today)?.rules.rest_days_per_week ?? 1} por semana. Si igual entrenas, cuenta como completado.`, confirm: 'Sí, descansar' })) rest.mutate()
+              if (await confirm({ title: '¿Usar día de descanso hoy?', text: `Las reglas permiten ${rulesFor(rulesAll, today)?.rules.rest_days_per_week ?? 1} por semana. Si igual entrenas, cuenta como completado.`, confirm: 'Descansar' })) rest.mutate()
             } },
           ].map(a => (
-            <button key={a.k} onClick={a.onClick} className="card flex min-h-20 flex-col items-center justify-center gap-1 p-2 text-xs font-bold active:scale-95">
-              <span className="flex size-10 items-center justify-center rounded-2xl bg-gradient-to-br from-fuego-500 to-rosa-400 text-white"><a.icon className="size-5" /></span>
+            <button key={a.k} onClick={a.onClick} className="card flex flex-col items-center gap-2 px-1 py-3.5 text-[12px] font-medium transition active:scale-95">
+              <a.icon className="size-[22px]" strokeWidth={1.7} />
               {a.label}
             </button>
           ))}
         </div>
 
-        <SectionTitle action={<Link to="/estadisticas" className="flex items-center gap-1 text-sm font-semibold text-fuego-600"><BarChart3 className="size-4" />Estadísticas</Link>}>Hoy</SectionTitle>
-        <div className="grid grid-cols-2 gap-3">
-          <Card onClick={() => setSheet('water')} className="flex flex-col items-center">
-            <Ring value={water} max={goal} size={104} color="#ff4d8d">
-              <Droplets className="size-5 text-rosa-400" />
-              <span className="text-lg font-black">{fmtLiters(water)}</span>
-              <span className="muted text-[11px]">de {fmtLiters(goal)}</span>
-            </Ring>
-          </Card>
-          <Card onClick={() => nav('/gym')} className="flex flex-col justify-between">
-            <div className="flex items-center gap-2"><Dumbbell className="size-5 text-fuego-500" /><span className="font-bold">Gimnasio</span></div>
-            <p className="text-3xl font-black">{mine?.details.workouts ?? 0}</p>
-            <p className="muted text-xs">entrenamiento(s) hoy · {mine?.details.activity_minutes ?? 0} min de actividad</p>
-          </Card>
-        </div>
-
-        <Card onClick={() => nav('/habitos')}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2"><ListChecks className="size-5 text-fuego-500" /><span className="font-bold">Hábitos de hoy</span></div>
-            <span className="text-sm font-bold text-fuego-600">{dailyHabits.length - habitsPending.length}/{dailyHabits.length}</span>
-          </div>
-          {dailyHabits.length === 0 ? <p className="muted mt-2 text-sm">Aún no tienes hábitos. Toca para crear el primero.</p> : (
-            <>
-              <ProgressBar className="mt-3" value={dailyHabits.length - habitsPending.length} max={dailyHabits.length} />
-              {habitsPending.length > 0 && <p className="muted mt-2 text-sm">Pendientes: {habitsPending.slice(0, 3).map(h => `${h.emoji ?? ''} ${h.name}`).join(', ')}{habitsPending.length > 3 ? '…' : ''}</p>}
-            </>
-          )}
+        <SectionTitle action={<Link to="/estadisticas" className="text-[13px] font-medium text-ember">Estadísticas</Link>}>Tu día</SectionTitle>
+        <Card className="divide-y divide-black/[.05] p-0 dark:divide-white/[.06]">
+          {[
+            { icon: Droplets, tint: 'text-sky-500', label: 'Agua', value: `${fmtLiters(water)} / ${fmtLiters(goal)}`, v: water, max: goal, to: '/habitos/agua' },
+            { icon: Activity, tint: 'text-ember', label: 'Actividad', value: `${mine?.details.activity_minutes ?? 0} / ${profile?.activity_goal_min ?? 30} min`, v: mine?.details.activity_minutes ?? 0, max: profile?.activity_goal_min || 30, to: '/habitos/actividad' },
+            { icon: CircleCheckBig, tint: 'text-emerald-500', label: 'Hábitos', value: dailyHabits.length ? `${habitsDone} / ${dailyHabits.length}` : 'Sin hábitos', v: habitsDone, max: dailyHabits.length || 1, to: '/habitos' },
+            { icon: Dumbbell, tint: 'text-ink dark:text-white', label: 'Entrenos esta semana', value: `${week.data?.workouts ?? 0} / ${profile?.weekly_workouts_goal ?? 4}`, v: week.data?.workouts ?? 0, max: profile?.weekly_workouts_goal || 4, to: '/gym/historial' },
+          ].map(r => (
+            <button key={r.label} onClick={() => nav(r.to)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+              <r.icon className={cx('size-5 shrink-0', r.tint)} strokeWidth={1.8} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-2"><span className="text-[15px] font-medium">{r.label}</span><span className="tabular muted text-[13px]">{r.value}</span></div>
+                <ProgressBar className="mt-2" value={r.v} max={r.max} />
+              </div>
+            </button>
+          ))}
         </Card>
 
-        <Card>
-          <div className="flex items-center justify-between">
-            <span className="font-bold">Progreso semanal</span>
-            <span className="muted text-sm">{week.data ? `quedan ${week.data.daysLeft} día(s)` : ''}</span>
-          </div>
-          <div className="mt-3 flex items-end justify-between text-sm">
-            <span>Entrenamientos</span>
-            <span className="font-bold">{week.data?.workouts ?? 0} / {profile?.weekly_workouts_goal ?? 4}</span>
-          </div>
-          <ProgressBar className="mt-1" value={week.data?.workouts ?? 0} max={profile?.weekly_workouts_goal ?? 4} />
-          {rules && rules.weekly_workouts_target > 0 && (
-            <p className="muted mt-2 text-xs">Meta semanal de la pareja: {rules.weekly_workouts_target} entrenamientos cada uno.</p>
-          )}
-        </Card>
-
-        <div className="rounded-3xl bg-gradient-to-br from-fuego-500 via-fuego-400 to-rosa-400 p-5 text-white shadow-lg shadow-fuego-500/25">
-          <p className="text-sm font-semibold opacity-80">Motivación del día</p>
-          <p className="mt-1 text-lg font-bold leading-snug">{quote}</p>
-        </div>
+        <p className="px-6 pb-2 pt-6 text-center text-[13px] italic leading-relaxed text-fuego-800/60 dark:text-white/40">“{quote}”</p>
       </div>
 
       <QuickWorkoutSheet open={sheet === 'workout'} onClose={() => setSheet(null)} />
