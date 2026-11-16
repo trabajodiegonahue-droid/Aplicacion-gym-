@@ -73,7 +73,7 @@ export function CoupleScene({ mine, theirs, rules, children }: { mine?: MemberDa
       <div className="relative flex items-start gap-1 px-3 pb-4 pt-4">
         <BuddyColumn row={mine} rules={rules} name={profile?.display_name ?? 'Tú'} me color={colorFor(uid, partner?.id)} xp={lm?.xp ?? 0} xpToday={lm?.xp_today ?? 0} profile={profile} love={bothDone} />
         <div className="flex w-6 shrink-0 justify-center pt-24">
-          <Heart className={cx('size-6 transition', bothDone ? 'float-soft fill-fuego-500 text-fuego-500' : 'text-fuego-300')} />
+          <Heart className={cx('size-6 transition', bothDone ? 'heartbeat fill-fuego-500 text-fuego-500' : 'text-fuego-300')} />
         </div>
         <BuddyColumn row={theirs} rules={rules} name={partner?.display_name ?? 'Pareja'} color={colorFor(partner?.id, uid)} xp={lp?.xp ?? 0} xpToday={lp?.xp_today ?? 0} profile={partner} love={bothDone} />
       </div>

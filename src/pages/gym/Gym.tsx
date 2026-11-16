@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Star, Trash2, Pencil, Play, Dumbbell, Timer, Trophy, ChevronDown, ChevronUp, X, Copy, Check } from 'lucide-react'
+import { Plus, Star, Trash2, Pencil, Play, Dumbbell, Timer, Trophy, ChevronDown, ChevronUp, X, Copy, Check, Search, Library, ChevronRight } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { supabase, must } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthProvider'
@@ -10,6 +10,9 @@ import type { Exercise, MuscleGroup, Routine, RoutineExercise, Workout, WorkoutS
 import { fmtDay, fmtShort, localDateTimeToISO, nowTimeHHMM, toISODate, WEEKDAYS } from '../../lib/dates'
 import { Button, Card, Empty, Field, Input, Loading, Segmented, Sheet, cx, useUi } from '../../components/ui'
 import { PageHeader } from '../../components/AppShell'
+import { WhenRow } from '../../components/TimePicker'
+import { ExerciseInfoButton, MuscleStack, muscleSummary } from '../../components/MuscleInfo'
+import { EQUIPMENT, EXERCISE_LIBRARY, exerciseInfo, libraryByName, normalize, type Equipment } from '../../lib/exerciseLibrary'
 import { celebrate } from '../../components/Celebration'
 
 export const MUSCLES: { value: MuscleGroup; label: string; emoji: string }[] = [
@@ -18,28 +21,6 @@ export const MUSCLES: { value: MuscleGroup; label: string; emoji: string }[] = [
   { value: 'gluteos', label: 'Glúteos', emoji: '🍑' }, { value: 'abdomen', label: 'Abdomen', emoji: '🧱' }, { value: 'cardio', label: 'Cardio', emoji: '❤️‍🔥' },
   { value: 'otros', label: 'Otros', emoji: '✨' },
 ]
-/** Catálogo básico de ejercicios habituales (se añade a la cuenta con un toque). */
-export const EXERCISE_CATALOG: Record<MuscleGroup, string[]> = {
-  pecho: ['Press banca', 'Press inclinado con mancuernas', 'Aperturas con mancuernas', 'Fondos en paralelas', 'Flexiones'],
-  espalda: ['Dominadas', 'Jalón al pecho', 'Remo con barra', 'Remo en polea baja', 'Peso muerto'],
-  hombros: ['Press militar', 'Elevaciones laterales', 'Face pull', 'Pájaros'],
-  biceps: ['Curl con barra', 'Curl martillo', 'Curl en banco Scott'],
-  triceps: ['Extensión en polea', 'Press francés', 'Patada de tríceps'],
-  piernas: ['Sentadilla con barra', 'Peso muerto rumano', 'Prensa', 'Zancadas', 'Extensión de cuádriceps', 'Curl femoral', 'Elevación de talones'],
-  gluteos: ['Hip thrust', 'Patada de glúteo en polea', 'Abducción de cadera', 'Puente de glúteo'],
-  abdomen: ['Plancha', 'Crunch', 'Elevación de piernas', 'Rueda abdominal'],
-  cardio: ['Cinta', 'Bicicleta estática', 'Elíptica', 'Remo (máquina)', 'Saltar la cuerda'],
-  otros: ['Burpees', 'Estiramientos'],
-}
-
-function useAddCatalog() {
-  const { uid } = useAuth()
-  return useAction(async () => {
-    const rows = Object.entries(EXERCISE_CATALOG).flatMap(([g, names]) => names.map(name => ({ user_id: uid, name, muscle_group: g })))
-    await must(supabase.from('exercises').upsert(rows, { onConflict: 'user_id,name', ignoreDuplicates: true }))
-  }, { invalidate: [['exercises']], success: 'Catálogo añadido: ya puedes armar tus rutinas 💪' })
-}
-
 const muscleLabel = (m: MuscleGroup) => MUSCLES.find(x => x.value === m)?.label ?? m
 
 type Tab = 'entrenar' | 'rutinas' | 'ejercicios' | 'historial' | 'progreso' | 'peso'
@@ -90,7 +71,7 @@ function StartTab({ onStart }: { onStart: (r?: Routine) => void }) {
   const todayWd = new Date().getDay()
   const suggested = routines.filter(r => r.weekdays.includes(todayWd))
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       <Button variant="ember" className="w-full min-h-14 text-[16px]" onClick={() => onStart()}><Play className="size-5" />Empezar entrenamiento libre</Button>
       {suggested.length > 0 && <p className="px-1 pt-2 font-bold">Para hoy ({WEEKDAYS[todayWd]})</p>}
       {suggested.map(r => <RoutineCard key={r.id} r={r} onStart={onStart} />)}
@@ -131,7 +112,7 @@ function RoutinesTab({ onStart }: { onStart: (r: Routine) => void }) {
   const [edit, setEdit] = useState<Routine | 'new' | null>(null)
   if (routines.isLoading) return <Loading />
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       <Button variant="soft" className="w-full" onClick={() => setEdit('new')}><Plus className="size-5" />Nueva rutina</Button>
       {(routines.data ?? []).map(r => <RoutineCard key={r.id} r={r} onStart={onStart} onEdit={setEdit} />)}
       {edit && <RoutineEditor routine={edit === 'new' ? undefined : edit} onClose={() => setEdit(null)} />}
@@ -166,64 +147,138 @@ function RoutineEditor({ routine, onClose }: { routine?: Routine; onClose: () =>
     <Sheet open onClose={onClose} title={routine ? 'Editar rutina' : 'Nueva rutina'}>
       <form className="space-y-3" onSubmit={e => { e.preventDefault(); if (name.trim()) save.mutate(undefined, { onSuccess: onClose }) }}>
         <Field label="Nombre"><Input required maxLength={60} value={name} onChange={e => setName(e.target.value)} placeholder="Ej.: Piernas y glúteos" /></Field>
-        <Field label="Descripción"><Input maxLength={500} value={desc} onChange={e => setDesc(e.target.value)} /></Field>
+        <Field label="Descripción (opcional)"><Input maxLength={500} value={desc} onChange={e => setDesc(e.target.value)} placeholder="Ej.: foco en fuerza" /></Field>
         <div>
-          <p className="label">Días sugeridos</p>
+          <p className="label">¿Qué días la haces? <span className="font-normal opacity-70">(opcional)</span></p>
           <div className="grid grid-cols-7 gap-1">
             {[1, 2, 3, 4, 5, 6, 0].map(d => <button type="button" key={d} onClick={() => setDays(x => x.includes(d) ? x.filter(y => y !== d) : [...x, d])}
-              className={cx('min-h-10 rounded-xl text-xs font-bold', days.includes(d) ? 'bg-fuego-500 text-white' : 'bg-white dark:bg-noche-800')}>{WEEKDAYS[d]}</button>)}
+              className={cx('min-h-12 rounded-xl text-[13px] font-bold', days.includes(d) ? 'bg-ember text-white' : 'bg-white ring-1 ring-black/[.08] dark:bg-noche-800')}>{WEEKDAYS[d]}</button>)}
           </div>
         </div>
-        <p className="label">Ejercicios</p>
+        <div className="flex items-baseline justify-between"><p className="label mb-0">Ejercicios</p><span className="muted text-[13px]">{items.length} en la rutina</span></div>
+        {items.length === 0 && (
+          <button type="button" onClick={() => setPicker(true)} className="flex w-full flex-col items-center gap-1 rounded-2xl border-2 border-dashed border-fuego-300 py-6 text-center dark:border-white/15">
+            <Plus className="size-6 text-ember" /><span className="text-[15px] font-semibold">Añadir ejercicios</span><span className="muted text-[12.5px]">Elige de la biblioteca: puedes marcar varios</span>
+          </button>
+        )}
         {items.map((it, i) => {
           const ex = exercises.find(e => e.id === it.exercise_id)
           const upd = (k: keyof DraftRE, v: string) => setItems(a => a.map((x, j) => j === i ? { ...x, [k]: v } : x))
           return (
-            <div key={i} className="rounded-2xl bg-white p-3 dark:bg-noche-800">
-              <div className="flex items-center gap-1">
-                <p className="flex-1 font-semibold">{ex?.name ?? '—'} <span className="muted text-xs">{ex ? muscleLabel(ex.muscle_group) : ''}</span></p>
-                <button type="button" className="p-1.5" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Subir"><ChevronUp className="size-4" /></button>
-                <button type="button" className="p-1.5" disabled={i === items.length - 1} onClick={() => move(i, 1)} aria-label="Bajar"><ChevronDown className="size-4" /></button>
-                <button type="button" className="p-1.5 text-red-500" onClick={() => setItems(a => a.filter((_, j) => j !== i))} aria-label="Quitar"><X className="size-4" /></button>
+            <div key={i} className="rounded-2xl bg-white p-3 ring-1 ring-black/[.05] dark:bg-noche-800 dark:ring-white/[.06]">
+              <div className="flex items-center gap-2.5">
+                <span className="tabular flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-[13px] font-bold text-white dark:bg-white dark:text-ink">{i + 1}</span>
+                <div className="min-w-0 flex-1"><p className="line-clamp-2 text-[15px] font-semibold leading-snug">{ex?.name ?? '—'}</p></div>
+                {ex && <ExerciseInfoButton name={ex.name} className="size-8" />}
+                <button type="button" className="flex size-8 items-center justify-center rounded-full text-red-500" onClick={() => setItems(a => a.filter((_, j) => j !== i))} aria-label="Quitar"><X className="size-5" /></button>
               </div>
-              <div className="mt-2 grid grid-cols-4 gap-1.5 text-xs">
-                {([['target_sets', 'Series'], ['target_reps', 'Reps'], ['target_weight_kg', 'Kg'], ['rest_seconds', 'Desc. s']] as const).map(([k, l]) => (
-                  <label key={k}><span className="muted">{l}</span><input className="input min-h-10 px-2 py-1" inputMode="decimal" type="number" min={0} value={it[k]} onChange={e => upd(k, e.target.value)} /></label>
-                ))}
+              <div className="mt-1.5 flex items-center gap-2 pl-[42px]">
+                <p className="muted min-w-0 flex-1 truncate text-[12px]">{ex ? (muscleSummary(ex.name) ?? muscleLabel(ex.muscle_group)) : ''}</p>
+                <button type="button" className="flex size-8 items-center justify-center rounded-full bg-fuego-100 disabled:opacity-25 dark:bg-noche-700" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Subir"><ChevronUp className="size-4" /></button>
+                <button type="button" className="flex size-8 items-center justify-center rounded-full bg-fuego-100 disabled:opacity-25 dark:bg-noche-700" disabled={i === items.length - 1} onClick={() => move(i, 1)} aria-label="Bajar"><ChevronDown className="size-4" /></button>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <NumStep label="Series" value={it.target_sets} step={1} onChange={v => upd('target_sets', v)} />
+                <NumStep label="Repeticiones" value={it.target_reps} step={1} onChange={v => upd('target_reps', v)} />
+                <NumStep label="Peso (kg)" value={it.target_weight_kg} step={2.5} onChange={v => upd('target_weight_kg', v)} />
+                <NumStep label="Descanso (seg)" value={it.rest_seconds} step={15} onChange={v => upd('rest_seconds', v)} />
               </div>
             </div>
           )
         })}
-        <Button type="button" variant="soft" className="w-full" onClick={() => setPicker(true)}><Plus className="size-4" />Añadir ejercicio</Button>
-        <Button type="submit" className="w-full" loading={save.isPending}>Guardar rutina</Button>
+        {items.length > 0 && <Button type="button" variant="soft" className="w-full" onClick={() => setPicker(true)}><Plus className="size-4" />Añadir más ejercicios</Button>}
+        <Button type="submit" variant="ember" className="w-full min-h-14 text-[17px]" loading={save.isPending}><Check className="size-5" strokeWidth={2.6} />Guardar rutina</Button>
       </form>
-      <ExercisePicker open={picker} onClose={() => setPicker(false)} onPick={ex => { setItems(a => [...a, { exercise_id: ex.id, target_sets: '3', target_reps: '10', target_weight_kg: '', rest_seconds: '90' }]); setPicker(false) }} />
+      <ExercisePicker open={picker} onClose={() => setPicker(false)} title="Añadir a la rutina" onPick={exs => setItems(a => [...a, ...exs.map(ex => ({ exercise_id: ex.id, target_sets: '3', target_reps: ex.muscle_group === 'cardio' ? '' : '10', target_weight_kg: '', rest_seconds: '90' }))])} />
     </Sheet>
   )
 }
 
 // ---------------------------------------------------------------------
-function ExercisePicker({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (e: Exercise) => void }) {
-  const exercises = (useExercises().data ?? []).filter(e => !e.archived)
+// Biblioteca de ejercicios: buscar, filtrar y elegir varios a la vez
+/** Asegura que los ejercicios elegidos de la biblioteca existan en mi cuenta y devuelve sus filas. */
+function useEnsureExercises() {
+  const { uid } = useAuth()
+  return useAction(async (items: { name: string; group: MuscleGroup }[]) => {
+    if (!items.length) return [] as Exercise[]
+    await must(supabase.from('exercises').upsert(items.map(i => ({ user_id: uid, name: i.name, muscle_group: i.group, archived: false })), { onConflict: 'user_id,name', ignoreDuplicates: true }))
+    return (await must(supabase.from('exercises').select('*').in('name', items.map(i => i.name)))) as Exercise[]
+  }, { invalidate: [['exercises']] })
+}
+
+type PickRow = { key: string; name: string; group: MuscleGroup; equipment?: Equipment; mine?: Exercise }
+
+function ExercisePicker({ open, onClose, onPick, title = 'Añadir ejercicios', cta = 'Añadir' }:
+  { open: boolean; onClose: () => void; onPick: (e: Exercise[]) => void; title?: string; cta?: string }) {
+  const mine = (useExercises().data ?? []).filter(e => !e.archived)
+  const ensure = useEnsureExercises()
   const [q, setQ] = useState('')
+  const [group, setGroup] = useState<MuscleGroup | 'all'>('all')
+  const [equip, setEquip] = useState<Equipment | 'all'>('all')
+  const [sel, setSel] = useState<Record<string, PickRow>>({})
   const [creating, setCreating] = useState(false)
-  const catalog = useAddCatalog()
-  const list = exercises.filter(e => e.name.toLowerCase().includes(q.toLowerCase()))
+  useEffect(() => { if (!open) { setSel({}); setQ('') } }, [open])
+
+  const rows = useMemo(() => {
+    const byName = new Map(mine.map(e => [e.name.toLowerCase(), e]))
+    const out: PickRow[] = EXERCISE_LIBRARY.map(l => ({ key: 'lib:' + l.name, name: l.name, group: l.group, equipment: l.equipment, mine: byName.get(l.name.toLowerCase()) }))
+    for (const e of mine) if (!libraryByName.has(e.name.toLowerCase())) out.push({ key: 'mine:' + e.id, name: e.name, group: e.muscle_group, mine: e })
+    const nq = normalize(q.trim())
+    return out.filter(r => (group === 'all' || r.group === group) && (equip === 'all' || r.equipment === equip) && (!nq || normalize(r.name).includes(nq)))
+      .sort((a, b) => Number(!!b.mine) - Number(!!a.mine) || a.name.localeCompare(b.name, 'es'))
+  }, [mine, q, group, equip])
+
+  const count = Object.keys(sel).length
+  const toggle = (r: PickRow) => setSel(s => { const n = { ...s }; if (n[r.key]) delete n[r.key]; else n[r.key] = r; return n })
+  const confirm = async () => {
+    const picked = Object.values(sel)
+    const existing = picked.filter(p => p.mine).map(p => p.mine!)
+    const toCreate = picked.filter(p => !p.mine).map(p => ({ name: p.name, group: p.group }))
+    const created = toCreate.length ? await ensure.mutateAsync(toCreate) : []
+    const order = picked.map(p => p.mine ?? created.find(c => c.name.toLowerCase() === p.name.toLowerCase())).filter(Boolean) as Exercise[]
+    onPick(order.length ? order : existing)
+    onClose()
+  }
+  const groups: { value: MuscleGroup | 'all'; label: string }[] = [{ value: 'all', label: 'Todos' }, ...MUSCLES.map(m => ({ value: m.value, label: m.label }))]
+  const equips: { value: Equipment | 'all'; label: string }[] = [{ value: 'all', label: 'Todo el equipo' }, ...Object.entries(EQUIPMENT).map(([k, v]) => ({ value: k as Equipment, label: v }))]
+  const pill = (on: boolean) => cx('shrink-0 rounded-full px-3.5 py-2 text-[13.5px] font-semibold transition', on ? 'bg-ink text-white dark:bg-white dark:text-ink' : 'bg-white ring-1 ring-black/[.08] dark:bg-noche-800 dark:ring-white/[.08]')
+
   return (
-    <Sheet open={open} onClose={onClose} title="Elegir ejercicio">
-      <Input placeholder="Buscar…" value={q} onChange={e => setQ(e.target.value)} />
-      <div className="mt-3 space-y-3">
-        {MUSCLES.map(m => {
-          const xs = list.filter(e => e.muscle_group === m.value)
-          if (!xs.length) return null
-          return <div key={m.value}><p className="eyebrow mb-1.5">{m.label}</p>
-            <div className="space-y-1">{xs.map(e => <button key={e.id} onClick={() => onPick(e)} className="w-full rounded-xl bg-white px-4 py-3 text-left font-semibold dark:bg-noche-800">{e.name}</button>)}</div></div>
-        })}
-        {list.length === 0 && <p className="muted text-center text-sm">No hay ejercicios{q ? ' con ese nombre' : ''}.</p>}
-        {exercises.length < 10 && !q && <Button variant="ember" className="w-full" loading={catalog.isPending} onClick={() => catalog.mutate()}>Añadir catálogo básico (40+ ejercicios)</Button>}
-        <Button variant="soft" className="w-full" onClick={() => setCreating(true)}><Plus className="size-4" />Crear ejercicio{q ? ` “${q}”` : ''}</Button>
+    <Sheet open={open} onClose={onClose} title={title}>
+      <div className="sticky top-0 z-10 -mx-5 space-y-2 bg-fuego-50/95 px-5 pb-2 pt-1 backdrop-blur dark:bg-noche-900/95">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-fuego-800/50" />
+          <Input placeholder={`Buscar entre ${EXERCISE_LIBRARY.length}+ ejercicios…`} value={q} onChange={e => setQ(e.target.value)} className="pl-11" />
+        </div>
+        <div className="no-scrollbar -mx-5 flex gap-1.5 overflow-x-auto px-5">{groups.map(g => <button key={g.value} type="button" onClick={() => setGroup(g.value)} className={pill(group === g.value)}>{g.label}</button>)}</div>
+        <div className="no-scrollbar -mx-5 flex gap-1.5 overflow-x-auto px-5">{equips.map(g => <button key={g.value} type="button" onClick={() => setEquip(g.value)} className={cx(pill(equip === g.value), 'py-1.5 text-[12.5px]')}>{g.label}</button>)}</div>
       </div>
-      {creating && <ExerciseEditor initialName={q} onClose={() => setCreating(false)} onSaved={onPick} />}
+      <div className="mt-1 divide-y divide-black/[.05] overflow-hidden rounded-2xl bg-white ring-1 ring-black/[.05] dark:divide-white/[.06] dark:bg-noche-800 dark:ring-white/[.06]">
+        {rows.slice(0, 250).map(r => {
+          const on = !!sel[r.key]
+          return (
+            <div key={r.key} className={cx('flex items-center gap-1 pr-2 transition-colors', on && 'bg-blush dark:bg-fuego-900/30')}>
+              <button type="button" onClick={() => toggle(r)} className="flex min-h-[68px] min-w-0 flex-1 items-center gap-3 py-2 pl-4 text-left">
+                <span className={cx('flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition', on ? 'scale-110 border-ember bg-ember text-white' : 'border-fuego-300 dark:border-white/25')}>{on && <Check className="size-4 animate-pop" strokeWidth={3} />}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-semibold">{r.name}{r.mine && <span className="chip ml-1.5 px-2 py-0.5 align-middle text-[10.5px]">Mío</span>}</p>
+                  <p className="muted truncate text-[12.5px]">{muscleSummary(r.name) ?? muscleLabel(r.group)}{r.equipment ? ` · ${EQUIPMENT[r.equipment]}` : ''}</p>
+                  {exerciseInfo(r.name) && <MuscleStack muscles={exerciseInfo(r.name)!.muscles} className="mt-1.5 h-1.5 max-w-[220px]" />}
+                </div>
+              </button>
+              <ExerciseInfoButton name={r.name} />
+            </div>
+          )
+        })}
+        {rows.length === 0 && <p className="muted px-4 py-6 text-center text-[14px]">No encontramos “{q}”. Puedes crearlo abajo.</p>}
+      </div>
+      <Button variant="soft" className="mt-3 w-full" onClick={() => setCreating(true)}><Plus className="size-4" />Crear ejercicio propio{q ? ` “${q}”` : ''}</Button>
+      <div className="sticky bottom-0 -mx-5 mt-3 border-t border-black/[.06] bg-fuego-50/95 px-5 pb-1 pt-3 backdrop-blur dark:border-white/[.06] dark:bg-noche-900/95">
+        <Button variant="ember" className="w-full min-h-14 text-[17px]" disabled={!count} loading={ensure.isPending} onClick={confirm}>
+          <Check className="size-5" strokeWidth={2.6} />{count ? `${cta} ${count} ejercicio${count > 1 ? 's' : ''}` : 'Toca los ejercicios que quieras'}
+        </Button>
+      </div>
+      {creating && <ExerciseEditor initialName={q} onClose={() => setCreating(false)} onSaved={ex => { onPick([ex]); onClose() }} />}
     </Sheet>
   )
 }
@@ -263,20 +318,20 @@ function ExercisesTab() {
   const [edit, setEdit] = useState<Exercise | 'new' | null>(null)
   const archive = useAction(async (e: Exercise) => must(supabase.from('exercises').update({ archived: !e.archived }).eq('id', e.id)), { invalidate: [['exercises']] })
   const del = useAction(async (e: Exercise) => must(supabase.from('exercises').delete().eq('id', e.id)), { invalidate: [['exercises'], ['routines'], ['workouts']], success: 'Ejercicio eliminado' })
-  const catalog = useAddCatalog()
+  const [browse, setBrowse] = useState(false)
+  const { toast } = useUi()
   if (exercises.isLoading) return <Loading />
   const list = exercises.data ?? []
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       <Button variant="soft" className="w-full" onClick={() => setEdit('new')}><Plus className="size-5" />Nuevo ejercicio</Button>
-      {list.length < 10 && (
-        <Card className="flex items-center gap-3">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-blush text-ember"><Dumbbell className="size-5" /></span>
-          <div className="min-w-0 flex-1"><p className="text-[15px] font-semibold">Catálogo básico</p><p className="muted text-[12.5px]">40+ ejercicios habituales, ordenados por grupo muscular.</p></div>
-          <Button variant="ember" className="min-h-10 px-3 text-[13px]" loading={catalog.isPending} onClick={() => catalog.mutate()}>Añadir</Button>
-        </Card>
-      )}
-      {list.length === 0 && <Empty icon="🏋️" title="Crea tus ejercicios" text="Organízalos por grupo muscular para registrar series y ver tu progreso." />}
+      <Card onClick={() => setBrowse(true)} className="flex items-center gap-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-blush text-ember"><Library className="size-5" /></span>
+        <div className="min-w-0 flex-1"><p className="text-[15px] font-semibold">Biblioteca de ejercicios</p><p className="muted text-[12.5px]">{EXERCISE_LIBRARY.length} ejercicios por grupo muscular y equipo</p></div>
+        <ChevronRight className="size-5 text-fuego-800/40" />
+      </Card>
+      <ExercisePicker open={browse} onClose={() => setBrowse(false)} title="Biblioteca" cta="Guardar" onPick={exs => toast(`${exs.length} ejercicio(s) en tu lista`)} />
+      {list.length === 0 && <Empty icon="🏋️" title="Tu lista está vacía" text="Elige ejercicios de la biblioteca o crea los tuyos. También puedes añadirlos directamente al armar una rutina." />}
       {MUSCLES.map(m => {
         const xs = list.filter(e => e.muscle_group === m.value)
         if (!xs.length) return null
@@ -286,7 +341,8 @@ function ExercisesTab() {
             <ul className="divide-y divide-fuego-100 dark:divide-noche-700">
               {xs.map(e => (
                 <li key={e.id} className="flex items-center gap-2 py-2">
-                  <span className={cx('flex-1 font-medium', e.archived && 'line-through opacity-50')}>{e.name}</span>
+                  <span className={cx('min-w-0 flex-1', e.archived && 'line-through opacity-50')}><span className="block truncate font-medium">{e.name}</span>{muscleSummary(e.name) && <span className="muted block truncate text-[12px]">{muscleSummary(e.name)}</span>}</span>
+                  <ExerciseInfoButton name={e.name} />
                   <button className="p-2" onClick={() => setEdit(e)} aria-label="Editar"><Pencil className="size-4" /></button>
                   <button className="p-2 text-xs font-semibold text-fuego-600" onClick={() => archive.mutate(e)}>{e.archived ? 'Activar' : 'Archivar'}</button>
                   <button className="p-2 text-red-500" aria-label="Eliminar" onClick={async () => {
@@ -362,13 +418,10 @@ function WorkoutLogger({ routine, workout, onClose }: { routine?: Routine; worko
 
   return (
     <Sheet open onClose={async () => { if (await confirm({ title: '¿Salir sin guardar?', text: 'Perderás lo que registraste en esta pantalla.', confirm: 'Salir', danger: true })) onClose() }} title={workout ? 'Editar entrenamiento' : 'Entrenando 💪'}>
-      <div className="space-y-3">
+      <div className="stagger space-y-3">
         <Field label="Título"><Input value={title} onChange={e => setTitle(e.target.value)} maxLength={80} /></Field>
-        <div className="grid grid-cols-3 gap-2">
-          <Field label="Fecha"><Input type="date" value={date} max={toISODate(new Date())} onChange={e => setDate(e.target.value)} /></Field>
-          <Field label="Hora"><Input type="time" value={time} onChange={e => setTime(e.target.value)} /></Field>
-          <Field label="Minutos"><Input type="number" inputMode="numeric" min={0} placeholder="auto" value={duration} onChange={e => setDuration(e.target.value)} /></Field>
-        </div>
+        <WhenRow date={date} setDate={setDate} time={time} setTime={setTime} />
+        <Field label="Duración (minutos)" hint="Si lo dejas vacío, se calcula sola desde que abriste esta pantalla."><Input type="number" inputMode="numeric" min={0} placeholder="Automática" value={duration} onChange={e => setDuration(e.target.value)} /></Field>
         {rest !== null && (
           <div className="sticky top-0 z-10 flex items-center justify-between rounded-2xl bg-ink px-4 py-3 text-white shadow-lg dark:bg-white dark:text-ink">
             <span className="flex items-center gap-2 font-bold"><Timer className="size-5" />Descanso</span>
@@ -381,9 +434,11 @@ function WorkoutLogger({ routine, workout, onClose }: { routine?: Routine; worko
           return (
             <div key={i} className="rounded-2xl bg-white p-3 dark:bg-noche-800">
               <div className="flex items-center gap-2">
-                <button className="flex-1 text-left font-bold" onClick={() => setItems(a => a.map((x, k) => k === i ? { ...x, open: !x.open } : x))}>
+                <button className="min-w-0 flex-1 text-left font-bold" onClick={() => setItems(a => a.map((x, k) => k === i ? { ...x, open: !x.open } : x))}>
                   {ex?.name ?? 'Ejercicio'} <span className="muted text-xs font-medium">· {it.sets.filter(s => s.done).length}/{it.sets.length} series</span>
+                  {ex && muscleSummary(ex.name) && <span className="muted block truncate text-[11.5px] font-medium">{muscleSummary(ex.name)}</span>}
                 </button>
+                {ex && <ExerciseInfoButton name={ex.name} />}
                 <button className="p-1.5 text-red-500" onClick={() => setItems(a => a.filter((_, k) => k !== i))} aria-label="Quitar ejercicio"><X className="size-4" /></button>
               </div>
               {it.open && (
@@ -408,12 +463,12 @@ function WorkoutLogger({ routine, workout, onClose }: { routine?: Routine; worko
             </div>
           )
         })}
-        <Button variant="soft" className="w-full" onClick={() => setPicker(true)}><Plus className="size-4" />Añadir ejercicio</Button>
+        <Button variant="soft" className="w-full" onClick={() => setPicker(true)}><Plus className="size-4" />Añadir ejercicios</Button>
         <Field label="Notas"><textarea className="input min-h-20" maxLength={1000} value={notes} onChange={e => setNotes(e.target.value)} placeholder="¿Cómo te sentiste?" /></Field>
         <Button variant="ember" className="sticky-save w-full min-h-14 text-lg" loading={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: () => { if (!workout) celebrate(['💪', '🔥', '🏋️']); onClose() } })}>{workout ? 'Guardar cambios' : 'Terminar y guardar'}</Button>
         {workout && <Button variant="ghost" className="w-full text-red-600" onClick={async () => { if (await confirm({ title: '¿Eliminar este entrenamiento?', text: 'Si era de hoy, puede afectar tu estado de racha del día.', danger: true, confirm: 'Eliminar' })) del.mutate(undefined, { onSuccess: onClose }) }}><Trash2 className="size-4" />Eliminar entrenamiento</Button>}
       </div>
-      <ExercisePicker open={picker} onClose={() => setPicker(false)} onPick={ex => { setItems(a => [...a, { exercise_id: ex.id, open: true, sets: [{ reps: '', weight_kg: '', duration_sec: '', rest_sec: '90', done: false }] }]); setPicker(false) }} />
+      <ExercisePicker open={picker} onClose={() => setPicker(false)} title="Añadir al entrenamiento" onPick={exs => setItems(a => [...a, ...exs.map(ex => ({ exercise_id: ex.id, open: true, sets: [1, 2, 3].map(() => ({ reps: '', weight_kg: '', duration_sec: '', rest_sec: '90', done: false })) }))])} />
     </Sheet>
   )
 }
@@ -430,7 +485,7 @@ function HistoryTab({ onEdit }: { onEdit: (w: Workout) => void }) {
   const list = q.data ?? []
   if (!list.length) return <Empty icon="📅" title="Todavía no hay entrenamientos" text="Cuando registres uno, aparecerá aquí." />
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       {list.map(w => {
         const sets = w.workout_sets ?? []
         const groups = [...new Set(sets.map(s => (s.exercises as Exercise | undefined)?.muscle_group).filter(Boolean))] as MuscleGroup[]
@@ -484,7 +539,7 @@ function ProgressTab() {
   if (sets.isLoading) return <Loading />
   if (!records.size) return <Empty icon="📈" title="Sin datos de progreso" text="Registra series con peso para ver tus récords y gráficos." />
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       <select className="input" value={selected} onChange={e => setExId(e.target.value)}>
         {[...records.keys()].map(id => <option key={id} value={id}>{exercises.find(e => e.id === id)?.name ?? 'Ejercicio'}</option>)}
       </select>
@@ -534,7 +589,7 @@ function BodyWeightTab() {
   const min = list.length ? Math.min(...list.map(x => x.weight_kg)) : 0
   const chart = list.slice(-14).map(x => ({ day: fmtShort(x.day), kg: x.weight_kg }))
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       <Card>
         <p className="mb-3 text-[15px] font-semibold">Registrar peso</p>
         <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (Number(kg.replace(',', '.')) >= 20) save.mutate(undefined, { onSuccess: () => setKg('') }) }}>
@@ -576,6 +631,22 @@ function BodyWeightTab() {
           </Card>
         </>
       )}
+    </div>
+  )
+}
+
+/** Número con botones − / + grandes (se puede escribir también). */
+function NumStep({ label, value, onChange, step }: { label: string; value: string; onChange: (v: string) => void; step: number }) {
+  const n = value === '' ? 0 : Number(value)
+  const set = (v: number) => onChange(v <= 0 ? '' : String(Math.round(v * 100) / 100))
+  return (
+    <div className="rounded-xl bg-fuego-50 p-1.5 dark:bg-noche-900">
+      <p className="muted px-1 text-[11.5px] font-medium">{label}</p>
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={() => set(n - step)} className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white text-xl font-semibold active:scale-95 dark:bg-noche-800" aria-label={`Menos ${label}`}>−</button>
+        <input className="tabular h-10 w-full min-w-0 rounded-lg bg-transparent text-center text-[18px] font-bold outline-none" inputMode="decimal" type="number" min={0} value={value} placeholder="—" onChange={e => onChange(e.target.value)} />
+        <button type="button" onClick={() => set(n + step)} className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-white text-xl font-semibold active:scale-95 dark:bg-noche-800" aria-label={`Más ${label}`}>+</button>
+      </div>
     </div>
   )
 }

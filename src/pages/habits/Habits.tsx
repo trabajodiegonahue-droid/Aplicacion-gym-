@@ -10,6 +10,7 @@ import type { ActivityLog, Badge, Category, Challenge, Goal, Habit, HabitLog, Me
 import { addDays, fmtDay, fmtLiters, fmtNum, fmtShort, fmtTime, startOfWeek } from '../../lib/dates'
 import { Button, Card, Empty, Field, Input, Loading, ProgressBar, Segmented, Sheet, cx, useUi } from '../../components/ui'
 import { PageHeader } from '../../components/AppShell'
+import { TimeField } from '../../components/TimePicker'
 import { ACTIVITY_KINDS, ActivitySheet, presetIcon, useAddWater, useWaterPresets, useWaterToday } from '../../components/Today'
 import { celebrate } from '../../components/Celebration'
 
@@ -70,7 +71,7 @@ function HabitsTab() {
   const doneToday = active.filter(h => (logs.data ?? []).some(l => l.habit_id === h.id && l.local_day === today)).length
 
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       {active.length > 0 && (
         <Card>
           <div className="mb-3 flex items-baseline justify-between"><p className="font-bold">{doneToday === active.length ? '¡Todo listo por hoy! ✨' : 'Hábitos de hoy'}</p><span className="tabular text-[15px] font-bold">{doneToday}/{active.length}</span></div>
@@ -144,7 +145,7 @@ function HabitEditor({ habit, cats, onClose }: { habit?: Habit; cats: Category[]
         </Field>
         <Segmented value={f.frequency} onChange={v => setF({ ...f, frequency: v })} options={[{ value: 'daily', label: 'Diario' }, { value: 'weekly', label: 'Veces por semana' }]} />
         {f.frequency === 'weekly' && <Field label="Veces por semana"><Input type="number" inputMode="numeric" min={1} max={7} value={f.times_per_week} onChange={e => setF({ ...f, times_per_week: Number(e.target.value) })} /></Field>}
-        <Field label="Recordatorio (opcional)" hint="El recordatorio general de hábitos se configura en Perfil → Notificaciones."><Input type="time" value={f.reminder_time} onChange={e => setF({ ...f, reminder_time: e.target.value })} /></Field>
+        <TimeField label="Recordatorio (opcional)" optional value={f.reminder_time} onChange={v => setF({ ...f, reminder_time: v })} />
         <div className="grid grid-cols-2 gap-2">
           <Field label="Inicio"><Input type="date" value={f.start_date} onChange={e => setF({ ...f, start_date: e.target.value })} /></Field>
           <Field label="Fin (opcional)"><Input type="date" value={f.end_date} onChange={e => setF({ ...f, end_date: e.target.value })} /></Field>
@@ -226,7 +227,7 @@ function WaterTab() {
   const del = useAction(async (id: string) => must(supabase.from('water_logs').delete().eq('id', id)), { invalidate: [['water'], ['water_history'], ...LOG_KEYS] })
 
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       <Card className="flex items-center gap-5 py-5">
         <WaterGlass value={total} max={goal} />
         <div className="min-w-0 flex-1">
@@ -346,7 +347,7 @@ function ActivityTab() {
     return out
   }, [list, from, today])
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       <Card className="space-y-4">
         <ProgressBar size="lg" value={tMin} max={profile?.activity_goal_min || 30} showPct label={<span className="font-semibold">Minutos activos · <span className="tabular">{tMin} / {profile?.activity_goal_min}</span></span>} />
         <ProgressBar size="lg" value={tSteps} max={profile?.steps_goal || 8000} color="bg-gradient-to-r from-sky-300 to-sky-500" showPct label={<span className="font-semibold">Pasos · <span className="tabular">{fmtNum(tSteps)} / {fmtNum(profile?.steps_goal ?? 0)}</span></span>} />
@@ -444,7 +445,7 @@ function GoalsTab() {
   const archiveShared = useAction(async (g: Goal) => must(supabase.rpc('propose_change', { p_kind: 'shared_goal_delete', p_title: `Archivar meta: ${g.name}`, p_payload: { goal_id: g.id } })), { invalidate: [['proposals']], success: 'Propuesta enviada a tu pareja' })
   const list = (q.data ?? []).filter(g => show === 'active' ? ['active', 'paused'].includes(g.status) : ['completed', 'archived'].includes(g.status))
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <Button variant="soft" onClick={() => setForm('personal')}><User className="size-4" />Meta personal</Button>
         <Button variant="soft" disabled={!couple} onClick={() => setForm('shared')}><Users className="size-4" />Meta en pareja</Button>
@@ -560,7 +561,7 @@ function ChallengesTab() {
   const badges = useQuery({ queryKey: ['challenges', 'badges', uid], enabled: !!uid, queryFn: () => must(supabase.from('user_badges').select('*').order('earned_at', { ascending: false })) as Promise<Badge[]> }).data ?? []
   const active = (q.data ?? []).filter(c => c.status === 'active'), past = (q.data ?? []).filter(c => c.status !== 'active')
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <Button variant="soft" onClick={() => setForm('personal')}><User className="size-4" />Reto personal</Button>
         <Button variant="soft" disabled={!couple} onClick={() => setForm('shared')}><Users className="size-4" />Reto de pareja</Button>

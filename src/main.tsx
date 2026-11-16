@@ -8,7 +8,8 @@ import './index.css'
 import App from './App'
 import { AuthProvider } from './context/AuthProvider'
 import { UiProvider } from './components/ui'
-import { isConfigured, isDemo } from './lib/supabase'
+import { DEMO_STORAGE_KEY, isConfigured, isDemo } from './lib/supabase'
+import { loadDemoBackend } from './demo/lazy'
 import SetupNeeded from './pages/SetupNeeded'
 
 if (!isDemo) registerSW({ immediate: true })
@@ -18,6 +19,9 @@ const Router = import.meta.env.VITE_MEMORY_ROUTER === 'true' ? MemoryRouter : is
 const qc = new QueryClient({
   defaultOptions: { queries: { staleTime: 20_000, retry: 1, refetchOnWindowFocus: true } },
 })
+
+// Demo: preparar la base de datos y descartar sesiones viejas antes de mostrar la app
+if (isDemo) await (await loadDemoBackend()).validateDemoSession(DEMO_STORAGE_KEY)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

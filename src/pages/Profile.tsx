@@ -13,6 +13,7 @@ import { Button, Card, Field, Input, SectionTitle, Segmented, Sheet, Toggle, use
 import { PageHeader } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
 import { CharacterEditor } from '../components/CharacterEditor'
+import { TimeField } from '../components/TimePicker'
 import { startTour } from '../components/Tour'
 import { isStandalone } from '../components/InstallBanner'
 
@@ -64,7 +65,7 @@ export default function Profile() {
   return (
     <div>
       <PageHeader title="Perfil" subtitle={session?.user.email} />
-      <div className="space-y-3 px-4 pb-6">
+      <div className="stagger space-y-3 px-4 pb-6">
         <Card className="flex items-center gap-4">
           <label className="relative cursor-pointer">
             <Avatar path={profile.avatar_path} name={profile.display_name} size={84} />
@@ -188,14 +189,18 @@ function NotifPrefs({ prefs, onSave }: { prefs: NotificationPrefs; onSave: (p: N
             <div key={n.kind} className="py-1">
               <Toggle checked={enabled} onChange={v => set(n.kind, { enabled: v })} label={<span className="text-sm font-medium">{n.label}</span>} />
               {enabled && n.time && (
-                <label className="flex items-center justify-between pb-2 text-sm"><span className="muted">Hora</span>
-                  <input type="time" className="input w-32 min-h-10 py-1" value={get(n.kind).time ?? n.time} onChange={e => set(n.kind, { time: e.target.value })} /></label>
+                <div className="pb-3"><TimeField label="Hora del aviso" value={get(n.kind).time ?? n.time} onChange={v => set(n.kind, { time: v })} /></div>
               )}
               {enabled && n.water && (
-                <div className="grid grid-cols-3 gap-2 pb-2 text-xs">
-                  <label><span className="muted">Desde</span><input type="time" className="input min-h-10 px-2 py-1" value={get('water').from ?? '10:00'} onChange={e => set('water', { from: e.target.value })} /></label>
-                  <label><span className="muted">Hasta</span><input type="time" className="input min-h-10 px-2 py-1" value={get('water').to ?? '20:00'} onChange={e => set('water', { to: e.target.value })} /></label>
-                  <label><span className="muted">Cada (h)</span><input type="number" min={1} max={6} className="input min-h-10 px-2 py-1" value={get('water').every_hours ?? 2} onChange={e => set('water', { every_hours: Number(e.target.value) })} /></label>
+                <div className="space-y-3 pb-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <TimeField label="Desde" value={get('water').from ?? '10:00'} onChange={v => set('water', { from: v })} />
+                    <TimeField label="Hasta" value={get('water').to ?? '20:00'} onChange={v => set('water', { to: v })} />
+                  </div>
+                  <div>
+                    <p className="label">Cada cuánto</p>
+                    <Segmented value={String(get('water').every_hours ?? 2)} onChange={v => set('water', { every_hours: Number(v) })} options={['1', '2', '3', '4'].map(h => ({ value: h, label: `${h} h` }))} />
+                  </div>
                 </div>
               )}
             </div>

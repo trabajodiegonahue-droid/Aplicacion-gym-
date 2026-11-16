@@ -9,6 +9,7 @@ import type { ActivityKind, MemberDay, MemberStatus, Rules, WaterPreset } from '
 import { fmtLiters, fmtNum, localDateTimeToISO, nowTimeHHMM, toISODate } from '../lib/dates'
 import { Button, Field, Input, ProgressBar, Ring, Sheet, cx } from './ui'
 import { Avatar } from './Avatar'
+import { WhenRow } from './TimePicker'
 import { celebrate } from './Celebration'
 
 export const STATUS: Record<MemberStatus | 'recovered', { label: string; dot: string; icon: typeof Circle }> = {
@@ -163,15 +164,6 @@ function MoreOptions({ children, label = 'Más opciones' }: { children: React.Re
   )
 }
 
-function WhenFields({ date, setDate, time, setTime }: { date: string; setDate: (v: string) => void; time: string; setTime: (v: string) => void }) {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      <Field label="Fecha"><Input type="date" value={date} max={toISODate(new Date())} onChange={e => setDate(e.target.value)} /></Field>
-      <Field label="Hora"><Input type="time" value={time} onChange={e => setTime(e.target.value)} /></Field>
-    </div>
-  )
-}
-
 const WORKOUT_TYPES = ['Piernas', 'Glúteos', 'Espalda', 'Pecho', 'Brazos', 'Hombros', 'Cuerpo completo', 'Abdomen', 'Cardio'].map(v => ({ value: v, label: v }))
 const MINUTES = [15, 30, 45, 60, 90]
 
@@ -201,9 +193,9 @@ export function QuickWorkoutSheet({ open, onClose }: { open: boolean; onClose: (
           <p className="label">¿Cuánto tiempo?</p>
           <Chips cols={5} options={MINUTES.map(m => ({ value: m, label: `${m}′` }))} value={custom ? null : minutes} onChange={m => { setMinutes(m); setCustom('') }} />
         </div>
-        <MoreOptions label="Más opciones (otra duración, fecha, notas)">
+        <WhenRow date={date} setDate={setDate} time={time} setTime={setTime} />
+        <MoreOptions label="Más opciones (otra duración, notas)">
           <Field label="Otra duración (minutos)"><Input type="number" inputMode="numeric" min={1} max={1440} value={custom} onChange={e => setCustom(e.target.value)} placeholder="Ej.: 75" /></Field>
-          <WhenFields date={date} setDate={setDate} time={time} setTime={setTime} />
           <Field label="Notas"><Input value={notes} onChange={e => setNotes(e.target.value)} maxLength={1000} placeholder="¿Cómo te sentiste?" /></Field>
         </MoreOptions>
         <button type="button" className="w-full text-center text-[13px] font-medium text-fuego-800/70 dark:text-white/50" onClick={() => { onClose(); nav('/gym') }}>
@@ -261,13 +253,13 @@ export function ActivitySheet({ open, onClose }: { open: boolean; onClose: () =>
             <Chips cols={5} options={[10, 20, 30, 45, 60].map(m => ({ value: m, label: `${m}′` }))} value={customMin ? null : minutes} onChange={m => { setMinutes(m); setCustomMin('') }} />
           </div>
         )}
-        <MoreOptions label="Más opciones (pasos, km, fecha, notas)">
+        <WhenRow date={date} setDate={setDate} time={time} setTime={setTime} />
+        <MoreOptions label="Más opciones (pasos, km, notas)">
           <div className="grid grid-cols-3 gap-2">
             <Field label="Minutos"><Input type="number" inputMode="numeric" min={0} value={customMin} placeholder={String(mins)} onChange={e => setCustomMin(e.target.value)} /></Field>
             <Field label="Pasos"><Input type="number" inputMode="numeric" min={0} value={customSteps} placeholder={String(stp)} onChange={e => setCustomSteps(e.target.value)} /></Field>
             <Field label="Km"><Input type="number" inputMode="decimal" step="0.01" min={0} value={km} onChange={e => setKm(e.target.value)} /></Field>
           </div>
-          <WhenFields date={date} setDate={setDate} time={time} setTime={setTime} />
           <Field label="Notas"><Input value={notes} onChange={e => setNotes(e.target.value)} maxLength={500} /></Field>
         </MoreOptions>
         <SaveBar summary={`${label} · ${isSteps ? `${fmtNum(stp)} pasos` : `${mins} min`}`} label="Guardar actividad" loading={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: onClose })} />

@@ -10,6 +10,7 @@ import type { CalendarEvent, Challenge, Goal, Memory, Message, Note } from '../.
 import { addDays, diffDays, endOfMonth, fmtLongDay, fmtMonth, fmtShort, fmtTime, parseISODate, startOfMonth, toISODate, WEEKDAYS_MON } from '../../lib/dates'
 import { Button, Card, Empty, Field, Input, Loading, Segmented, Sheet, cx, useUi } from '../../components/ui'
 import { PageHeader } from '../../components/AppShell'
+import { TimeField } from '../../components/TimePicker'
 import { Avatar } from '../../components/Avatar'
 import { celebrate } from '../../components/Celebration'
 
@@ -158,7 +159,7 @@ function Album() {
     await must(supabase.from('memories').insert({ ...f, description: f.description || null, couple_id: couple!.id, created_by: uid, image_path }))
   }, { invalidate: [['memories']], success: 'Recuerdo guardado 📸' })
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       <Button className="w-full" onClick={() => setAdd(true)}><ImagePlus className="size-5" />Nuevo recuerdo</Button>
       {q.isLoading ? <Loading /> : (q.data ?? []).length === 0 ? <Empty icon="📷" title="Su álbum está vacío" text="Guarden fotos de visitas, entrenamientos y momentos especiales." /> : (
         <div className="grid grid-cols-2 gap-2">{(q.data ?? []).map(m => <MemoryThumb key={m.id} m={m} onClick={() => setView(m)} />)}</div>
@@ -177,7 +178,7 @@ function Album() {
         </form>
       </Sheet>
       <Sheet open={!!view} onClose={() => setView(null)} title={view?.title}>
-        {view && <div className="space-y-3">
+        {view && <div className="stagger space-y-3">
           {viewUrl && <img src={viewUrl} alt={view.title} className="w-full rounded-2xl" />}
           <p className="muted text-sm first-letter:uppercase">{fmtLongDay(view.memory_date)}</p>
           {view.description && <p>{view.description}</p>}
@@ -236,7 +237,7 @@ function SharedCalendar() {
 
   const selItems = sel ? itemsFor(sel) : []
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       <Card>
         <div className="mb-3 flex items-center justify-between">
           <button className="flex size-10 items-center justify-center rounded-full bg-fuego-100 dark:bg-noche-700" onClick={() => m && setMonth(startOfMonth(addDays(m, -1)))} aria-label="Mes anterior"><ChevronLeft className="size-5" /></button>
@@ -291,10 +292,8 @@ function EventForm({ open, day, onClose }: { open: boolean; day: string; onClose
       <form className="space-y-3" onSubmit={e => { e.preventDefault(); if (f.title.trim()) save.mutate(undefined, { onSuccess: () => { onClose(); setF({ ...f, title: '', notes: '' }) } }) }}>
         <Field label="Título"><Input required maxLength={80} value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder="Ej.: ¡Nos vemos! ✈️" /></Field>
         <Field label="Tipo"><select className="input" value={f.kind} onChange={e => setF({ ...f, kind: e.target.value, yearly: ['aniversario', 'cumpleanos'].includes(e.target.value) || f.yearly })}>{Object.entries(EVENT_KINDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Fecha"><Input type="date" value={f.event_date} onChange={e => setF({ ...f, event_date: e.target.value })} /></Field>
-          <Field label="Hora (opcional)"><Input type="time" value={f.event_time} onChange={e => setF({ ...f, event_time: e.target.value })} /></Field>
-        </div>
+        <Field label="Fecha"><Input type="date" value={f.event_date} onChange={e => setF({ ...f, event_date: e.target.value })} /></Field>
+        <TimeField label="Hora (opcional)" optional value={f.event_time} onChange={v => setF({ ...f, event_time: v })} />
         <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" className="size-5 accent-fuego-500" checked={f.yearly} onChange={e => setF({ ...f, yearly: e.target.checked })} />Se repite cada año</label>
         <Field label="Notas"><Input maxLength={500} value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></Field>
         <Button type="submit" className="w-full" loading={save.isPending}>Guardar</Button>
@@ -316,7 +315,7 @@ function Notes() {
   const del = useAction(async (id: string) => must(supabase.from('notes').delete().eq('id', id)), { invalidate: [['notes']] })
   const colors = ['bg-fuego-100', 'bg-rosa-400/20', 'bg-amber-100', 'bg-white']
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       <form className="card space-y-2" onSubmit={e => { e.preventDefault(); if (body.trim()) add.mutate(undefined, { onSuccess: () => setBody('') }) }}>
         <textarea className="input min-h-20" maxLength={500} value={body} onChange={e => setBody(e.target.value)} placeholder="Escribe una nota de apoyo para tu pareja…" />
         <Button type="submit" className="w-full" disabled={!body.trim()} loading={add.isPending}>Pegar nota</Button>
@@ -364,7 +363,7 @@ function Together() {
     if (nextAnniv < today) nextAnniv = `${y + 1}-${couple.anniversary_date.slice(5)}`
   }
   return (
-    <div className="space-y-3">
+    <div className="stagger space-y-3">
       <Card className="flex flex-col items-center py-6 text-center">
         <div className="flex items-center -space-x-3">
           <Avatar path={profile?.avatar_path} name={profile?.display_name} size={72} ring="ring-4 ring-white dark:ring-noche-800" />

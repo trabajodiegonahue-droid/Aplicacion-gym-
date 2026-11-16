@@ -139,6 +139,15 @@ export async function demoFetch(input: RequestInfo | URL, init: RequestInit = {}
   const body = typeof raw === 'string' && raw ? JSON.parse(raw) : undefined
   const claims = verify((headers.get('authorization') ?? '').replace(/^Bearer /, ''))
   const db = await getDb()
+  if (claims?.sub && !url.pathname.startsWith('/auth/')) {
+    const exists = (await db.query(`select 1 from auth.users where id = $1`, [claims.sub])).rows.length > 0
+    if (!exists) {
+      // Sesión de una persona que ya no existe en esta demo: volver al inicio de sesión
+      try { localStorage.removeItem('sb-demo-auth-v2') } catch { /* */ }
+      setTimeout(() => location.reload(), 60)
+      return json(401, { code: 'PGRST301', message: 'Tu sesión de la demo expiró. Vuelve a entrar.' })
+    }
+  }
   try {
     // ---------------- AUTH ----------------
     if (url.pathname === '/auth/v1/signup') {
@@ -252,4 +261,19 @@ export async function demoGetUrl(path: string) {
 export async function demoDelete(path: string) {
   const db = await getDb()
   await db.query(`delete from public.demo_media where path = $1`, [path])
+}
+
+/**
+ * Al abrir la demo: si el teléfono guardó la sesión de una persona que ya no existe
+ * (por ejemplo, tras reiniciar la demo o cambiar de versión), se borra para volver a entrar.
+ */
+export async function validateDemoSession(storageKey: string) {
+  try {
+    const raw = localStorage.getItem(storageKey)
+    if (!raw) return
+    const sub = JSON.parse(raw)?.user?.id
+    const db = await getDb()
+    const ok = sub && (await db.query(`select 1 from auth.users where id = $1`, [sub])).rows.length > 0
+    if (!ok) localStorage.removeItem(storageKey)
+  } catch { try { localStorage.removeItem(storageKey) } catch { /* */ } }
 }

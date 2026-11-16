@@ -12,6 +12,7 @@ import { Avatar } from '../components/Avatar'
 import { ActivitySheet, QuickWorkoutSheet, WaterSheet, conditionText, useWaterToday } from '../components/Today'
 import { CoupleScene, LevelUpWatcher } from '../components/Characters'
 import { startTour } from '../components/Tour'
+import { CountUp, Embers } from '../components/Motion'
 import type { Habit, HabitLog, MemberDay, StreakDay } from '../lib/types'
 
 const QUOTES = [
@@ -128,7 +129,7 @@ export default function Home() {
         <Link to="/perfil" aria-label="Perfil" className="mb-1" data-tour="profile"><Avatar path={profile?.avatar_path} name={profile?.display_name} size={40} /></Link>
       </header>
 
-      <div className="space-y-3 px-4">
+      <div className="stagger space-y-3 px-4">
         {!couple && (
           <Card onClick={() => nav('/vincular')} className="flex items-center gap-4">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blush text-ember dark:bg-noche-700"><Link2 className="size-5" /></span>
@@ -146,11 +147,12 @@ export default function Home() {
             <button data-tour="streak" onClick={() => nav('/racha')} className="relative block w-full overflow-hidden rounded-[26px] bg-gradient-to-br from-orange-400 via-fuego-400 to-fuego-600 p-5 text-left text-white shadow-[0_20px_40px_-18px_rgba(225,29,72,.55)] transition active:scale-[.99]">
               <div className="pointer-events-none absolute -right-10 -top-16 size-56 rounded-full bg-amber-200 opacity-30 blur-3xl" />
               <div className="pointer-events-none absolute -bottom-20 -left-10 size-48 rounded-full bg-rose-900 opacity-25 blur-3xl" />
+              {count > 0 && <Embers count={12} />}
               <div className="relative flex items-center gap-4">
                 <div className="flex-1">
                   <p className="text-[12px] font-medium uppercase tracking-[.08em] text-white/80">Racha compartida</p>
                   <p className="mt-1 flex items-baseline gap-2">
-                    <span data-testid="streak-count" className="tabular text-[64px] font-bold leading-none tracking-[-0.05em]">{count}</span>
+                    <CountUp value={count} className="tabular text-[64px] font-bold leading-none tracking-[-0.05em]" /><span data-testid="streak-count" className="sr-only">{count}</span>
                     <span className="text-[15px] font-medium text-white/70">{count === 1 ? 'día' : 'días'}</span>
                   </p>
                   <p className="mt-1.5 text-[13px] text-white/80">Récord {streak?.best_count ?? 0} · {couple.name ?? `Tú y ${partner?.display_name ?? ''}`}</p>

@@ -8,11 +8,12 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 export const isDemo = import.meta.env.VITE_DEMO === 'true'
 export const isConfigured = isDemo || Boolean(url && key && /^https?:\/\//.test(url))
 
+export const DEMO_STORAGE_KEY = 'sb-demo-auth-v2'
 const demoFetch: typeof fetch = async (input, init) => (await loadDemoBackend()).demoFetch(input, init)
 
 export const supabase: SupabaseClient = isDemo
   ? createClient('https://demo.fuegojuntos.local', 'demo-anon-key', {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'sb-demo-auth' },
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: DEMO_STORAGE_KEY },
       global: { fetch: demoFetch },
     })
   : isConfigured

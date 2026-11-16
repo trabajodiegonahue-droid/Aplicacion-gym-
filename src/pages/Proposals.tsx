@@ -65,7 +65,7 @@ export default function Proposals() {
     <div>
       <PageHeader title="Propuestas" subtitle="Cambios compartidos: deciden los dos"
         back={<button onClick={() => nav(-1)} className="flex size-10 items-center justify-center rounded-full bg-white dark:bg-noche-800" aria-label="Volver"><ChevronLeft /></button>} />
-      <div className="space-y-3 px-4">
+      <div className="stagger space-y-3 px-4">
         <Segmented value={tab} onChange={setTab} options={[{ value: 'pending', label: 'Pendientes' }, { value: 'history', label: 'Historial' }, { value: 'audit', label: 'Registro' }]} />
         {tab !== 'audit' && shown.length === 0 && <Empty icon="🗳️" title={tab === 'pending' ? 'Nada pendiente' : 'Sin historial'} text="Las propuestas de cambios compartidos aparecerán aquí." />}
         {tab !== 'audit' && shown.map(p => (

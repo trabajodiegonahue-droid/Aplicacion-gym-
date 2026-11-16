@@ -47,7 +47,7 @@ export function AppShell() {
               className={({ isActive }) => cx('relative flex min-h-[58px] flex-col items-center justify-center gap-1 text-[10.5px] font-medium tracking-tight transition-colors',
                 isActive ? 'text-ink dark:text-white' : 'text-fuego-800/55 dark:text-white/40')}>
               {({ isActive }) => (<>
-                <t.icon className="size-[23px]" strokeWidth={isActive ? 2.1 : 1.7} />
+                <t.icon key={isActive ? 'on' : 'off'} className={cx('size-[23px]', isActive && 'nav-pop')} strokeWidth={isActive ? 2.1 : 1.7} />
                 {t.label}
                 <span className={cx('absolute top-1.5 size-1 rounded-full bg-ember transition-opacity', isActive ? 'opacity-100' : 'opacity-0')} />
               </>)}

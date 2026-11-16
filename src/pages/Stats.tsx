@@ -59,7 +59,7 @@ export default function Stats() {
     <div>
       <PageHeader title="Estadísticas" subtitle={from && to ? (from === to ? fmtShort(from) : `${fmtShort(from)} – ${fmtShort(to)}`) : ''}
         back={<button onClick={() => nav(-1)} className="flex size-10 items-center justify-center rounded-full bg-white dark:bg-noche-800" aria-label="Volver"><ChevronLeft /></button>} />
-      <div className="space-y-3 px-4 pb-6">
+      <div className="stagger space-y-3 px-4 pb-6">
         <Segmented value={range} onChange={setRange} options={[{ value: 'dia', label: 'Hoy' }, { value: 'semana', label: 'Semana' }, { value: 'mes', label: 'Mes' }]} />
         {couple && (
           <div className="grid grid-cols-3 gap-2">
