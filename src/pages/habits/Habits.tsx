@@ -558,9 +558,23 @@ function ChallengeCard({ c }: { c: Challenge }) {
   )
 }
 
+type ChallengePreset = Partial<{ name: string; description: string; metric: Challenge['metric']; target: string; mode: Challenge['mode']; consecutive: boolean; days: number; end_date: string; badge: string; reward: string }>
+/** Retos de pareja listos para proponer en un toque (los dos los aprueban). */
+const COUPLE_TEMPLATES: (ChallengePreset & { id: string })[] = [
+  { id: 'pasos', badge: '👣', name: '30 días · 10.000 pasos cada uno', description: 'Sumamos pasos entre los dos: 600.000 en un mes.', metric: 'steps', target: '600000', mode: 'together', days: 30, reward: 'Paseo largo juntos en la próxima visita' },
+  { id: 'gym', badge: '🏋️', name: '4 semanas sin faltar al gym', description: '3 entrenos por semana cada uno.', metric: 'workouts', target: '12', mode: 'each', days: 28, reward: 'Cena saludable que cocina el otro' },
+  { id: 'agua', badge: '💧', name: '21 días de agua', description: 'Llegar a la meta de agua 21 días seguidos.', metric: 'water_goal_days', target: '21', mode: 'each', consecutive: true, days: 21 },
+  { id: 'racha', badge: '🔥', name: 'Racha de 14 días', description: 'Cumplir los dos, 14 días seguidos.', metric: 'couple_streak_days', target: '14', mode: 'together', consecutive: true, days: 21, reward: 'Noche de peli elegida por los dos' },
+  { id: 'minutos', badge: '⏱️', name: '1.000 minutos en movimiento', description: 'Actividad sumada entre los dos en un mes.', metric: 'activity_minutes', target: '1000', mode: 'together', days: 30 },
+  { id: 'habitos', badge: '✅', name: '100 hábitos entre los dos', description: 'Cada hábito marcado suma.', metric: 'habit_checks', target: '100', mode: 'together', days: 30 },
+]
+
 function ChallengesTab() {
   const { uid, couple, partner } = useAuth()
-  const [form, setForm] = useState<'personal' | 'shared' | null>(null)
+  const loc = useLocation()
+  const fromVisit = (loc.state as { template?: string; end?: string } | null)
+  const [form, setForm] = useState<'personal' | 'shared' | null>(fromVisit?.template === 'visita' ? 'shared' : null)
+  const [preset, setPreset] = useState<ChallengePreset | undefined>(fromVisit?.template === 'visita' ? { badge: '✈️', name: 'En forma para el reencuentro', description: 'Entrenar hasta el día que nos vemos.', metric: 'workouts', target: String(Math.max(2, Math.round((new Date(fromVisit.end!).getTime() - Date.now()) / 86400000 / 7 * 3))), mode: 'each', end_date: fromVisit.end, reward: 'Entrenamos juntos el primer día 💞' } : undefined)
   const q = useQuery({ queryKey: ['challenges', uid], enabled: !!uid, queryFn: () => must(supabase.from('challenges').select('*').order('created_at', { ascending: false })) as Promise<Challenge[]> })
   const badges = useQuery({ queryKey: ['challenges', 'badges', uid], enabled: !!uid, queryFn: () => must(supabase.from('user_badges').select('*').order('earned_at', { ascending: false })) as Promise<Badge[]> }).data ?? []
   const active = (q.data ?? []).filter(c => c.status === 'active'), past = (q.data ?? []).filter(c => c.status !== 'active')
@@ -568,8 +582,22 @@ function ChallengesTab() {
     <div className="stagger space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <Button variant="soft" onClick={() => setForm('personal')}><User className="size-4" />Reto personal</Button>
-        <Button variant="soft" disabled={!couple} onClick={() => setForm('shared')}><Users className="size-4" />Reto de pareja</Button>
+        <Button variant="soft" disabled={!couple} onClick={() => { setPreset(undefined); setForm('shared') }}><Users className="size-4" />Reto de pareja</Button>
       </div>
+      {couple && (
+        <div>
+          <p className="px-1 pb-2 font-bold">Retos listos para los dos</p>
+          <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1" data-testid="challenge-templates">
+            {COUPLE_TEMPLATES.map(t => (
+              <button key={t.id} type="button" onClick={() => { setPreset(t); setForm('shared') }} className="card w-40 shrink-0 p-3 text-left transition active:scale-95">
+                <span className="text-[26px]">{t.badge}</span>
+                <p className="mt-1 text-[13.5px] font-bold leading-tight">{t.name}</p>
+                <p className="muted mt-0.5 text-[11.5px]">{t.mode === 'together' ? 'Suman juntos' : 'Cada uno'} · {t.days} días</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {badges.length > 0 && (
         <Card>
           <p className="eyebrow mb-3">Insignias</p>
@@ -587,15 +615,19 @@ function ChallengesTab() {
       {q.isLoading ? <Loading /> : active.length === 0 ? <Empty icon="🏆" title="Sin retos activos" text="Ej.: entrenar 5 días seguidos, 50.000 pasos en una semana." /> : active.map(c => <ChallengeCard key={c.id} c={c} />)}
       {past.length > 0 && <p className="px-1 pt-2 font-bold">Anteriores</p>}
       {past.map(c => <ChallengeCard key={c.id} c={c} />)}
-      {form && <ChallengeForm shared={form === 'shared'} onClose={() => setForm(null)} />}
+      {form && <ChallengeForm shared={form === 'shared'} preset={form === 'shared' ? preset : undefined} onClose={() => setForm(null)} />}
     </div>
   )
 }
 
-function ChallengeForm({ shared, onClose }: { shared: boolean; onClose: () => void }) {
+function ChallengeForm({ shared, preset, onClose }: { shared: boolean; preset?: ChallengePreset; onClose: () => void }) {
   const { uid } = useAuth()
   const today = new Date().toISOString().slice(0, 10)
-  const [f, setF] = useState({ name: '', description: '', metric: 'workout_days' as Challenge['metric'], target: '5', mode: 'each' as Challenge['mode'], consecutive: false, start_date: today, end_date: addDays(today, 7), badge: '🔥', reward: '' })
+  const [f, setF] = useState({
+    name: preset?.name ?? '', description: preset?.description ?? '', metric: preset?.metric ?? 'workout_days' as Challenge['metric'], target: preset?.target ?? '5',
+    mode: preset?.mode ?? 'each' as Challenge['mode'], consecutive: preset?.consecutive ?? false, start_date: today,
+    end_date: preset?.end_date ?? addDays(today, (preset?.days ?? 8) - 1), badge: preset?.badge ?? '🔥', reward: preset?.reward ?? '',
+  })
   const save = useAction(async () => {
     const row = { ...f, name: f.name.trim(), description: f.description || null, reward: f.reward || null, target: Number(f.target) }
     if (shared) return must(supabase.rpc('propose_change', { p_kind: 'shared_challenge', p_title: `Reto: ${row.name}`, p_payload: row }))

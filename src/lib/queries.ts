@@ -89,6 +89,7 @@ export function useAction<TVars = void, TRes = unknown>(fn: (v: TVars) => Promis
   const { toast } = useUi()
   return useMutation({
     mutationFn: fn,
+    networkMode: "always", // sin señal: se ejecuta igual (la cola offline o el mensaje "Sin conexión")
     onSuccess: r => {
       opts.invalidate?.forEach(k => qc.invalidateQueries({ queryKey: k }))
       const msg = typeof opts.success === 'function' ? opts.success(r) : opts.success

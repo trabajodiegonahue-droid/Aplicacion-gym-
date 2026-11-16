@@ -45,6 +45,7 @@ src/                   la app (páginas, componentes, service worker)
 | Calendario de los dos (entrenos, actividad, descansos, pausas, planes, eventos, ciclo propio) | ✅ |
 | Datos corporales al entrar, pesaje semanal (peso + estatura), gráficas semanales de peso, IMC, estatura y medidas; fotos de progreso privadas; ciclo menstrual opcional y privado | ✅ |
 | Ciclo menstrual completo (opcional y privado): anillo con fases, predicción con el promedio propio, flujo/cólicos/síntomas diarios, guía de energía/ánimo/fuerza por fase, gráficas personales por fase, entreno que se adapta, aviso privado 2 días antes, la pareja ve solo la fase y (si se quiere) cómo va hoy, regla opcional "período = día de mínimos" | ✅ |
+| Pasos y sueño automáticos con un Atajo de iOS (llave personal, sin apps extra) · comida simple (proteína según peso y objetivo, frutas y verduras) · retos de pareja listos · cuenta regresiva para la próxima visita · descargar mis datos (JSON/CSV) y borrar mi cuenta · modo sin conexión con cola de envío | ✅ |
 | Resumen semanal en equipo (XP juntos, días que cumplieron los dos, lo mejor de cada uno; sin competencia) + aviso el domingo 19:00 | ✅ |
 | Agua: meta, vasos/botellas/personalizado, añadir/quitar, historial semanal/mensual | ✅ |
 | Actividad física: caminata, pasos, cardio, bici, correr, deportes, estadísticas, objetivos | ✅ (manual; Apple Salud no es accesible desde apps web) |

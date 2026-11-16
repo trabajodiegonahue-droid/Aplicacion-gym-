@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, Dumbbell, Droplets, Activity, Moon, ChevronRight, Vote, CircleCheckBig, Hand, ArrowUpRight, Link2, Check, CircleHelp, Snowflake, CalendarDays } from 'lucide-react'
+import { Bell, Dumbbell, Droplets, Activity, Moon, ChevronRight, Vote, CircleCheckBig, Hand, ArrowUpRight, Link2, Check, CircleHelp, Snowflake, CalendarDays, Apple } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { supabase, must } from '../lib/supabase'
 import { LOG_KEYS, rulesFor, useAction, useMemberDays, useNotifications, useProposals, useRules, useStreak, useStreakDays, useToday, useTodayWindow } from '../lib/queries'
@@ -18,6 +18,8 @@ import { WeeklySummary } from '../components/WeeklySummary'
 import { DayOptionsSheet, PauseBanners } from '../components/DayOptions'
 import { CheckInCard } from '../components/CheckIn'
 import { WeighInCard } from '../components/BodyCheck'
+import { NutritionSheet, PRODUCE_GOAL, useNutritionSummary } from '../components/Nutrition'
+import { VisitCountdown } from '../components/VisitCountdown'
 import { JointInvites } from '../components/JointInvites'
 import { useCoupleCalendar } from '../lib/life'
 import { draftDoneSets, useWorkoutDraft } from './gym/workoutDraft'
@@ -113,6 +115,8 @@ export default function Home() {
   const habitsDone = dailyHabits.filter(h => week.data?.logs.some(l => l.habit_id === h.id)).length
 
   const [dayOpts, setDayOpts] = useState(false)
+  const [food, setFood] = useState(false)
+  const nutri = useNutritionSummary()
   const todayPlans = (useCoupleCalendar(today, today).data ?? []).filter(x => x.kind === 'plan')
   const nudgeKey = `fj-nudge-${today}`
   const [nudged, setNudged] = useState(() => { try { return localStorage.getItem(nudgeKey) === '1' } catch { return false } })
@@ -194,6 +198,7 @@ export default function Home() {
           </>
         )}
 
+        <VisitCountdown />
         <PauseBanners />
         <JointInvites />
 
@@ -249,11 +254,12 @@ export default function Home() {
           {[
             { icon: Droplets, tint: 'text-sky-500', label: 'Agua', value: `${fmtLiters(water)} / ${fmtLiters(goal)}`, v: water, max: goal, to: '/habitos/agua', quick: { label: '+ Vaso', onClick: () => addWater.mutate({ ml: 250, label: 'Vaso' }) } },
             { icon: Activity, tint: 'text-ember', label: 'Actividad', value: `${mine?.details.activity_minutes ?? 0} / ${profile?.activity_goal_min ?? 30} min`, v: mine?.details.activity_minutes ?? 0, max: profile?.activity_goal_min || 30, to: '/habitos/actividad', quick: { label: '+ Registrar', onClick: () => setSheet('activity') } },
+            { icon: Apple, tint: 'text-lime-600', label: 'Comida', value: `${nutri.protein}/${nutri.goal} g proteína · ${nutri.produce}/${PRODUCE_GOAL} 🥦`, v: Math.min(1, nutri.protein / Math.max(1, nutri.goal)) + Math.min(1, nutri.produce / PRODUCE_GOAL), max: 2, to: '', quick: { label: '+ Sumar', onClick: () => setFood(true) } },
             { icon: CircleCheckBig, tint: 'text-emerald-500', label: 'Hábitos', value: dailyHabits.length ? `${habitsDone} / ${dailyHabits.length}` : 'Sin hábitos', v: habitsDone, max: dailyHabits.length || 1, to: '/habitos' },
             { icon: Dumbbell, tint: 'text-ink dark:text-white', label: 'Entrenos esta semana', value: `${week.data?.workouts ?? 0} / ${profile?.weekly_workouts_goal ?? 4}`, v: week.data?.workouts ?? 0, max: profile?.weekly_workouts_goal || 4, to: '/gym/historial' },
           ].map(r => (
             <div key={r.label} className="flex w-full items-center gap-3 px-4 py-3.5">
-              <button type="button" onClick={() => nav(r.to)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+              <button type="button" onClick={() => (r.to ? nav(r.to) : setFood(true))} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                 <r.icon className={cx('size-5 shrink-0', r.tint)} strokeWidth={1.8} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2"><span className="text-[15px] font-medium">{r.label}</span><span className="tabular muted text-[13px]">{r.value}</span></div>
@@ -289,6 +295,7 @@ export default function Home() {
       <WaterSheet open={sheet === 'water'} onClose={() => setSheet(null)} />
       <ActivitySheet open={sheet === 'activity'} onClose={() => setSheet(null)} />
       <DayOptionsSheet open={dayOpts} onClose={() => setDayOpts(false)} />
+      <NutritionSheet open={food} onClose={() => setFood(false)} />
     </div>
   )
 }

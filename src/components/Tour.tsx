@@ -14,7 +14,7 @@ const STEPS: { target: string; title: string; text: string }[] = [
   { target: 'checkin', title: '💭 ¿Cómo te sientes?', text: 'Energía, ánimo, sueño y dolor en 3 toques. Si vienes cansado varios días, la app te sugiere una semana suave; tu pareja ve cómo estás para darte ánimo. Si registras tu ciclo (Gimnasio → Mi cuerpo), la app adapta las sugerencias a cada fase.' },
   { target: 'goals', title: '🎯 Sus metas', text: 'Tus metas y las de pareja con su progreso. Toca "Nueva meta" para crear una en 3 toques.' },
   { target: 'weekly', title: '📊 Su semana', text: 'Lo que lograron JUNTOS en la semana: XP de equipo, días que cumplieron los dos y lo mejor de cada uno. Los lunes se abre solo y el domingo les llega un aviso.' },
-  { target: 'day', title: '📈 Tu día', text: 'Tu avance personal: agua, actividad, hábitos y entrenos de la semana.' },
+  { target: 'day', title: '📈 Tu día', text: 'Tu avance personal: agua, actividad, comida (proteína y frutas/verduras), hábitos y entrenos. Los botones "+" suman en un toque.' },
   { target: 'calendar', title: '🗓️ Calendario de los dos', text: 'Todo junto: entrenos, actividad, descansos, pausas, planes, exámenes, viajes y visitas. Planeen la semana tocando un día.' },
   { target: 'bell', title: '🔔 Avisos', text: 'Mensajes, cuando tu pareja cumple, propuestas de cambio y recordatorios.' },
   { target: 'nav-racha', title: 'Racha', text: 'Calendario, logros, la evolución de sus personajes y las reglas del día (que solo cambian si los dos aprueban).' },

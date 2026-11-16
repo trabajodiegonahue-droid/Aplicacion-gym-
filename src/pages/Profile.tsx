@@ -9,6 +9,7 @@ import { uploadPhoto, deletePhoto } from '../lib/media'
 import { currentSubscription, disablePush, enablePush, pushSupport } from '../lib/push'
 import type { NotifKind, NotificationPrefs, Profile as P } from '../lib/types'
 import { deviceTimezone, fmtShort } from '../lib/dates'
+import { DataTools, HealthConnect } from '../components/DataTools'
 import { BodyDataSheet, FITNESS_GOALS, bmi, bmiLabel, useBodyWeights } from '../components/BodyCheck'
 import { Button, Card, Field, Input, SectionTitle, Segmented, Sheet, Toggle, useUi } from '../components/ui'
 import { PageHeader } from '../components/AppShell'
@@ -111,6 +112,9 @@ export default function Profile() {
         <PushCard />
         <NotifPrefs prefs={profile.notification_prefs ?? {}} onSave={p => save.mutate({ notification_prefs: p })} />
 
+        <SectionTitle>Conexiones</SectionTitle>
+        <HealthConnect />
+
         <SectionTitle>Más</SectionTitle>
         <Card className="divide-y divide-fuego-100 p-0 dark:divide-noche-700">
           {[
@@ -137,6 +141,8 @@ export default function Profile() {
             </ol>
           </Card>
         )}
+
+        <DataTools />
 
         <Button variant="soft" className="w-full" onClick={async () => { if (await confirm({ title: '¿Cerrar sesión?' })) { await signOut(); nav('/login') } }}><LogOut className="size-4" />Cerrar sesión</Button>
         <p className="muted text-center text-xs">Fuego Juntos · hecho con ❤️ para entrenar a la distancia</p>

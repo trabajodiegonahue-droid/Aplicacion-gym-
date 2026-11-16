@@ -155,6 +155,7 @@ begin
   insert into public.calendar_events(couple_id, created_by, title, kind, event_date, end_date, for_user, lighten, created_at) values
     (c, b, 'Exámenes finales', 'examen', t + 2, t + 4, b, true, now() - interval '2 days'),
     (c, a, 'Turno largo en el trabajo', 'trabajo', t + 1, null, a, true, now() - interval '1 day');
+  insert into public.nutrition_logs(user_id, day, kind, amount, label) values (a, t, 'protein', 31, 'Pechuga (100 g)'), (a, t, 'protein', 12, '2 huevos'), (a, t, 'produce', 1, 'Fruta'), (a, t, 'produce', 1, 'Ensalada');
   insert into public.plans(user_id, day, kind, title) values (a, t + 1, 'gym', 'Espalda y core'), (b, t + 1, 'cardio', 'Correr 5 km'), (a, t + 3, 'gym', 'Piernas'), (b, t + 5, 'juntos', 'Videollamada + entreno');
   insert into public.workouts(user_id, title, performed_at, duration_min, joint_with) values (b, 'Entreno en pareja por videollamada', least(((t - 1) + time '20:00') at time zone tz, now() - interval '5 minutes'), 25, a);
   insert into public.goals(user_id, created_by, name, metric, target, frequency, category_label) values (a, a, 'Entrenar 4 veces por semana', 'workouts', 4, 'weekly', 'Gimnasio'), (b, b, 'Caminar 50.000 pasos', 'steps', 50000, 'weekly', 'Salud');

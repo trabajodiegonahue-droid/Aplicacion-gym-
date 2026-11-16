@@ -11,6 +11,9 @@ import { Button, Field, Input, ProgressBar, Ring, Sheet, cx } from './ui'
 import { Avatar } from './Avatar'
 import { WhenRow } from './TimePicker'
 import { celebrate } from './Celebration'
+import { insertOrQueue } from '../lib/offline'
+
+const OFFLINE_MSG = 'Sin conexión: se guardará al volver la señal 📶'
 
 export const STATUS: Record<MemberStatus | 'recovered', { label: string; dot: string; icon: typeof Circle }> = {
   pending: { label: 'Pendiente', dot: 'bg-fuego-300', icon: Circle },
@@ -118,9 +121,9 @@ export function useWaterPresets() {
 export function useAddWater() {
   const { uid } = useAuth()
   return useAction(async (v: { ml: number; label?: string }) => {
-    await must(supabase.from('water_logs').insert({ user_id: uid, amount_ml: v.ml, label: v.label ?? null }))
-    return v.ml
-  }, { invalidate: [['water'], ['water_history'], ...LOG_KEYS], success: ml => ml > 0 ? `+${ml} ml 💧` : `${ml} ml` })
+    const r = await insertOrQueue('water_logs', { user_id: uid, amount_ml: v.ml, label: v.label ?? null, performed_at: new Date().toISOString() }, `${v.ml} ml de agua`)
+    return r === 'queued' ? null : v.ml
+  }, { invalidate: [['water'], ['water_history'], ...LOG_KEYS], success: ml => ml == null ? OFFLINE_MSG : ml > 0 ? `+${ml} ml 💧` : `${ml} ml` })
 }
 
 // ---------------------------------------------------------------------
@@ -183,8 +186,8 @@ export function QuickWorkoutSheet({ open, onClose }: { open: boolean; onClose: (
   const [notes, setNotes] = useState('')
   const mins = custom ? Number(custom) : minutes
   const save = useAction(async () => {
-    await must(supabase.from('workouts').insert({ user_id: uid, title: title.slice(0, 80), duration_min: mins || null, notes: notes || null, performed_at: localDateTimeToISO(date, time) }))
-  }, { invalidate: [['workouts'], ...LOG_KEYS], success: '¡Entrenamiento registrado! 💪' })
+    return insertOrQueue('workouts', { user_id: uid, title: title.slice(0, 80), duration_min: mins || null, notes: notes || null, performed_at: localDateTimeToISO(date, time) }, `Entreno: ${title.slice(0, 40)}`)
+  }, { invalidate: [['workouts'], ...LOG_KEYS], success: r => (r === 'queued' ? OFFLINE_MSG : '¡Entrenamiento registrado! 💪') })
   return (
     <Sheet open={open} onClose={onClose} title="¿Qué entrenaste hoy?">
       <div className="space-y-5">
@@ -236,11 +239,11 @@ export function ActivitySheet({ open, onClose }: { open: boolean; onClose: () =>
   const stp = customSteps ? Number(customSteps) : isSteps ? steps : 0
   const label = ACTIVITY_KINDS.find(k => k.value === kind)?.label
   const save = useAction(async () => {
-    await must(supabase.from('activity_logs').insert({
+    return insertOrQueue('activity_logs', {
       user_id: uid, kind, minutes: mins || 0, steps: stp || 0, distance_km: km ? Number(km) : null,
       notes: notes || null, performed_at: localDateTimeToISO(date, time),
-    }))
-  }, { invalidate: [['activity'], ...LOG_KEYS], success: 'Actividad registrada 🏃' })
+    }, `Actividad: ${label ?? kind}`)
+  }, { invalidate: [['activity'], ...LOG_KEYS], success: r => (r === 'queued' ? OFFLINE_MSG : 'Actividad registrada 🏃') })
   return (
     <Sheet open={open} onClose={onClose} title="¿Qué actividad hiciste?">
       <div className="space-y-5">

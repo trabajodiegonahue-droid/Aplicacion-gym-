@@ -6,6 +6,8 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
 /** Modo demo: base de datos real (PGlite) dentro del navegador, sin servidor. */
 export const isDemo = import.meta.env.VITE_DEMO === 'true'
+/** Datos PÚBLICOS del proyecto (la clave anon no es secreta: la protección es RLS). */
+export const publicConfig = { url: url ?? '', anonKey: key ?? '' }
 export const isConfigured = isDemo || Boolean(url && key && /^https?:\/\//.test(url))
 
 export const DEMO_STORAGE_KEY = 'sb-demo-auth-v2'
