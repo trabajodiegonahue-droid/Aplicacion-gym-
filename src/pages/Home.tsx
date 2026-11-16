@@ -178,7 +178,7 @@ export default function Home() {
                   </p>
                   <p className="mt-1.5 text-[13px] text-white/80">Récord {streak?.best_count ?? 0} · {couple.name ?? `Tú y ${partner?.display_name ?? ''}`}</p>
                 </div>
-                <div className="float-soft rounded-full bg-white/20 p-2 backdrop-blur-sm"><Flame size={80} lit intensity={Math.min(1, count / 30)} /></div>
+                <div className="float-soft rounded-full bg-white/20 p-2"><Flame size={80} lit intensity={Math.min(1, count / 30)} /></div>
               </div>
               <div className="relative mt-5 border-t border-white/20 pt-4"><WeekStrip today={today} days={weekDays} dark /></div>
               <ArrowUpRight className="absolute right-4 top-4 size-4 text-white/30" />

@@ -25,6 +25,7 @@ let dbPromise: Promise<PGlite> | null = null
 
 async function open(): Promise<PGlite> {
   try {
+    // relaxedDurability: guarda en IndexedDB sin bloquear cada consulta
     const db = new PGlite(DB_NAME)
     await db.waitReady
     return db
@@ -52,10 +53,19 @@ async function init(): Promise<PGlite> {
 }
 export const getDb = () => (dbPromise ??= init())
 
-export async function resetDemo() {
+/** Cierra y borra la base de datos de la demo (puede correr dentro del Worker). */
+export async function resetDb() {
   try { const db = await getDb(); await db.close() } catch { /* */ }
+  dbPromise = null
   await new Promise<void>(res => { const r = indexedDB.deleteDatabase('/pglite/fuego-juntos-demo-v7'); r.onsuccess = r.onerror = r.onblocked = () => res() })
+}
+export async function resetDemo() {
+  await resetDb()
   try { Object.keys(localStorage).filter(k => k.startsWith('sb-') || k.startsWith('fj-')).forEach(k => localStorage.removeItem(k)) } catch { /* */ }
+}
+export async function userExists(sub: string) {
+  const db = await getDb()
+  return (await db.query(`select 1 from auth.users where id = $1`, [sub])).rows.length > 0
 }
 
 // ---------------- JWT de juguete (solo demo) ----------------
@@ -147,10 +157,10 @@ export async function demoFetch(input: RequestInfo | URL, init: RequestInit = {}
   if (claims?.sub && !url.pathname.startsWith('/auth/')) {
     const exists = (await db.query(`select 1 from auth.users where id = $1`, [claims.sub])).rows.length > 0
     if (!exists) {
-      // Sesión de una persona que ya no existe en esta demo: volver al inicio de sesión
-      try { localStorage.removeItem('sb-demo-auth-v2') } catch { /* */ }
-      setTimeout(() => location.reload(), 60)
-      return json(401, { code: 'PGRST301', message: 'Tu sesión de la demo expiró. Vuelve a entrar.' })
+      // Sesión de una persona que ya no existe en esta demo: el cliente borra la sesión y recarga
+      const res = json(401, { code: 'PGRST301', message: 'Tu sesión de la demo expiró. Vuelve a entrar.' })
+      res.headers.set('x-demo-reload', '1')
+      return res
     }
   }
   try {

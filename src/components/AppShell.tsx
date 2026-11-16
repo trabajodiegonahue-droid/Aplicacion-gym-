@@ -46,7 +46,7 @@ export function AppShell() {
           </ErrorBoundary>
         </Suspense>
       </main>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[.06] bg-fuego-50/80 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/[.06] dark:bg-noche-900/80"
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[.06] bg-fuego-50/80 backdrop-blur-md dark:border-white/[.06] dark:bg-noche-900/80"
         style={{ paddingBottom: 'var(--safe-bottom)' }}>
         <div className="mx-auto grid max-w-lg grid-cols-5 px-2">
           {tabs.map(t => (
@@ -70,7 +70,7 @@ export function AppShell() {
 /** Cabecera de página estilo iOS (título grande), respeta Dynamic Island / notch. */
 export function PageHeader({ title, subtitle, right, back }: { title: string; subtitle?: string; right?: ReactNode; back?: ReactNode }) {
   return (
-    <header className="safe-top sticky top-0 z-30 bg-fuego-50/90 px-5 pb-3 backdrop-blur-2xl backdrop-saturate-150 dark:bg-noche-900/90">
+    <header className="safe-top sticky top-0 z-30 bg-fuego-50/90 px-5 pb-3 backdrop-blur-md dark:bg-noche-900/90">
       <div className="flex min-h-12 items-end gap-3 pt-3">
         {back}
         <div className="min-w-0 flex-1">

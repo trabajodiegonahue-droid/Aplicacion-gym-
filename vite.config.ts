@@ -38,5 +38,6 @@ export default defineConfig(({ mode }) => ({
       devOptions: { enabled: false },
     }),
   ],
+  worker: { format: 'es' },
   build: { target: 'es2022', chunkSizeWarningLimit: 900 },
 }))

@@ -116,7 +116,7 @@ function Chat() {
         </div>
       )}
       <div ref={endRef} />
-      <form className="sticky z-20 mt-3 flex items-end gap-2 rounded-3xl bg-fuego-50/95 py-2 backdrop-blur dark:bg-noche-900/95" style={{ bottom: 'calc(64px + var(--safe-bottom))' }}
+      <form className="sticky z-20 mt-3 flex items-end gap-2 rounded-3xl bg-fuego-50/95 py-2 dark:bg-noche-900/95" style={{ bottom: 'calc(64px + var(--safe-bottom))' }}
         onSubmit={e => { e.preventDefault(); if (text.trim()) { send.mutate({ kind: 'text', body: text.trim() }); setText('') } }}>
         <button type="button" onClick={() => { send.mutate({ kind: 'heart' }); celebrate(['❤️', '💖', '💕']) }} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blush text-ember active:scale-90 dark:bg-noche-700" aria-label="Enviar corazón"><Heart className="size-5 fill-current" /></button>
         <button type="button" disabled={busyPhoto} onClick={() => fileRef.current?.click()} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white dark:bg-noche-800" aria-label="Enviar foto">{busyPhoto ? '…' : <Camera className="size-5" />}</button>

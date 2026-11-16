@@ -151,7 +151,7 @@ function Chips<T extends string | number>({ options, value, onChange, cols = 3, 
 /** Botón de guardar siempre visible al pie de la ventana, con resumen de lo elegido. */
 function SaveBar({ summary, label, loading, onClick, disabled }: { summary: string; label: string; loading?: boolean; onClick: () => void; disabled?: boolean }) {
   return (
-    <div className="sticky bottom-0 -mx-5 border-t border-black/[.06] bg-fuego-50/95 px-5 pb-1 pt-3 backdrop-blur dark:border-white/[.06] dark:bg-noche-900/95">
+    <div className="sticky bottom-0 -mx-5 border-t border-black/[.06] bg-fuego-50/95 px-5 pb-1 pt-3 dark:border-white/[.06] dark:bg-noche-900/95">
       <p className="mb-2 truncate text-center text-[14px] font-semibold">{summary}</p>
       <Button variant="ember" className="w-full min-h-14 text-[17px]" loading={loading} disabled={disabled} onClick={onClick}><Check className="size-5" strokeWidth={2.6} />{label}</Button>
     </div>

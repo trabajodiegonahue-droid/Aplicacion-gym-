@@ -82,7 +82,7 @@ export default function Streak() {
           <div className="pointer-events-none absolute left-1/2 top-0 size-64 -translate-x-1/2 rounded-full bg-amber-200 opacity-30 blur-3xl" />
           {count > 0 && <Embers count={14} />}
           <div className="relative flex flex-col items-center">
-            <div className="float-soft rounded-full bg-white/20 p-3 backdrop-blur-sm"><Flame size={100} lit intensity={Math.min(1, count / 30)} /></div>
+            <div className="float-soft rounded-full bg-white/20 p-3"><Flame size={100} lit intensity={Math.min(1, count / 30)} /></div>
             <p className="tabular mt-1 text-[80px] font-bold leading-none tracking-[-0.06em]"><CountUp value={count} /></p>
             <p className="mt-1 text-[14px] text-white/85">{count === 1 ? 'día seguido juntos' : 'días seguidos juntos'}</p>
             <div className="mt-5 grid w-full grid-cols-3 divide-x divide-white/20 rounded-2xl bg-white/15 py-3">

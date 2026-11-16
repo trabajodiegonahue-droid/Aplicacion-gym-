@@ -358,7 +358,7 @@ function ExercisePicker({ open, onClose, onPick, title = 'Añadir ejercicios', c
 
   return (
     <Sheet open={open} onClose={onClose} title={title}>
-      <div className="sticky top-0 z-10 -mx-5 space-y-2 bg-fuego-50/95 px-5 pb-2 pt-1 backdrop-blur dark:bg-noche-900/95">
+      <div className="sticky top-0 z-10 -mx-5 space-y-2 bg-fuego-50/95 px-5 pb-2 pt-1 dark:bg-noche-900/95">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-fuego-800/50" />
           <Input placeholder={`Buscar entre ${EXERCISE_LIBRARY.length}+ ejercicios…`} value={q} onChange={e => setQ(e.target.value)} className="pl-11" />
@@ -395,7 +395,7 @@ function ExercisePicker({ open, onClose, onPick, title = 'Añadir ejercicios', c
         {rows.length === 0 && <p className="muted px-4 py-6 text-center text-[14px]">No encontramos “{q}”. Puedes crearlo abajo.</p>}
       </div>
       <Button variant="soft" className="mt-3 w-full" onClick={() => setCreating(true)}><Plus className="size-4" />Crear ejercicio propio{q ? ` “${q}”` : ''}</Button>
-      <div className="sticky bottom-0 -mx-5 mt-3 border-t border-black/[.06] bg-fuego-50/95 px-5 pb-1 pt-3 backdrop-blur dark:border-white/[.06] dark:bg-noche-900/95">
+      <div className="sticky bottom-0 -mx-5 mt-3 border-t border-black/[.06] bg-fuego-50/95 px-5 pb-1 pt-3 dark:border-white/[.06] dark:bg-noche-900/95">
         {count > 0 && (
           <div className="no-scrollbar -mx-5 mb-2 flex gap-1.5 overflow-x-auto px-5">
             {Object.values(sel).map(r => (

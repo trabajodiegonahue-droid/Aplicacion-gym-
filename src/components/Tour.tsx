@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
-import { cx } from './ui'
 
 /** Pasos del tour: cada uno resalta un elemento real de la pantalla de Inicio. */
 const STEPS: { target: string; title: string; text: string }[] = [
@@ -49,53 +48,82 @@ export function Tour() {
     return () => window.removeEventListener('fj-start-tour', h)
   }, [loc.pathname, nav])
 
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [cardH, setCardH] = useState(230)
   const measure = useCallback(() => {
     const el = document.querySelector(`[data-tour="${steps[i]?.target}"]`)
     setRect(el ? el.getBoundingClientRect() : null)
+    if (cardRef.current) setCardH(cardRef.current.offsetHeight)
   }, [i, steps])
+
+  // Zona útil de la pantalla: debajo de la barra de estado y encima de la barra de pestañas
+  const limits = () => {
+    const safeTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-top')) || 0
+    const nav = document.querySelector('nav.fixed') as HTMLElement | null
+    return { top: Math.max(12, safeTop + 8), bottom: (nav ? nav.getBoundingClientRect().top : window.innerHeight) - 10 }
+  }
 
   useLayoutEffect(() => {
     if (!active) return
-    const el = document.querySelector(`[data-tour="${steps[i]?.target}"]`)
-    const fixed = el && getComputedStyle(el.closest('nav') ?? el).position === 'fixed'
-    if (el && !fixed) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    const t = setTimeout(measure, fixed ? 0 : 420)
+    const el = document.querySelector(`[data-tour="${steps[i]?.target}"]`) as HTMLElement | null
+    const inNav = !!el?.closest('nav')
+    if (el && !inNav) {
+      const r = el.getBoundingClientRect(), L = limits()
+      const room = L.bottom - L.top - (cardRef.current?.offsetHeight ?? 230) - 24
+      // Si cabe con la tarjeta, se centra; si es muy alto, se alinea arriba para ver su comienzo
+      const target = r.height <= room ? window.scrollY + r.top - (L.top + (room - r.height) / 2) : window.scrollY + r.top - L.top - 8
+      window.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
+    }
+    const t = setTimeout(measure, inNav ? 0 : 450)
     window.addEventListener('resize', measure)
-    window.addEventListener('scroll', measure, true)
+    window.addEventListener('scroll', measure, { passive: true, capture: true })
     return () => { clearTimeout(t); window.removeEventListener('resize', measure); window.removeEventListener('scroll', measure, true) }
   }, [active, i, steps, measure])
+  useLayoutEffect(() => { if (active && cardRef.current) setCardH(cardRef.current.offsetHeight) }, [active, i])
 
   const close = () => { setActive(false); try { localStorage.setItem(`fj-tour-${uid}`, '1') } catch { /* */ } }
   if (!active || !steps.length) return null
   const s = steps[i]
-  const pad = 8
+  const pad = 6, gap = 12
   const vh = window.innerHeight
-  // Dónde poner la tarjeta: debajo, encima o (si no hay espacio) abajo de la pantalla
-  const CARD = 240
-  const where = !rect ? 'center' : vh - rect.bottom > CARD ? 'below' : rect.top > CARD ? 'above' : 'bottom'
-  const cardTop = where === 'below' ? rect!.bottom + pad + 12 : where === 'center' ? vh / 2 - 100 : undefined
-  const cardBottom = where === 'above' ? vh - rect!.top + pad + 12 : where === 'bottom' ? 96 : undefined
+  const L = limits()
+  const target = document.querySelector(`[data-tour="${s.target}"]`)
+  const inNav = !!target?.closest('nav')
+  // Resaltado recortado a la parte visible
+  let hl = rect ? { left: rect.left - pad, top: Math.max(rect.top - pad, L.top - 4), right: rect.right + pad, bottom: Math.min(rect.bottom + pad, inNav ? vh - 2 : L.bottom + 4) } : null
+  const maxBottom = inNav ? (hl?.top ?? vh) - gap : L.bottom
+  let cardTop: number
+  if (!hl) cardTop = vh / 2 - cardH / 2
+  else if (hl.bottom + gap + cardH <= maxBottom) cardTop = hl.bottom + gap
+  else if (hl.top - gap - cardH >= L.top) cardTop = hl.top - gap - cardH
+  else {
+    // No cabe ni arriba ni abajo: tarjeta abajo y el resaltado se recorta para no quedar tapado
+    cardTop = maxBottom - cardH
+    hl = { ...hl, bottom: Math.max(hl.top + 40, cardTop - gap) }
+  }
 
   return createPortal(
     <div className="fixed inset-0 z-[96]" role="dialog" aria-label="Tour de la app">
-      {rect ? (
-        <div className="pointer-events-none absolute rounded-[22px] ring-2 ring-white/80 transition-all duration-300"
-          style={{ left: rect.left - pad, top: rect.top - pad, width: rect.width + pad * 2, height: rect.height + pad * 2, boxShadow: '0 0 0 9999px rgba(12,8,6,.62)' }} />
-      ) : <div className="absolute inset-0 bg-black/60" />}
+      {hl ? (
+        <div className="pointer-events-none absolute rounded-[20px] ring-2 ring-white/90"
+          style={{ left: hl.left, top: hl.top, width: hl.right - hl.left, height: hl.bottom - hl.top, boxShadow: '0 0 0 9999px rgba(12,8,6,.66)' }} />
+      ) : <div className="absolute inset-0 bg-black/65" />}
       <div className="absolute inset-0" onClick={e => e.stopPropagation()} />
-      <div className="absolute inset-x-4 mx-auto max-w-md rounded-[22px] bg-white p-4 shadow-2xl animate-pop dark:bg-noche-800"
-        style={{ top: cardTop, bottom: cardBottom }} key={i}>
+      <div ref={cardRef} key={i} className="absolute inset-x-3 mx-auto max-w-md rounded-[20px] bg-white p-4 shadow-2xl animate-pop dark:bg-noche-800"
+        style={{ top: Math.max(L.top, cardTop) }}>
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-[.08em] text-fuego-500">Paso {i + 1} de {steps.length}</p>
-            <p className="mt-0.5 text-[17px] font-bold">{s.title}</p>
+            <p className="mt-0.5 text-[17px] font-bold leading-snug">{s.title}</p>
           </div>
-          <button onClick={close} className="flex size-8 items-center justify-center rounded-full bg-fuego-100 dark:bg-noche-700" aria-label="Cerrar tour"><X className="size-4" /></button>
+          <button onClick={close} className="-mr-1 -mt-1 flex size-9 shrink-0 items-center justify-center rounded-full bg-fuego-100 dark:bg-noche-700" aria-label="Cerrar tour"><X className="size-4" /></button>
         </div>
-        <p className="muted mt-1.5 text-[14.5px] leading-relaxed">{s.text}</p>
-        <div className="mt-4 flex items-center gap-2">
-          <div className="flex flex-1 gap-1">{steps.map((_, k) => <span key={k} className={cx('h-1.5 rounded-full transition-all', k === i ? 'w-5 bg-ember' : 'w-1.5 bg-fuego-200 dark:bg-noche-700')} />)}</div>
-          {i > 0 && <button className="btn-ghost min-h-10 px-3 text-[14px]" onClick={() => setI(i - 1)}>Atrás</button>}
+        <p className="muted mt-1.5 text-[14px] leading-snug">{s.text}</p>
+        <div className="mt-3.5 flex items-center gap-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-fuego-100 dark:bg-noche-700" aria-hidden>
+            <div className="h-full rounded-full bg-ember transition-[width] duration-300" style={{ width: `${((i + 1) / steps.length) * 100}%` }} />
+          </div>
+          {i > 0 && <button className="btn-ghost min-h-10 px-2.5 text-[14px]" onClick={() => setI(i - 1)}>Atrás</button>}
           <button className="btn-ember min-h-10 px-4 text-[14px]" onClick={() => (i < steps.length - 1 ? setI(i + 1) : close())}>{i < steps.length - 1 ? 'Siguiente' : '¡Entendido!'}</button>
         </div>
       </div>

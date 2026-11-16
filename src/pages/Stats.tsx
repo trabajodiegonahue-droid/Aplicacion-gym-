@@ -110,7 +110,7 @@ export default function Stats() {
           {couple && (
             <div className="relative mt-4 grid grid-cols-3 gap-2 text-center">
               {[{ v: streak?.current_count ?? 0, l: 'racha actual' }, { v: `${coupleDone}/${livedDays}`, l: livedDays === 1 ? 'día juntos' : 'días juntos' }, { v: goalsDone, l: 'metas logradas' }].map(x => (
-                <div key={x.l} className="rounded-2xl bg-white/15 px-1 py-2 backdrop-blur-sm">
+                <div key={x.l} className="rounded-2xl bg-white/15 px-1 py-2">
                   <p className="tabular font-display text-[24px] font-bold leading-none">{x.v}</p>
                   <p className="mt-1 text-[11px] text-white/85">{x.l}</p>
                 </div>

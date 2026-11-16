@@ -165,7 +165,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   if (!open) return null
   return createPortal(
     <div ref={ref} data-sheet className="fixed inset-0 z-50 flex items-end justify-center">
-      <div className="absolute inset-0 bg-black/35 backdrop-blur-[3px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/35" onClick={onClose} />
       <div className="relative flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-[26px] bg-fuego-50 shadow-2xl animate-rise dark:bg-noche-900"
         style={{ paddingBottom: 'max(var(--safe-bottom), 16px)' }}>
         <div className="flex items-center justify-between px-5 pb-2 pt-4">

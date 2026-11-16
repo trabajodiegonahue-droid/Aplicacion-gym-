@@ -136,7 +136,7 @@ export function LevelUpWatcher() {
   if (!show) return null
   return createPortal(
     <div className="fixed inset-0 z-[85] flex items-center justify-center p-6" onClick={() => setShow(null)}>
-      <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/45" />
       <div className="relative w-full max-w-[320px] overflow-hidden rounded-[28px] bg-white p-6 text-center shadow-2xl animate-pop dark:bg-noche-800">
         <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-orange-100 to-transparent dark:from-noche-700" />
         <div className="relative">

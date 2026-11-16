@@ -74,11 +74,7 @@
 html, body, #root { min-height: 100%; }
 body {
   margin: 0;
-  background:
-    radial-gradient(120% 60% at 100% 0%, rgb(255 214 196 / .45) 0%, transparent 55%),
-    radial-gradient(90% 50% at 0% 100%, rgb(255 228 236 / .55) 0%, transparent 60%),
-    var(--color-fuego-50);
-  background-attachment: fixed;
+  background: var(--color-fuego-50);
   color: var(--color-ink);
   font-family: var(--font-sans);
   letter-spacing: -0.005em;
@@ -87,7 +83,11 @@ body {
   overscroll-behavior-y: none;
   -webkit-text-size-adjust: 100%;
 }
-.dark body, body.dark { background: radial-gradient(120% 60% at 100% 0%, rgb(225 29 72 / .10) 0%, transparent 55%), var(--color-noche-900); background-attachment: fixed; color: #f3f2f0; }
+.dark body, body.dark { background: var(--color-noche-900); color: #f3f2f0; }
+/* Fondo cálido en una capa fija propia (no obliga a repintar al desplazar) */
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; transform: translateZ(0);
+  background: radial-gradient(120% 60% at 100% 0%, rgb(255 214 196 / .45) 0%, transparent 55%), radial-gradient(90% 50% at 0% 100%, rgb(255 228 236 / .55) 0%, transparent 60%); }
+.dark body::before { background: radial-gradient(120% 60% at 100% 0%, rgb(225 29 72 / .10) 0%, transparent 55%); }
 h1, h2, h3 { letter-spacing: -0.02em; }
 .font-display { font-optical-sizing: auto; letter-spacing: -0.01em; }
 
@@ -100,7 +100,7 @@ input[type="date"], input[type="time"] { min-height: 48px; }
 .pb-nav { padding-bottom: calc(96px + var(--safe-bottom)); }
 
 @layer components {
-  .card { @apply rounded-[24px] bg-white/90 p-4 shadow-[0_1px_2px_rgba(120,40,20,.04),0_12px_32px_-18px_rgba(160,50,30,.22)] ring-1 ring-[#f3dcd2]/70 backdrop-blur-sm; }
+  .card { @apply rounded-[24px] bg-white p-4 shadow-[0_1px_2px_rgba(120,40,20,.04),0_10px_24px_-16px_rgba(160,50,30,.20)] ring-1 ring-[#f3dcd2]/70; }
   .dark .card { @apply bg-noche-800 ring-white/[.06] shadow-none; }
 
   .btn-primary { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-ink px-5 text-[15px] font-semibold text-white transition active:scale-[.98] active:opacity-90 disabled:opacity-40 disabled:active:scale-100; }
@@ -166,7 +166,7 @@ input[type="date"], input[type="time"] { min-height: 48px; }
 
 /* Barras de progreso con brillo en movimiento */
 @keyframes bar-shine { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
-.bar-shine::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); animation: bar-shine 2.4s ease-in-out infinite; }
+.bar-shine::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); animation: bar-shine 2.4s ease-in-out 2; will-change: transform; }
 @keyframes grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .bar-grow { transform-origin: left; animation: grow-x .9s cubic-bezier(.2,.8,.2,1); }
 @keyframes float-soft { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
@@ -217,7 +217,7 @@ input[type="date"], input[type="time"] { min-height: 48px; }
 
 /* ---------------- Pulido visual v2 ---------------- */
 /* Entrada de cada pantalla: sube y se enfoca suavemente */
-@keyframes page-in { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes page-in { from { opacity: 0; transform: translate3d(0, 10px, 0); } to { opacity: 1; transform: none; } }
 .page-in { animation: page-in .45s cubic-bezier(.2,.8,.2,1) both; }
 
 /* Esqueletos de carga con brillo */
@@ -231,7 +231,7 @@ input[type="date"], input[type="time"] { min-height: 48px; }
 
 /* Brillo suave que recorre los botones principales */
 .btn-ember { position: relative; overflow: hidden; }
-.btn-ember::after { content: ""; position: absolute; inset: 0; width: 35%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent); transform: translateX(-120%); animation: btn-sheen 4.5s ease-in-out infinite; pointer-events: none; }
+.btn-ember::after { content: ""; position: absolute; inset: 0; width: 35%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent); transform: translateX(-120%); animation: btn-sheen 4.5s ease-in-out 2; pointer-events: none; will-change: transform; }
 @keyframes btn-sheen { 0%, 70% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
 
 /* Pestaña activa de la barra inferior */
@@ -245,3 +245,12 @@ input[type="date"], input[type="time"] { min-height: 48px; }
   .page-in, .skeleton, .stagger-dot, .btn-ember::after, .heart-float { animation: none !important; }
 }
 @keyframes wave { 0%,100% { transform: rotate(0); } 15% { transform: rotate(16deg); } 30% { transform: rotate(-8deg); } 45% { transform: rotate(14deg); } 60% { transform: rotate(-4deg); } 75% { transform: rotate(10deg); } }
+
+/* ---------------- Rendimiento (60 fps) ---------------- */
+/* Personajes fuera de la pantalla: sus animaciones se pausan */
+.char-wrap { display: inline-flex; line-height: 0; contain: layout paint; }
+.char-wrap[data-off] *, .char-wrap[data-off] { animation-play-state: paused !important; }
+/* Barras y capas animadas en su propia capa del compositor */
+.ember, .float-soft, .heartbeat { will-change: transform; }
+/* Desplazamiento suave en iOS */
+.sheet-body { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
