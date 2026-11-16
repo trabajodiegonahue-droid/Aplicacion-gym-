@@ -11,7 +11,7 @@ const STEPS: { target: string; title: string; text: string }[] = [
   { target: 'scene', title: '💞 Ustedes dos, hoy', text: 'Sus personajes muestran cómo va cada uno: la barra de "Día de hoy" se llena con lo que registran. Si los dos cumplen, ¡se mandan un beso!' },
   { target: 'nudge', title: '👋 Dar un toque', text: 'Si tu pareja todavía no cumplió, mándale un recordatorio cariñoso con un toque.' },
   { target: 'quick', title: '➕ Registrar en un toque', text: 'Entreno, agua o actividad. Y "No puedo" para días difíciles: día de mínimos (10 min cuentan), descanso o pausa si estás enfermo, lesionado o de viaje (la racha se congela, no se pierde).' },
-  { target: 'checkin', title: '💭 ¿Cómo te sientes?', text: 'Energía, ánimo, sueño y dolor en 3 toques. Si vienes cansado varios días, la app te sugiere una semana suave; tu pareja ve cómo estás para darte ánimo.' },
+  { target: 'checkin', title: '💭 ¿Cómo te sientes?', text: 'Energía, ánimo, sueño y dolor en 3 toques. Si vienes cansado varios días, la app te sugiere una semana suave; tu pareja ve cómo estás para darte ánimo. Si registras tu ciclo (Gimnasio → Mi cuerpo), la app adapta las sugerencias a cada fase.' },
   { target: 'goals', title: '🎯 Sus metas', text: 'Tus metas y las de pareja con su progreso. Toca "Nueva meta" para crear una en 3 toques.' },
   { target: 'weekly', title: '📊 Su semana', text: 'Lo que lograron JUNTOS en la semana: XP de equipo, días que cumplieron los dos y lo mejor de cada uno. Los lunes se abre solo y el domingo les llega un aviso.' },
   { target: 'day', title: '📈 Tu día', text: 'Tu avance personal: agua, actividad, hábitos y entrenos de la semana.' },

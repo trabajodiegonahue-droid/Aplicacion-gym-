@@ -13,7 +13,7 @@ const {
 
 const URLS: Record<string, string> = {
   messages: '/pareja', proposals: '/propuestas', streak: '/racha', streak_risk: '/racha', partner_activity: '/racha',
-  water: '/habitos/agua', workout: '/gym', habits: '/habitos', goals: '/habitos/metas', challenges: '/habitos/retos', dates: '/pareja/calendario', couple: '/pareja', weekly: '/?semana=1',
+  water: '/habitos/agua', workout: '/gym', habits: '/habitos', goals: '/habitos/metas', challenges: '/habitos/retos', dates: '/pareja/calendario', couple: '/pareja', weekly: '/?semana=1', cycle: '/gym/peso',
 }
 
 async function rest(path: string, init: RequestInit = {}) {

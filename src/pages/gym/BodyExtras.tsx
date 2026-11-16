@@ -4,11 +4,11 @@ import { Camera, Check, Plus, Trash2, Lock } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { supabase, must } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthProvider'
-import { useAction, useToday } from '../../lib/queries'
+import { useAction } from '../../lib/queries'
 import { fmtShort, toISODate } from '../../lib/dates'
 import { deletePhoto, uploadPhoto, useSignedUrl } from '../../lib/media'
-import { CYCLE_PHASES, INJURY_AREAS, SEVERITY, SIDES, useInjuries, useMyCycle, type Injury, type InjuryArea } from '../../lib/life'
-import { Button, Card, Field, Input, Segmented, Sheet, Toggle, cx, useUi } from '../../components/ui'
+import {  INJURY_AREAS, SEVERITY, SIDES, useInjuries,  type Injury, type InjuryArea } from '../../lib/life'
+import { Button, Card, Field, Input, Segmented, Sheet,  cx, useUi } from '../../components/ui'
 
 // ------------------------------- Lesiones -------------------------------
 export function InjuriesCard() {
@@ -173,48 +173,6 @@ export function ProgressPhotosCard() {
       </div>
       {photos.length === 0 ? <p className="muted mt-2 text-[13px]">Una foto cada 2–4 semanas (misma luz y pose) muestra el cambio mejor que nada.</p> : (
         <div className="mt-2 grid grid-cols-3 gap-1.5">{photos.slice(0, 9).map(p => <Thumb key={p.id} p={p} onDelete={async () => { if (await confirm({ title: '¿Borrar esta foto?', danger: true, confirm: 'Borrar' })) del.mutate(p) }} />)}</div>
-      )}
-    </Card>
-  )
-}
-
-// ------------------------------- Ciclo -------------------------------
-interface CycleSettings { user_id: string; enabled: boolean; share_phase: boolean; cycle_length: number; period_length: number }
-export function CycleCard() {
-  const { uid, partner } = useAuth()
-  const today = useToday()
-  const settings = useQuery({ queryKey: ['life', 'cycle_settings', uid], enabled: !!uid, queryFn: () => must(supabase.from('cycle_settings').select('*').maybeSingle()) as Promise<CycleSettings | null> }).data
-  const periods = useQuery({ queryKey: ['life', 'periods', uid], enabled: !!settings?.enabled, queryFn: () => must(supabase.from('cycle_periods').select('*').order('start_date', { ascending: false }).limit(6)) as Promise<{ id: string; start_date: string }[]> }).data ?? []
-  const phase = useMyCycle().data
-  const upd = useAction(async (patch: Partial<CycleSettings>) => must(supabase.from('cycle_settings').upsert({ user_id: uid, enabled: settings?.enabled ?? false, share_phase: settings?.share_phase ?? false, cycle_length: settings?.cycle_length ?? 28, period_length: settings?.period_length ?? 5, ...patch })), { invalidate: [['life'], ['calendar']] })
-  const start = useAction(async () => must(supabase.from('cycle_periods').insert({ user_id: uid, start_date: today })), { invalidate: [['life'], ['calendar']], success: 'Anotado 🌙' })
-  return (
-    <Card>
-      <div className="flex items-center gap-3">
-        <div className="min-w-0 flex-1"><p className="text-[15px] font-bold">🌙 Ciclo menstrual <span className="muted text-[12px] font-medium">(opcional)</span></p><p className="muted flex items-center gap-1 text-[12.5px]"><Lock className="size-3" />Privado. Ayuda a entender la energía y adaptar el entreno.</p></div>
-        <div className="shrink-0"><Toggle checked={!!settings?.enabled} onChange={v => upd.mutate({ enabled: v })} ariaLabel="Activar seguimiento del ciclo" /></div>
-      </div>
-      {settings?.enabled && (
-        <div className="mt-3 space-y-3">
-          {phase && CYCLE_PHASES[phase.phase] ? (
-            <div className="rounded-xl bg-rose-50 p-3 dark:bg-rose-950/30">
-              <p className="text-[15px] font-bold">{CYCLE_PHASES[phase.phase].emoji} {CYCLE_PHASES[phase.phase].label} · día {phase.day} de {phase.length}</p>
-              <p className="mt-0.5 text-[13px] leading-snug">{CYCLE_PHASES[phase.phase].tip}</p>
-            </div>
-          ) : <p className="muted text-[13px]">Marca el primer día de tu próximo período para empezar.</p>}
-          <Button variant="soft" className="w-full" loading={start.isPending} disabled={periods[0]?.start_date === today} onClick={() => start.mutate()}>🩸 Hoy empezó mi período</Button>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Duración del ciclo"><Input type="number" inputMode="numeric" min={20} max={45} defaultValue={settings.cycle_length} onBlur={e => { const n = Number(e.target.value); if (n >= 20 && n <= 45 && n !== settings.cycle_length) upd.mutate({ cycle_length: n }) }} /></Field>
-            <Field label="Días de período"><Input type="number" inputMode="numeric" min={2} max={10} defaultValue={settings.period_length} onBlur={e => { const n = Number(e.target.value); if (n >= 2 && n <= 10 && n !== settings.period_length) upd.mutate({ period_length: n }) }} /></Field>
-          </div>
-          {partner && (
-            <div className="flex items-center gap-3 rounded-xl bg-fuego-50 p-3 dark:bg-noche-700/60">
-              <p className="min-w-0 flex-1 text-[13px]"><b>Compartir solo la fase con {partner.display_name}</b><span className="muted block text-[12px]">Verá, por ejemplo, "fase lútea", nunca tus fechas.</span></p>
-              <div className="shrink-0"><Toggle checked={settings.share_phase} onChange={v => upd.mutate({ share_phase: v })} ariaLabel="Compartir fase" /></div>
-            </div>
-          )}
-          {periods.length > 0 && <p className="muted text-[12px]">Últimos inicios: {periods.map(p => fmtShort(p.start_date)).join(' · ')}</p>}
-        </div>
       )}
     </Card>
   )

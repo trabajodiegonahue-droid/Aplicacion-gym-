@@ -455,3 +455,37 @@ select pg_temp.check((select start_weight_kg from public.profiles where id = :G)
 select pg_temp.login(:F);
 select pg_temp.check((select count(*) from public.body_weights where user_id = :G) = 0, 'el peso sigue siendo privado');
 reset role;
+
+-- 18) CICLO COMPLETO -----------------------------------------------------
+set role authenticated;
+select pg_temp.login(:G);
+select pg_temp.expect_error($q$insert into public.cycle_periods(start_date) values (current_date + 2)$q$, 'el período no empieza en el futuro');
+select pg_temp.expect_error($q$insert into public.cycle_periods(start_date) values (current_date - 6)$q$, 'no se duplican períodos cercanos');
+insert into public.cycle_periods(start_date, end_date) values (current_date - 63, current_date - 59), (current_date - 33, current_date - 29);
+select pg_temp.check((public.my_cycle()->>'length')::int = 30, 'duración del ciclo = promedio real (30 días)');
+select pg_temp.check((public.my_cycle()->>'next_start')::date = current_date + 27, 'próximo período estimado');
+select pg_temp.check((public.my_cycle()->>'period_length')::int = 5, 'duración del período = promedio real');
+insert into public.cycle_logs(day, flow, pain, symptoms) values (current_date, 3, 3, '{hinchazon,cansancio}');
+select pg_temp.expect_error($q$insert into public.cycle_logs(day, symptoms) values (current_date - 1, '{inventado}')$q$, 'solo síntomas válidos');
+select pg_temp.check((public.my_cycle()->'today_log'->>'pain')::int = 3, 'mi registro de hoy');
+select pg_temp.login(:F);
+select pg_temp.check((select count(*) from public.cycle_logs) = 0, 'la pareja nunca ve el registro del ciclo');
+select pg_temp.check(public.partner_cycle()->>'pain' is null and public.partner_cycle()->>'phase' = 'menstrual', 'sin compartir síntomas: solo la fase');
+select pg_temp.login(:G);
+update public.cycle_settings set share_symptoms = true;
+select pg_temp.login(:F);
+select pg_temp.check((public.partner_cycle()->>'pain')::int = 3 and public.partner_cycle()->>'next_start' is null, 'compartiendo síntomas: resumen de hoy, sin fechas');
+reset role;
+select private.enqueue_cycle(((current_date + 25) + time '09:05') at time zone 'UTC');
+select pg_temp.check((select count(*) from public.notifications where user_id = :G and kind = 'cycle') = 1, 'aviso privado 2 días antes del período');
+select pg_temp.check((select count(*) from public.notifications where user_id = :F and kind = 'cycle') = 0, 'el aviso del ciclo no le llega a la pareja');
+-- Regla opcional: primeros días del período = día de mínimos
+update public.streak_rules set rules = rules || '{"period_easy_days": 2}'::jsonb where couple_id = private.active_couple(:E);
+insert into public.cycle_settings(user_id, enabled) values (:E, true);
+set role authenticated;
+select pg_temp.login(:E);
+insert into public.cycle_periods(start_date) values (current_date);
+reset role;
+select pg_temp.check(((private.compute_member(private.active_couple(:E), :E, current_date, now())).details->>'is_easy')::boolean, 'regla de la pareja: período = día de mínimos');
+select pg_temp.check(not ((private.compute_member(private.active_couple(:E), :D, current_date, now())).details->>'is_easy')::boolean, 'no afecta a la otra persona');
+select pg_temp.check(private.normalize_rules('{"period_easy_days": 3}'::jsonb)->>'period_easy_days' = '3', 'la regla se valida');

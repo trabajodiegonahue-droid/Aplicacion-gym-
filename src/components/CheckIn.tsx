@@ -3,7 +3,9 @@ import { Pencil, BatteryLow } from 'lucide-react'
 import { supabase, must } from '../lib/supabase'
 import { useAuth } from '../context/AuthProvider'
 import { useAction, useToday } from '../lib/queries'
-import { CYCLE_PHASES, ENERGY, MOOD, lowEnergyStreak, useCheckins, useMyCycle, usePartnerCycle } from '../lib/life'
+import { CYCLE_PHASES, ENERGY, MOOD, PAIN_CRAMPS, PHASE_GUIDE, SYMPTOMS, cycleSaysEasy, lowEnergyStreak, useCheckins, useMyCycle, usePartnerCycle } from '../lib/life'
+import { CycleLogSheet } from '../pages/gym/Cycle'
+import { DayOptionsSheet } from './DayOptions'
 import { Button, Card, cx } from './ui'
 
 const SLEEP = [4, 5, 6, 7, 8, 9, 10]
@@ -19,6 +21,8 @@ export function CheckInCard() {
   const cycle = useMyCycle().data
   const pcycle = usePartnerCycle().data
   const [edit, setEdit] = useState(false)
+  const [log, setLog] = useState(false)
+  const [dayOpts, setDayOpts] = useState(false)
   const [f, setF] = useState({ energy: 0, mood: 0, sleep: 0, pain: 0 })
   useEffect(() => { if (mine) setF({ energy: mine.energy ?? 0, mood: mine.mood ?? 0, sleep: Number(mine.sleep_hours ?? 0), pain: mine.pain ?? 0 }) }, [mine])
   const save = useAction(async () => {
@@ -60,12 +64,29 @@ export function CheckInCard() {
       {partner && (
         <p className="muted mt-3 border-t border-black/[.05] pt-2.5 text-[13px] dark:border-white/[.06]">
           {theirs ? <>{partner.display_name} hoy: {theirs.energy ? `${ENERGY[theirs.energy]} energía ${theirs.energy}/5` : ''}{theirs.mood ? ` · ${MOOD[theirs.mood]}` : ''}{theirs.sleep_hours != null ? ` · ${Number(theirs.sleep_hours)} h de sueño` : ''}{(theirs.energy ?? 5) <= 2 ? ' — ¡mándale ánimo! 💞' : ''}</> : `${partner.display_name} todavía no contó cómo está.`}
-          {pcycle && CYCLE_PHASES[pcycle.phase] && <span className="mt-1 block">{CYCLE_PHASES[pcycle.phase].emoji} {partner.display_name} está en {CYCLE_PHASES[pcycle.phase].label.toLowerCase()} (lo compartió contigo).</span>}
+          {pcycle && CYCLE_PHASES[pcycle.phase] && (
+            <span className="mt-2 block rounded-xl bg-rose-50 p-2.5 text-ink dark:bg-rose-950/30 dark:text-white" data-testid="partner-cycle">
+              {CYCLE_PHASES[pcycle.phase].emoji} <b>{partner.display_name}: {pcycle.phase === 'menstrual' ? `día ${pcycle.day} del período` : pcycle.pms ? 'días premenstruales' : CYCLE_PHASES[pcycle.phase].label.toLowerCase()}</b>
+              {!!pcycle.pain && <> · cólicos {PAIN_CRAMPS[pcycle.pain].toLowerCase()}</>}
+              {pcycle.symptoms && pcycle.symptoms.length > 0 && <> · {pcycle.symptoms.slice(0, 3).map(x => SYMPTOMS[x]?.split(' ').slice(1).join(' ').toLowerCase()).join(', ')}</>}
+              <span className="muted mt-1 block text-[12.5px]">💡 {PHASE_GUIDE[pcycle.phase].partner}</span>
+            </span>
+          )}
         </p>
       )}
       {cycle && CYCLE_PHASES[cycle.phase] && (
-        <p className="mt-2.5 rounded-xl bg-rose-50 p-2.5 text-[12.5px] leading-snug dark:bg-rose-950/30">{CYCLE_PHASES[cycle.phase].emoji} <b>{CYCLE_PHASES[cycle.phase].label}</b> · día {cycle.day}. {CYCLE_PHASES[cycle.phase].tip}</p>
+        <div className="mt-2.5 rounded-xl bg-rose-50 p-2.5 text-[12.5px] leading-snug dark:bg-rose-950/30" data-testid="my-cycle-tip">
+          <p>{CYCLE_PHASES[cycle.phase].emoji} <b>{cycle.phase === 'menstrual' ? `Día ${cycle.day} del período` : cycle.pms ? `Días premenstruales · período en ${cycle.days_to_next} días` : `${CYCLE_PHASES[cycle.phase].label} · día ${cycle.day}`}</b>. {CYCLE_PHASES[cycle.phase].tip}</p>
+          {(cycle.phase === 'menstrual' || cycle.pms) && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <button type="button" className="rounded-full bg-white px-3 py-1.5 text-[12.5px] font-semibold dark:bg-noche-700" onClick={() => setLog(true)}>💗 Registrar cómo voy</button>
+              {cycleSaysEasy(cycle) && <button type="button" className="rounded-full bg-white px-3 py-1.5 text-[12.5px] font-semibold dark:bg-noche-700" onClick={() => setDayOpts(true)}>🌱 ¿Día de mínimos?</button>}
+            </div>
+          )}
+        </div>
       )}
+      <CycleLogSheet open={log} onClose={() => setLog(false)} />
+      <DayOptionsSheet open={dayOpts} onClose={() => setDayOpts(false)} />
       {tired && (
         <div className="mt-2.5 flex gap-2 rounded-xl bg-amber-50 p-2.5 text-[12.5px] leading-snug text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" data-testid="tired-tip">
           <BatteryLow className="size-5 shrink-0" />

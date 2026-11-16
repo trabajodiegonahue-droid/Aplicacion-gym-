@@ -44,6 +44,7 @@ src/                   la app (páginas, componentes, service worker)
 | Vida real: pausa por enfermedad/lesión/viaje (congela la racha), días de mínimos, eventos "día suave" (exámenes, trabajo), cómo me siento (energía, ánimo, sueño, dolor), lesiones con avisos en ejercicios, entreno juntos con confirmación, rutinas listas (casa, hotel, 15 min, cuidando lesiones) | ✅ |
 | Calendario de los dos (entrenos, actividad, descansos, pausas, planes, eventos, ciclo propio) | ✅ |
 | Datos corporales al entrar, pesaje semanal (peso + estatura), gráficas semanales de peso, IMC, estatura y medidas; fotos de progreso privadas; ciclo menstrual opcional y privado | ✅ |
+| Ciclo menstrual completo (opcional y privado): anillo con fases, predicción con el promedio propio, flujo/cólicos/síntomas diarios, guía de energía/ánimo/fuerza por fase, gráficas personales por fase, entreno que se adapta, aviso privado 2 días antes, la pareja ve solo la fase y (si se quiere) cómo va hoy, regla opcional "período = día de mínimos" | ✅ |
 | Resumen semanal en equipo (XP juntos, días que cumplieron los dos, lo mejor de cada uno; sin competencia) + aviso el domingo 19:00 | ✅ |
 | Agua: meta, vasos/botellas/personalizado, añadir/quitar, historial semanal/mensual | ✅ |
 | Actividad física: caminata, pasos, cardio, bici, correr, deportes, estadísticas, objetivos | ✅ (manual; Apple Salud no es accesible desde apps web) |

@@ -4,7 +4,7 @@ import { supabase, must } from '../lib/supabase'
 import { useAuth } from '../context/AuthProvider'
 import { useAction, useToday } from '../lib/queries'
 import { addDays, endOfMonth, fmtLongDay, fmtMonth, fmtShort, parseISODate, startOfMonth, WEEKDAYS_MON } from '../lib/dates'
-import { CYCLE_PHASES, ENERGY, INJURY_AREAS, MOOD, PAUSE_KINDS, PLAN_KINDS, useCoupleCalendar, type CalItem, type PlanKind } from '../lib/life'
+import {  ENERGY, INJURY_AREAS, MOOD, PAUSE_KINDS, PLAN_KINDS, useCoupleCalendar, type CalItem, type PlanKind } from '../lib/life'
 import { colorFor } from '../lib/levels'
 import { Button, Card, Field, Input, Segmented, Sheet, cx, useUi } from './ui'
 import { TimeField } from './TimePicker'
@@ -29,7 +29,13 @@ function describe(it: CalItem): { emoji: string; text: string } | null {
     case 'injury': return i.start ? { emoji: '🩹', text: `Molestia: ${INJURY_AREAS[it.title as keyof typeof INJURY_AREAS]?.label ?? it.title}` } : null
     case 'plan': return { emoji: PLAN_KINDS[i.kind as PlanKind]?.emoji ?? '📝', text: `Plan: ${it.title}` }
     case 'event': return { emoji: EVENT_KINDS[String(i.kind)]?.split(' ')[0] ?? '📌', text: `${it.title}${i.time ? ` · ${String(i.time).slice(0, 5)}` : ''}${i.lighten ? ' · día suave 🌱' : ''}` }
-    case 'cycle': return i.day === 1 || it.title === 'menstrual' ? { emoji: CYCLE_PHASES[it.title]?.emoji ?? '🌙', text: CYCLE_PHASES[it.title]?.label ?? it.title } : null
+    case 'cycle': {
+      const future = it.day > new Date().toISOString().slice(0, 10)
+      if (it.title === 'menstrual') return { emoji: '🩸', text: future ? 'Período (estimado)' : `Período · día ${i.day}` }
+      if (it.title === 'ovulatoria' && Number(i.day) === Number(i.length) - 14) return { emoji: '✨', text: 'Ovulación (estimada)' }
+      if (i.pms && Number(i.day) === Number(i.length) - 4) return { emoji: '🌘', text: 'Empiezan días premenstruales' }
+      return null
+    }
     default: return null
   }
 }
@@ -87,7 +93,7 @@ export function JointCalendar() {
             const its = byDay.get(d) ?? []
             const cs = its.find(x => x.kind === 'couple')?.title
             const did = (u?: string | null) => its.some(x => x.user_id === u && (x.kind === 'workout' || x.kind === 'activity'))
-            const emojis = [...new Set(its.map(x => (['workout', 'activity', 'status', 'couple', 'checkin', 'cycle'].includes(x.kind) ? null : describe(x)?.emoji)).filter(Boolean))].slice(0, 2)
+            const emojis = [...new Set(its.map(x => (['workout', 'activity', 'status', 'couple', 'checkin'].includes(x.kind) ? null : describe(x)?.emoji)).filter(Boolean))].slice(0, 2)
             return (
               <button key={d} onClick={() => setSel(d)} className={cx('relative flex aspect-[4/5] flex-col items-center justify-start rounded-xl pt-1 text-[12.5px] font-semibold transition active:scale-95',
                 cs === 'completed' || cs === 'recovered' ? 'bg-gradient-to-br from-orange-100 to-rose-100 text-fuego-700 dark:from-fuego-500/25 dark:to-fuego-500/10 dark:text-fuego-200'
@@ -106,7 +112,7 @@ export function JointCalendar() {
         <div className="muted mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
           <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: COLORS[myColor] }} />Tú te moviste</span>
           {partner && <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: COLORS[theirColor] }} />{partner.display_name}</span>}
-          <span>🔥 fondo = cumplieron los dos</span><span>❄️ pausa</span><span>🌱 mínimos</span><span>📝 plan</span>
+          <span>🔥 fondo = cumplieron los dos</span><span>❄️ pausa</span><span>🌱 mínimos</span><span>📝 plan</span><span>🩸 tu período (solo tú)</span>
         </div>
       </Card>
 

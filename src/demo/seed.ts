@@ -104,8 +104,37 @@ begin
     (b, t - 3, 2, 3, 5, 0, now()), (b, t - 2, 2, 2, 5.5, 0, now()), (b, t - 1, 1, 3, 4.5, 0, now());
   insert into public.injuries(user_id, area, side, severity, note, started_on) values (a, 'hombro', 'der', 1, 'Molestia en press banca', t - 5);
   insert into public.injuries(user_id, area, side, severity, note, started_on, resolved_on) values (b, 'tobillo', 'izq', 2, 'Torcedura corriendo', t - 40, t - 25);
-  insert into public.cycle_settings(user_id, enabled, share_phase) values (b, true, true);
-  insert into public.cycle_periods(user_id, start_date) values (b, t - 48), (b, t - 20);
+  -- Ciclo de Maite: hoy es el día 2 de su período (comparte fase y síntomas con Diego)
+  insert into public.cycle_settings(user_id, enabled, share_phase, share_symptoms) values (b, true, true, true);
+  alter table public.cycle_periods disable trigger tg_before; alter table public.cycle_periods disable trigger tg_after;
+  insert into public.cycle_periods(user_id, start_date, end_date, created_at) values (b, t - 85, t - 81, now() - interval '85 days'), (b, t - 57, t - 53, now() - interval '57 days'), (b, t - 29, t - 25, now() - interval '29 days'), (b, t - 1, null, now() - interval '1 day');
+  alter table public.cycle_periods enable trigger tg_before; alter table public.cycle_periods enable trigger tg_after;
+  insert into public.cycle_logs(user_id, day, flow, pain, symptoms) values
+    (b, t - 29, 3, 2, '{cansancio,espalda}'), (b, t - 28, 4, 3, '{cansancio,tristeza}'), (b, t - 27, 2, 1, '{}'),
+    (b, t - 15, 0, 0, '{energia_alta,animo_alto}'), (b, t - 6, 0, 0, '{hinchazon,antojos}'), (b, t - 4, 0, 0, '{irritable,antojos,pechos}'),
+    (b, t - 1, 3, 2, '{cansancio}'), (b, t, 4, 2, '{cansancio,espalda,sensible}');
+  -- Historial de cómo se sintió y de sus entrenos (para ver energía, ánimo y fuerza por fase)
+  alter table public.checkins disable trigger tg_before; alter table public.checkins disable trigger tg_after;
+  insert into public.checkins(user_id, day, energy, mood, sleep_hours, created_at)
+  select b, t - g,
+    case when ((g - 1) % 28) >= 23 then 2 when ((g - 1) % 28) between 18 and 22 then 3 when ((g - 1) % 28) between 8 and 15 then 5 else 4 end,
+    case when ((g - 1) % 28) >= 21 then 2 when ((g - 1) % 28) between 8 and 15 then 5 else 4 end,
+    7, now() - make_interval(days => g)
+  from generate_series(4, 84, 2) g
+  on conflict (user_id, day) do nothing;
+  alter table public.checkins enable trigger tg_before; alter table public.checkins enable trigger tg_after;
+  insert into public.exercises(user_id, name, muscle_group) values (b, 'Sentadilla goblet', 'piernas') on conflict do nothing;
+  alter table public.workouts disable trigger tg_before; alter table public.workouts disable trigger tg_after;
+  for k in 4..80 by 4 loop
+    d := t - k;
+    insert into public.workouts(user_id, title, performed_at, duration_min, local_day, created_at)
+      values (b, 'Piernas', (d + time '18:00') at time zone tz, 45, d, (d + time '19:00') at time zone tz) returning id into w;
+    insert into public.workout_sets(workout_id, exercise_id, set_number, reps, weight_kg)
+      select w, (select id from public.exercises where user_id = b and name = 'Sentadilla goblet'), sn, 10,
+        case when ((k - 1) % 28) between 8 and 15 then 24 when ((k - 1) % 28) >= 21 then 18 when ((k - 1) % 28) <= 4 then 16 else 20 end
+      from generate_series(1, 3) sn;
+  end loop;
+  alter table public.workouts enable trigger tg_before; alter table public.workouts enable trigger tg_after;
 
   alter table public.workouts enable trigger tg_before; alter table public.workouts enable trigger tg_after;
   alter table public.activity_logs enable trigger tg_before; alter table public.activity_logs enable trigger tg_after;

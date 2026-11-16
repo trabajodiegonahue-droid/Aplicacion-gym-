@@ -14,12 +14,13 @@ import { WhenRow } from '../../components/TimePicker'
 import RecordsTab from './Records'
 import { BodyDataSheet, bmi,  useBodyWeights } from '../../components/BodyCheck'
 import { ROUTINE_TEMPLATES, type RoutineTemplate } from './templates'
-import { CycleCard, InjuriesCard, MeasurementsCard, ProgressPhotosCard } from './BodyExtras'
+import { InjuriesCard, MeasurementsCard, ProgressPhotosCard } from './BodyExtras'
+import { CycleCard } from './Cycle'
 import { ExerciseInfoButton, MuscleStack, VariantChips, muscleSummary } from '../../components/MuscleInfo'
 import { EQUIPMENT, EXERCISE_LIBRARY, exerciseInfo, libraryByName, normalize, type Equipment } from '../../lib/exerciseLibrary'
 import { celebrate } from '../../components/Celebration'
 import { RestTimer, unlockAudio } from '../../components/RestTimer'
-import { injuryRisk, INJURY_AREAS, useCheckins, useMyActiveInjuries } from '../../lib/life'
+import { CYCLE_PHASES, PHASE_GUIDE, cycleSaysEasy, injuryRisk, INJURY_AREAS, useCheckins, useMyActiveInjuries, useMyCycle } from '../../lib/life'
 import { clearDraft, describeSet, draftDoneSets, itemsFromSets, lastTimes, loadDraft, saveDraft, suggestNext, useWorkoutDraft, type DraftEx, type DraftSet, type Suggestion, type WorkoutDraft } from './workoutDraft'
 
 export const MUSCLES: { value: MuscleGroup; label: string; emoji: string }[] = [
@@ -512,7 +513,9 @@ function WorkoutLogger({ routine, workout, draft, repeat, onClose }: LoggerOpen 
   const { partner } = useAuth()
   const injuries = useMyActiveInjuries()
   const todayCheck = (useCheckins(1).data ?? []).find(c => c.user_id === uid && c.day === toISODate(new Date()))
-  const lowEnergy = (todayCheck?.energy ?? 5) <= 2
+  const cyc = useMyCycle().data
+  const cycEasy = cycleSaysEasy(cyc)
+  const lowEnergy = (todayCheck?.energy ?? 5) <= 2 || cycEasy
   const [joint, setJoint] = useState(!!workout?.joint_with)
   const isCopy = !!workout?.joint_of
   const performed = workout ? new Date(workout.performed_at) : new Date()
@@ -588,7 +591,12 @@ function WorkoutLogger({ routine, workout, draft, repeat, onClose }: LoggerOpen 
           </label>
         )}
         {isCopy && <p className="rounded-xl bg-rose-50 p-2.5 text-[13px] dark:bg-fuego-500/10">💞 Entreno juntos confirmado</p>}
-        {!workout && lowEnergy && <p className="rounded-xl bg-amber-50 p-2.5 text-[12.5px] text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">🪫 Hoy contaste poca energía: las sugerencias mantienen el peso. Un entreno suave también suma.</p>}
+        {!workout && cyc && CYCLE_PHASES[cyc.phase] && (
+          <p className="rounded-xl p-2.5 text-[12.5px] leading-snug" style={{ background: CYCLE_PHASES[cyc.phase].color + '18' }} data-testid="cycle-banner">
+            {CYCLE_PHASES[cyc.phase].emoji} <b>{cyc.phase === 'menstrual' ? `Día ${cyc.day} del período` : cyc.pms ? 'Días premenstruales' : CYCLE_PHASES[cyc.phase].label}:</b> {cycEasy ? 'las sugerencias mantienen el peso hoy. Escucha tu cuerpo: un entreno suave también suma 💗' : PHASE_GUIDE[cyc.phase].strength}
+          </p>
+        )}
+        {!workout && lowEnergy && !cycEasy && <p className="rounded-xl bg-amber-50 p-2.5 text-[12.5px] text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">🪫 Hoy contaste poca energía: las sugerencias mantienen el peso. Un entreno suave también suma.</p>}
         <WhenRow date={date} setDate={setDate} time={time} setTime={setTime} />
         <Field label="Duración (minutos)" hint="Si lo dejas vacío, se calcula sola desde que empezaste."><Input type="number" inputMode="numeric" min={0} placeholder="Automática" value={duration} onChange={e => setDuration(e.target.value)} /></Field>
         {rest && <RestTimer endAt={rest.end} total={rest.total} onChange={(end, total) => setRest(end === null ? null : { end, total: total ?? rest.total })} />}
