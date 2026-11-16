@@ -5,7 +5,7 @@ import { useAction } from '../lib/queries'
 import { colorFor, levelFromXp, stageForLevel, STAGES, useLevels } from '../lib/levels'
 import { Buddy } from './Buddy'
 import { Person, PRESETS, SKINS, HAIR_COLORS, TOP_COLORS, type PersonLook } from './Person'
-import { lookOf, speciesOf } from './Character'
+import { defaultLook, lookOf, speciesOf } from './Character'
 import { Mascot, MASCOTS, type Species } from './Mascot'
 import { Lock } from 'lucide-react'
 import { Button, Card, Segmented, Toggle, cx } from './ui'
@@ -30,12 +30,13 @@ export function CharacterEditor() {
   const stage = stageForLevel(level)
   const saved = lookOf(profile)
   const savedSp = speciesOf(profile)
-  const [kind, setKind] = useState<'person' | 'flame' | 'mascot'>(saved ? 'person' : savedSp ? 'mascot' : 'flame')
+  const savedFlame = (profile?.character as { kind?: string } | null)?.kind === 'flame'
+  const [kind, setKind] = useState<'person' | 'flame' | 'mascot'>(saved ? 'person' : savedSp ? 'mascot' : savedFlame ? 'flame' : 'person')
   const [species, setSpecies] = useState<Species>(savedSp ?? 'gato')
-  const [look, setLook] = useState<PersonLook>(saved ?? PRESETS.diego)
+  const [look, setLook] = useState<PersonLook>(saved ?? defaultLook(profile))
   const [preview, setPreview] = useState(stage)
   useEffect(() => { const s = lookOf(profile); if (s) { setLook(s); setKind('person') } const sp = speciesOf(profile); if (sp) { setSpecies(sp); setKind('mascot') } }, [profile])
-  const value = kind === 'person' ? look : kind === 'mascot' ? { kind: 'mascot', species } : {}
+  const value = kind === 'person' ? look : kind === 'mascot' ? { kind: 'mascot', species } : { kind: 'flame' }
   const save = useAction(async () => must(supabase.from('profiles').update({ character: value }).eq('id', uid!)),
     { invalidate: [['profile'], ['couple']], success: 'Personaje guardado ✨' })
   const set = (p: Partial<PersonLook>) => setLook({ ...look, ...p })

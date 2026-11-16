@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import type { Profile } from '../lib/types'
 import type { BuddyColor } from '../lib/levels'
 import { Buddy, type Mood } from './Buddy'
-import { Person, type PersonLook } from './Person'
+import { Person, PRESETS, type PersonLook } from './Person'
 import { Mascot, type Species } from './Mascot'
 
 export const lookOf = (p?: Profile | null): PersonLook | null =>
@@ -10,13 +10,22 @@ export const lookOf = (p?: Profile | null): PersonLook | null =>
 export const speciesOf = (p?: Profile | null): Species | null =>
   p?.character && (p.character as { kind?: string }).kind === 'mascot' ? ((p.character as { species?: Species }).species ?? null) : null
 
-/** Dibuja el personaje elegido: persona, mascota desbloqueada o la llamita. */
+const GENERIC: PersonLook = { kind: 'person', skin: '#e3ab84', hair: 'curly', hairColor: '#2b1b13', outfit: 'hoodie', top: '#e11d48', pants: '#1f2937' }
+/** Persona por defecto (si todavía no eligió personaje): Diego y Maite tienen la suya. */
+export function defaultLook(p?: Profile | null): PersonLook {
+  const n = (p?.display_name ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+  if (n.startsWith('maite')) return PRESETS.maite
+  if (n.startsWith('diego')) return PRESETS.diego
+  return GENERIC
+}
+const chosenFlame = (p?: Profile | null) => (p?.character as { kind?: string } | null)?.kind === 'flame'
+
+/** Dibuja el personaje elegido: persona (por defecto), mascota desbloqueada o la llamita si la eligió. */
 export function Character({ profile, color, stage, mood, size }: { profile?: Profile | null; color: BuddyColor; stage: number; mood: Mood | 'love'; size: number }) {
-  const look = lookOf(profile)
-  if (look) return <Visible><Person look={look} stage={stage} mood={mood} size={size} /></Visible>
   const sp = speciesOf(profile)
   if (sp) return <Visible><Mascot species={sp} stage={stage} mood={mood} size={size} /></Visible>
-  return <Visible><Buddy stage={stage} color={color} mood={mood === 'love' ? 'happy' : mood} size={size} /></Visible>
+  if (chosenFlame(profile)) return <Visible><Buddy stage={stage} color={color} mood={mood === 'love' ? 'happy' : mood} size={size} /></Visible>
+  return <Visible><Person look={lookOf(profile) ?? defaultLook(profile)} stage={stage} mood={mood} size={size} /></Visible>
 }
 
 // Un solo observador para todos los personajes: los que no se ven, no se animan (ahorra batería y fotogramas)

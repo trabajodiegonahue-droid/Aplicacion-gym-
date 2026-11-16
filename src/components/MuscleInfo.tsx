@@ -3,6 +3,7 @@ import { Info } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { EQUIPMENT, exerciseInfo, roleOf, variantsOf, type LibraryExercise } from '../lib/exerciseLibrary'
 import { Sheet, cx } from './ui'
+import { BodyMap } from './BodyMap'
 
 const COLORS = ['#e11d48', '#f97316', '#f59e0b', '#8b5cf6', '#0ea5e9', '#10b981']
 
@@ -28,6 +29,7 @@ export function MuscleBreakdown({ name }: { name: string }) {
   return (
     <div className="space-y-4">
       <p className="text-[14.5px] leading-relaxed">{info.use}</p>
+      <BodyMap muscles={info.muscles} />
       <div className="flex items-center gap-4">
         <div className="relative size-40 shrink-0">
           <ResponsiveContainer width="100%" height="100%">

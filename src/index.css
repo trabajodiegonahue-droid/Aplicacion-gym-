@@ -254,3 +254,11 @@ input[type="date"], input[type="time"] { min-height: 48px; }
 .ember, .float-soft, .heartbeat { will-change: transform; }
 /* Desplazamiento suave en iOS */
 .sheet-body { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+
+/* Mapa muscular */
+.muscle { stroke: rgba(0,0,0,.08); stroke-width: .4; }
+.muscle-sel { stroke: #111; stroke-width: 1.2; }
+.dark .muscle-sel { stroke: #fff; }
+@keyframes muscle-pulse { 0%,100% { opacity: 1 } 50% { opacity: .72 } }
+.muscle-hot { animation: muscle-pulse 1.8s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) { .muscle-hot { animation: none } }

@@ -11,6 +11,7 @@ import type { Profile } from '../lib/types'
 import { ProgressBar, cx } from './ui'
 import { CONDITION_LABEL, dayProgress } from './Today'
 import { celebrate } from './Celebration'
+import { DayDetailSheet } from './DayDetail'
 
 const moodFor = (row?: MemberDay): Mood =>
   row?.status === 'completed' ? 'happy' : row?.status === 'rest' || row?.status === 'paused' ? 'sleep' : row?.status === 'missed' ? 'sad' : 'idle'
@@ -33,6 +34,7 @@ function BuddyColumn({ row, rules, name, me, color, xp, xpToday, profile, love }
   const lv = levelFromXp(xp)
   const stage = stageForLevel(lv.level)
   const p = dayProgress(row, rules)
+  const [open, setOpen] = useState(false)
   const icons: Record<string, typeof Dumbbell> = { workout: Dumbbell, activity: Activity, steps: Footprints, water: Droplets, habits: ListChecks }
   return (
     <div className="flex min-w-0 flex-1 flex-col items-center">
@@ -40,7 +42,11 @@ function BuddyColumn({ row, rules, name, me, color, xp, xpToday, profile, love }
         {bubbleText(row, p, !!me)}
         <span className="absolute -bottom-1 left-1/2 size-2.5 -translate-x-1/2 rotate-45 bg-white dark:bg-noche-700" />
       </div>
-      <Character profile={profile} stage={stage} color={color} mood={love ? 'love' : moodFor(row)} size={96} />
+      <button type="button" onClick={() => setOpen(true)} className="rounded-3xl transition active:scale-95" aria-label={me ? 'Ver qué me falta hoy' : `Ver qué le falta hoy a ${name}`} data-testid={me ? 'my-day' : 'partner-day'}>
+        <Character profile={profile} stage={stage} color={color} mood={love ? 'love' : moodFor(row)} size={96} />
+      </button>
+      <button type="button" onClick={() => setOpen(true)} className="text-[11px] font-semibold text-fuego-600 dark:text-fuego-300">{me ? 'Ver mi día ›' : `Ver su día ›`}</button>
+      <DayDetailSheet open={open} onClose={() => setOpen(false)} row={row} rules={rules} name={name} me={me} profile={profile} color={color} />
       <p className="mt-1 truncate text-[15px] font-bold">{me ? 'Tú' : name}</p>
       <span className={cx('mt-0.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white', color === 'rojo' ? 'bg-fuego-500' : 'bg-orange-500')}>
         Nivel {lv.level} · {STAGES[stage].name}
