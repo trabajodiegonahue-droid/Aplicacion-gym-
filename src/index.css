@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --color-fuego-50: #fff5f7;
+  --color-fuego-100: #ffe3ea;
+  --color-fuego-200: #ffc2d1;
+  --color-fuego-300: #ff8fab;
+  --color-fuego-400: #ff5c8a;
+  --color-fuego-500: #ef233c;
+  --color-fuego-600: #d90429;
+  --color-fuego-700: #c1121f;
+  --color-fuego-800: #8d0b18;
+  --color-fuego-900: #4a0710;
+  --color-rosa-400: #ff4d8d;
+  --color-rosa-500: #f72585;
+  --color-noche-900: #17090d;
+  --color-noche-800: #231015;
+  --color-noche-700: #33171e;
+  --animate-flicker: flicker 1.6s ease-in-out infinite;
+  --animate-pop: pop 0.45s cubic-bezier(.2,1.4,.4,1);
+  --animate-rise: rise 0.35s ease-out;
+}
+
+@keyframes flicker {
+  0%, 100% { transform: scale(1) rotate(-1.5deg); }
+  25% { transform: scale(1.04, 0.97) rotate(1deg); }
+  50% { transform: scale(0.98, 1.05) rotate(-0.5deg); }
+  75% { transform: scale(1.03, 0.98) rotate(1.5deg); }
+}
+@keyframes pop { 0% { transform: scale(.6); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
+@keyframes rise { 0% { transform: translateY(12px); opacity: 0 } 100% { transform: translateY(0); opacity: 1 } }
+@keyframes float-up {
+  0% { transform: translateY(0) scale(.6); opacity: 0 }
+  15% { opacity: 1 }
+  100% { transform: translateY(-70vh) scale(1.2) rotate(20deg); opacity: 0 }
+}
+@keyframes glow { 0%,100% { opacity: .55 } 50% { opacity: .9 } }
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  color-scheme: light;
+}
+.dark { color-scheme: dark; }
+
+html, body, #root { min-height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-fuego-50);
+  color: #2a0d14;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
+}
+.dark body, body.dark { background: var(--color-noche-900); color: #ffe9ee; }
+
+/* Inputs ≥16px: evita el zoom automático de Safari en iPhone */
+input, select, textarea, button { font: inherit; font-size: 16px; }
+input[type="date"], input[type="time"] { min-height: 48px; }
+
+.safe-top { padding-top: max(var(--safe-top), 12px); }
+.safe-bottom { padding-bottom: var(--safe-bottom); }
+.pb-nav { padding-bottom: calc(88px + var(--safe-bottom)); }
+
+@layer components {
+.card {
+  @apply rounded-3xl bg-white/90 p-4 shadow-[0_6px_24px_-12px_rgba(193,18,31,.25)] ring-1 ring-fuego-100;
+}
+.dark .card { @apply bg-noche-800 ring-noche-700 shadow-none; }
+
+.btn-primary { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 font-semibold transition active:scale-[.97] disabled:opacity-50 disabled:active:scale-100 bg-gradient-to-r from-fuego-500 to-rosa-400 text-white shadow-lg shadow-fuego-500/30; }
+.btn-soft { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 font-semibold transition active:scale-[.97] disabled:opacity-50 disabled:active:scale-100 bg-fuego-100 text-fuego-700; }
+.dark .btn-soft { @apply bg-noche-700 text-fuego-200; }
+.btn-ghost { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 font-semibold transition active:scale-[.97] disabled:opacity-50 disabled:active:scale-100 text-fuego-700; }
+.dark .btn-ghost { @apply text-fuego-200; }
+.btn-danger { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 font-semibold transition active:scale-[.97] disabled:opacity-50 disabled:active:scale-100 bg-red-600 text-white; }
+
+.input {
+  @apply w-full min-h-12 rounded-2xl border border-fuego-200 bg-white px-4 py-3 text-[16px] outline-none transition placeholder:text-fuego-300 focus:border-fuego-500 focus:ring-4 focus:ring-fuego-500/15;
+}
+.dark .input { @apply border-noche-700 bg-noche-900 text-fuego-50 placeholder:text-fuego-800; }
+.label { @apply mb-1.5 block text-sm font-semibold text-fuego-800; }
+.dark .label { @apply text-fuego-200; }
+.muted { @apply text-fuego-800/60; }
+.dark .muted { @apply text-fuego-100/55; }
+.chip { @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold; }
+
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+.animate-glow { animation: glow 2s ease-in-out infinite; }
