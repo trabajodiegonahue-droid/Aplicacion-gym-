@@ -1,0 +1,120 @@
+// Datos de ejemplo SOLO para la demo (nunca se usan en producción).
+// Dos cuentas ya vinculadas con una semana de historia para poder probar todo.
+export const DEMO_ACCOUNTS = [
+  { name: 'Ana', email: 'ana@demo.app', password: 'demo1234' },
+  { name: 'Beto', email: 'beto@demo.app', password: 'demo1234' },
+]
+
+export function seedSql(tzRaw: string) {
+  const tz = tzRaw.replace(/[^A-Za-z0-9_/+-]/g, '') || 'UTC'
+  return `
+do $seed$
+declare
+  a uuid := 'a0000000-0000-4000-8000-00000000000a';
+  b uuid := 'b0000000-0000-4000-8000-00000000000b';
+  c uuid := 'c0000000-0000-4000-8000-00000000000c';
+  tz text := coalesce(private.normalize_tz('${tz}'), 'UTC');
+  t date;
+  d date;
+  k int;
+  ex record;
+  w uuid;
+  r uuid;
+  e1 uuid; e2 uuid; e3 uuid; e4 uuid; e5 uuid;
+begin
+  insert into auth.users(id, email, raw_user_meta_data) values
+    (a, 'ana@demo.app', jsonb_build_object('display_name','Ana','timezone',tz)),
+    (b, 'beto@demo.app', jsonb_build_object('display_name','Beto','timezone',tz));
+  insert into auth.demo_passwords values ('ana@demo.app','demo1234',a), ('beto@demo.app','demo1234',b);
+  t := (now() at time zone tz)::date;
+
+  update public.profiles set bio = 'Piernas los lunes, siempre 💪', birthday = (t + 9) - interval '27 years' where id = a;
+  update public.profiles set bio = 'Corredor de fin de semana' where id = b;
+
+  insert into public.couples(id, name, together_since, anniversary_date, streak_start_date, created_at)
+    values (c, 'Ana y Beto', t - 520, (t + 23) - interval '2 years', t - 6, now() - interval '6 days');
+  insert into public.couple_members(couple_id, user_id, joined_at) values (c, a, now() - interval '6 days'), (c, b, now() - interval '6 days');
+  insert into public.streak_rules(couple_id, version, effective_from, rules, proposed_by, approved_by)
+    values (c, 1, t - 6, private.default_rules(), a, b);
+  insert into public.streaks(couple_id) values (c);
+
+  alter table public.workouts disable trigger tg_before; alter table public.workouts disable trigger tg_after;
+  alter table public.activity_logs disable trigger tg_before; alter table public.activity_logs disable trigger tg_after;
+  alter table public.water_logs disable trigger tg_before; alter table public.water_logs disable trigger tg_after;
+  alter table public.habit_logs disable trigger tg_before; alter table public.habit_logs disable trigger tg_after;
+  alter table public.rest_days disable trigger tg_before; alter table public.rest_days disable trigger tg_after;
+
+  -- Ejercicios y rutina de Ana
+  insert into public.exercises(id, user_id, name, muscle_group) values
+    (gen_random_uuid(), a, 'Sentadilla con barra', 'piernas'), (gen_random_uuid(), a, 'Hip thrust', 'gluteos'),
+    (gen_random_uuid(), a, 'Prensa', 'piernas'), (gen_random_uuid(), a, 'Remo con mancuerna', 'espalda'),
+    (gen_random_uuid(), a, 'Plancha', 'abdomen');
+  select id into e1 from public.exercises where user_id = a and name = 'Sentadilla con barra';
+  select id into e2 from public.exercises where user_id = a and name = 'Hip thrust';
+  select id into e3 from public.exercises where user_id = a and name = 'Prensa';
+  select id into e4 from public.exercises where user_id = a and name = 'Remo con mancuerna';
+  select id into e5 from public.exercises where user_id = a and name = 'Plancha';
+  insert into public.routines(id, user_id, name, description, is_favorite, weekdays) values (gen_random_uuid(), a, 'Piernas y glúteos', 'Rutina base', true, '{1,4}') returning id into r;
+  insert into public.routine_exercises(routine_id, exercise_id, position, target_sets, target_reps, target_weight_kg, rest_seconds) values
+    (r, e1, 0, 4, 8, 45, 120), (r, e2, 1, 4, 10, 60, 90), (r, e3, 2, 3, 12, 90, 90);
+  insert into public.routines(user_id, name, description, weekdays) values (a, 'Espalda y core', 'Tirones + abdomen', '{2,5}');
+  insert into public.exercises(user_id, name, muscle_group) values (b, 'Press banca', 'pecho'), (b, 'Dominadas', 'espalda');
+
+  -- Historia: días -6..-1 (Beto descansa el -3, Ana no entrenó el -6) y hoy solo Ana
+  for k in reverse 6..0 loop
+    d := t - k;
+    if k <> 6 then
+      insert into public.workouts(id, user_id, title, routine_id, performed_at, duration_min, local_day, created_at)
+        values (gen_random_uuid(), a, case when k % 2 = 0 then 'Piernas y glúteos' else 'Espalda y core' end, case when k % 2 = 0 then r end,
+                least((d + time '18:30') at time zone tz, now() - interval '5 minutes'), 50 + k * 2, d, least((d + time '19:30') at time zone tz, now() - interval '5 minutes')) returning id into w;
+      insert into public.workout_sets(workout_id, exercise_id, set_number, reps, weight_kg, rest_sec)
+      select w, e1, s, 8, 40 + (6 - k) * 2.5, 120 from generate_series(1, 3) s;
+      insert into public.workout_sets(workout_id, exercise_id, set_number, reps, weight_kg, rest_sec)
+      select w, e2, s, 10, 55 + (6 - k) * 2.5, 90 from generate_series(1, 3) s;
+    end if;
+    if k > 0 and k <> 3 then
+      insert into public.activity_logs(user_id, kind, minutes, steps, distance_km, performed_at, local_day, created_at)
+        values (b, case when k % 2 = 0 then 'correr' else 'caminata' end, 30 + k * 3, 4000 + k * 650, 4 + k * 0.4, least((d + time '07:15') at time zone tz, now() - interval '5 minutes'), d, least((d + time '08:00') at time zone tz, now() - interval '5 minutes'));
+    end if;
+    if k = 3 then insert into public.rest_days(user_id, day, created_at) values (b, d, least((d + time '09:00') at time zone tz, now() - interval '5 minutes')); end if;
+    insert into public.water_logs(user_id, amount_ml, label, performed_at, local_day, created_at) values
+      (a, 500, 'Botella', least((d + time '10:00') at time zone tz, now() - interval '5 minutes'), d, least((d + time '10:00') at time zone tz, now() - interval '5 minutes')),
+      (a, 250 * (1 + k % 3), 'Vaso', least((d + time '15:00') at time zone tz, now() - interval '5 minutes'), d, least((d + time '15:00') at time zone tz, now() - interval '5 minutes')),
+      (b, 750, 'Botella', least((d + time '11:00') at time zone tz, now() - interval '5 minutes'), d, least((d + time '11:00') at time zone tz, now() - interval '5 minutes'));
+  end loop;
+
+  -- Hábitos
+  insert into public.habits(user_id, name, emoji, start_date) values (a, 'Estirar 10 minutos', '🧘', t - 10), (a, 'Dormir 8 horas', '😴', t - 10), (a, 'Comer fruta', '🍎', t - 10), (b, 'Meditar', '🌿', t - 10);
+  insert into public.habit_logs(habit_id, user_id, local_day, performed_at, created_at)
+  select h.id, h.user_id, t - g, now() - make_interval(days => g), now() - make_interval(days => g)
+  from public.habits h cross join generate_series(1, 5) g where (g + length(h.name)) % 3 <> 0;
+
+  insert into public.body_weights(user_id, day, weight_kg) values (a, t - 21, 63.4), (a, t - 14, 63.0), (a, t - 7, 62.6), (a, t, 62.3);
+
+  alter table public.workouts enable trigger tg_before; alter table public.workouts enable trigger tg_after;
+  alter table public.activity_logs enable trigger tg_before; alter table public.activity_logs enable trigger tg_after;
+  alter table public.water_logs enable trigger tg_before; alter table public.water_logs enable trigger tg_after;
+  alter table public.habit_logs enable trigger tg_before; alter table public.habit_logs enable trigger tg_after;
+  alter table public.rest_days enable trigger tg_before; alter table public.rest_days enable trigger tg_after;
+
+  perform private.finalize_couple(c, now());
+  perform private.refresh_couple_day(c, t, false);
+
+  -- Espacio de pareja
+  insert into public.messages(couple_id, sender_id, kind, body, created_at) values
+    (c, b, 'text', '¡Buenísimo el entreno de ayer! 🔥', now() - interval '20 hours'),
+    (c, a, 'heart', null, now() - interval '19 hours'),
+    (c, a, 'motivation', '¡No apaguemos la racha! 🔥', now() - interval '2 hours');
+  insert into public.notes(couple_id, created_by, body, pinned) values (c, b, 'Faltan pocos días para vernos ✈️ ¡A entrenar para esa caminata juntos!', true), (c, a, 'Orgullosa de vos por correr toda la semana 💪', false);
+  insert into public.calendar_events(couple_id, created_by, title, kind, event_date, notes) values (c, b, 'Visita a Ana', 'visita', t + 12, 'Vuelo a las 10:00');
+  insert into public.goals(user_id, created_by, name, metric, target, frequency, category_label) values (a, a, 'Entrenar 4 veces por semana', 'workouts', 4, 'weekly', 'Gimnasio'), (b, b, 'Caminar 50.000 pasos', 'steps', 50000, 'weekly', 'Salud');
+  insert into public.goals(couple_id, created_by, name, metric, target, frequency, category_label) values (c, a, 'Tomar 2 L de agua', 'water_goal_days', 5, 'weekly', 'Salud');
+  insert into public.challenges(couple_id, created_by, name, metric, target, mode, start_date, end_date, badge, reward)
+    values (c, b, '10 entrenamientos entre los dos', 'workouts', 10, 'together', t - 6, t + 7, '🏆', 'Quien entrene menos cocina en la visita');
+  delete from public.notifications;
+  insert into public.notifications(user_id, kind, title, body) values
+    (b, 'partner_activity', 'Ana completó su día 💪', '¡Ahora te toca a ti para sumar a la racha!'),
+    (a, 'messages', '🔥 Ánimo de Beto', 'Bienvenida a la demo de Fuego Juntos');
+end
+$seed$;`
+}

@@ -21,7 +21,9 @@ export const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 export const WEEKDAYS_MON = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 
 export function relativeTime(iso: string) {
-  const s = (Date.now() - new Date(iso).getTime()) / 1000
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return ''
+  const s = (Date.now() - t) / 1000
   if (s < 60) return 'ahora'
   if (s < 3600) return `hace ${Math.floor(s / 60)} min`
   if (s < 86400) return `hace ${Math.floor(s / 3600)} h`

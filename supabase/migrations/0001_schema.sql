@@ -7,7 +7,7 @@
 -- escriben funciones del servidor, nunca el navegador.
 -- =====================================================================
 
-create extension if not exists pgcrypto;
+do $$ begin create extension if not exists pgcrypto; exception when others then null; end $$; -- opcional (gen_random_uuid ya es nativo)
 
 create schema if not exists private;
 

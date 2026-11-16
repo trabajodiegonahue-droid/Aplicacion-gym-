@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase, errorMessage } from '../../lib/supabase'
 import { Button, Field, Input } from '../../components/ui'
 import { AuthLayout } from './AuthLayout'
+import { DemoLoginButtons } from '../../demo/DemoBar'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -17,6 +18,7 @@ export default function Login() {
   }
   return (
     <AuthLayout title="Iniciar sesión">
+      <DemoLoginButtons />
       <form onSubmit={submit} className="space-y-4">
         <Field label="Correo electrónico">
           <Input type="email" inputMode="email" autoComplete="email" autoCapitalize="none" required value={email} onChange={e => setEmail(e.target.value)} placeholder="tu@correo.com" />

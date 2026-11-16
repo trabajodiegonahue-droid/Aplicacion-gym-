@@ -27,6 +27,11 @@ async function register(p, name) {
   await pw.nth(1).fill('claveSegura123')
   await p.getByRole('button', { name: 'Crear mi cuenta' }).click()
   await p.getByText('Vincular pareja').first().waitFor()
+  await skipTour(p)
+}
+async function skipTour(p) {
+  const b = p.getByRole('button', { name: 'Saltar' })
+  if (await b.isVisible().catch(() => false)) await b.click()
 }
 
 const A = await mk(), B = await mk()

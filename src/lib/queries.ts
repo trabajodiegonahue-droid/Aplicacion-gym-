@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
-import { supabase, must } from './supabase'
+import { isDemo, supabase, must } from './supabase'
 import { useAuth } from '../context/AuthProvider'
 import { useUi } from '../components/ui'
 import { celebrate } from '../components/Celebration'
@@ -108,7 +108,7 @@ export function useRealtimeSync() {
   const lastCount = useRef<number | null>(null)
 
   useEffect(() => {
-    if (!uid) return
+    if (!uid || isDemo) return // en la demo no hay servidor de tiempo real (todo ocurre en este teléfono)
     const inv = (k: string) => qc.invalidateQueries({ queryKey: [k] })
     const ch = supabase.channel(`sync-${uid}-${couple?.id ?? 'solo'}`)
     ch.on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${uid}` }, () => inv('notifications'))

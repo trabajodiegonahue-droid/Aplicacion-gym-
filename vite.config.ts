@@ -3,11 +3,14 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  base: mode === 'demo' ? './' : '/',
+  optimizeDeps: { exclude: ['@electric-sql/pglite'] },
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
+      disable: mode === 'demo',
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
@@ -35,5 +38,5 @@ export default defineConfig({
       devOptions: { enabled: false },
     }),
   ],
-  build: { target: 'es2020', chunkSizeWarningLimit: 900 },
-})
+  build: { target: 'es2022', chunkSizeWarningLimit: 900 },
+}))

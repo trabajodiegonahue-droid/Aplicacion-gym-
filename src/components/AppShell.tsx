@@ -1,9 +1,14 @@
-import { Suspense, type ReactNode } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Suspense, useEffect, type ReactNode } from 'react'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { House, Flame as FlameIcon, Dumbbell, CircleCheckBig, Heart } from 'lucide-react'
 import { cx, Loading } from './ui'
 import { useEnsureToday, useRealtimeSync } from '../lib/queries'
 import { InstallBanner } from './InstallBanner'
+import { DemoBar } from '../demo/DemoBar'
+import { ErrorBoundary } from './ErrorBoundary'
+import { OfflineBanner } from './OfflineBanner'
+import { Onboarding } from './Onboarding'
+import { isDemo } from '../lib/supabase'
 
 const tabs = [
   { to: '/', label: 'Inicio', icon: House, end: true },
@@ -17,12 +22,18 @@ export function AppShell() {
   useRealtimeSync()
   useEnsureToday()
   const loc = useLocation()
+  const nav = useNavigate()
+  useEffect(() => { const h = () => nav('/'); window.addEventListener('fj-go-home', h); return () => window.removeEventListener('fj-go-home', h) }, [nav])
   return (
     <div className="mx-auto min-h-dvh max-w-lg">
+      {!isDemo && <OfflineBanner />}
+      <Onboarding />
       <main className="pb-nav" style={{ paddingLeft: 'var(--safe-left)', paddingRight: 'var(--safe-right)' }}>
-        <InstallBanner />
+        {isDemo ? <DemoBar /> : <InstallBanner />}
         <Suspense fallback={<Loading />}>
-          <div key={loc.pathname.split('/')[1]} className="animate-rise"><Outlet /></div>
+          <ErrorBoundary resetKey={loc.pathname}>
+            <div key={loc.pathname.split('/')[1]} className="animate-rise"><Outlet /></div>
+          </ErrorBoundary>
         </Suspense>
       </main>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/[.06] bg-fuego-50/80 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/[.06] dark:bg-noche-900/80"

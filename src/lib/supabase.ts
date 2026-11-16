@@ -1,11 +1,21 @@
+import { loadDemoBackend } from '../demo/lazy'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
-export const isConfigured = Boolean(url && key && /^https?:\/\//.test(url))
+/** Modo demo: base de datos real (PGlite) dentro del navegador, sin servidor. */
+export const isDemo = import.meta.env.VITE_DEMO === 'true'
+export const isConfigured = isDemo || Boolean(url && key && /^https?:\/\//.test(url))
 
-export const supabase: SupabaseClient = isConfigured
+const demoFetch: typeof fetch = async (input, init) => (await loadDemoBackend()).demoFetch(input, init)
+
+export const supabase: SupabaseClient = isDemo
+  ? createClient('https://demo.fuegojuntos.local', 'demo-anon-key', {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'sb-demo-auth' },
+      global: { fetch: demoFetch },
+    })
+  : isConfigured
   ? createClient(url!, key!, {
       auth: {
         persistSession: true,

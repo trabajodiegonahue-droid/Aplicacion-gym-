@@ -50,6 +50,13 @@ src/                   la app (páginas, componentes, service worker)
 | Estadísticas día/semana/mes, comparación motivadora y progreso conjunto | ✅ |
 | PWA: icono, pantalla de carga, pantalla completa, safe areas / Dynamic Island | ✅ |
 
+## Demo sin servidor
+
+`npm run build:demo` genera una versión de prueba en `dist-demo/` que funciona sin Supabase:
+usa PostgreSQL real dentro del navegador (PGlite) con las mismas migraciones, lógica de racha y RLS,
+y trae dos cuentas de ejemplo ya vinculadas (ana@demo.app / beto@demo.app, clave `demo1234`).
+Los datos de la demo se guardan solo en ese navegador. La versión real no incluye nada de esto.
+
 ## Desarrollo local (opcional)
 
 ```bash

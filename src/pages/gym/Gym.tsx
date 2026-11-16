@@ -18,12 +18,34 @@ export const MUSCLES: { value: MuscleGroup; label: string; emoji: string }[] = [
   { value: 'gluteos', label: 'Glúteos', emoji: '🍑' }, { value: 'abdomen', label: 'Abdomen', emoji: '🧱' }, { value: 'cardio', label: 'Cardio', emoji: '❤️‍🔥' },
   { value: 'otros', label: 'Otros', emoji: '✨' },
 ]
+/** Catálogo básico de ejercicios habituales (se añade a la cuenta con un toque). */
+export const EXERCISE_CATALOG: Record<MuscleGroup, string[]> = {
+  pecho: ['Press banca', 'Press inclinado con mancuernas', 'Aperturas con mancuernas', 'Fondos en paralelas', 'Flexiones'],
+  espalda: ['Dominadas', 'Jalón al pecho', 'Remo con barra', 'Remo en polea baja', 'Peso muerto'],
+  hombros: ['Press militar', 'Elevaciones laterales', 'Face pull', 'Pájaros'],
+  biceps: ['Curl con barra', 'Curl martillo', 'Curl en banco Scott'],
+  triceps: ['Extensión en polea', 'Press francés', 'Patada de tríceps'],
+  piernas: ['Sentadilla con barra', 'Peso muerto rumano', 'Prensa', 'Zancadas', 'Extensión de cuádriceps', 'Curl femoral', 'Elevación de talones'],
+  gluteos: ['Hip thrust', 'Patada de glúteo en polea', 'Abducción de cadera', 'Puente de glúteo'],
+  abdomen: ['Plancha', 'Crunch', 'Elevación de piernas', 'Rueda abdominal'],
+  cardio: ['Cinta', 'Bicicleta estática', 'Elíptica', 'Remo (máquina)', 'Saltar la cuerda'],
+  otros: ['Burpees', 'Estiramientos'],
+}
+
+function useAddCatalog() {
+  const { uid } = useAuth()
+  return useAction(async () => {
+    const rows = Object.entries(EXERCISE_CATALOG).flatMap(([g, names]) => names.map(name => ({ user_id: uid, name, muscle_group: g })))
+    await must(supabase.from('exercises').upsert(rows, { onConflict: 'user_id,name', ignoreDuplicates: true }))
+  }, { invalidate: [['exercises']], success: 'Catálogo añadido: ya puedes armar tus rutinas 💪' })
+}
+
 const muscleLabel = (m: MuscleGroup) => MUSCLES.find(x => x.value === m)?.label ?? m
 
-type Tab = 'entrenar' | 'rutinas' | 'ejercicios' | 'historial' | 'progreso'
+type Tab = 'entrenar' | 'rutinas' | 'ejercicios' | 'historial' | 'progreso' | 'peso'
 const TABS: { value: Tab; label: string }[] = [
   { value: 'entrenar', label: 'Entrenar' }, { value: 'rutinas', label: 'Rutinas' }, { value: 'ejercicios', label: 'Ejercicios' },
-  { value: 'historial', label: 'Historial' }, { value: 'progreso', label: 'Progreso' },
+  { value: 'historial', label: 'Historial' }, { value: 'progreso', label: 'Progreso' }, { value: 'peso', label: 'Peso' },
 ]
 
 function useExercises() {
@@ -54,6 +76,7 @@ export default function Gym() {
           {tab === 'ejercicios' && <ExercisesTab />}
           {tab === 'historial' && <HistoryTab onEdit={w => setLogger({ workout: w })} />}
           {tab === 'progreso' && <ProgressTab />}
+          {tab === 'peso' && <BodyWeightTab />}
         </div>
       </div>
       {logger && <WorkoutLogger routine={logger.routine} workout={logger.workout} onClose={() => setLogger(null)} />}
@@ -184,6 +207,7 @@ function ExercisePicker({ open, onClose, onPick }: { open: boolean; onClose: () 
   const exercises = (useExercises().data ?? []).filter(e => !e.archived)
   const [q, setQ] = useState('')
   const [creating, setCreating] = useState(false)
+  const catalog = useAddCatalog()
   const list = exercises.filter(e => e.name.toLowerCase().includes(q.toLowerCase()))
   return (
     <Sheet open={open} onClose={onClose} title="Elegir ejercicio">
@@ -196,6 +220,7 @@ function ExercisePicker({ open, onClose, onPick }: { open: boolean; onClose: () 
             <div className="space-y-1">{xs.map(e => <button key={e.id} onClick={() => onPick(e)} className="w-full rounded-xl bg-white px-4 py-3 text-left font-semibold dark:bg-noche-800">{e.name}</button>)}</div></div>
         })}
         {list.length === 0 && <p className="muted text-center text-sm">No hay ejercicios{q ? ' con ese nombre' : ''}.</p>}
+        {exercises.length < 10 && !q && <Button variant="ember" className="w-full" loading={catalog.isPending} onClick={() => catalog.mutate()}>Añadir catálogo básico (40+ ejercicios)</Button>}
         <Button variant="soft" className="w-full" onClick={() => setCreating(true)}><Plus className="size-4" />Crear ejercicio{q ? ` “${q}”` : ''}</Button>
       </div>
       {creating && <ExerciseEditor initialName={q} onClose={() => setCreating(false)} onSaved={onPick} />}
@@ -238,11 +263,19 @@ function ExercisesTab() {
   const [edit, setEdit] = useState<Exercise | 'new' | null>(null)
   const archive = useAction(async (e: Exercise) => must(supabase.from('exercises').update({ archived: !e.archived }).eq('id', e.id)), { invalidate: [['exercises']] })
   const del = useAction(async (e: Exercise) => must(supabase.from('exercises').delete().eq('id', e.id)), { invalidate: [['exercises'], ['routines'], ['workouts']], success: 'Ejercicio eliminado' })
+  const catalog = useAddCatalog()
   if (exercises.isLoading) return <Loading />
   const list = exercises.data ?? []
   return (
     <div className="space-y-3">
       <Button variant="soft" className="w-full" onClick={() => setEdit('new')}><Plus className="size-5" />Nuevo ejercicio</Button>
+      {list.length < 10 && (
+        <Card className="flex items-center gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-blush text-ember"><Dumbbell className="size-5" /></span>
+          <div className="min-w-0 flex-1"><p className="text-[15px] font-semibold">Catálogo básico</p><p className="muted text-[12.5px]">40+ ejercicios habituales, ordenados por grupo muscular.</p></div>
+          <Button variant="ember" className="min-h-10 px-3 text-[13px]" loading={catalog.isPending} onClick={() => catalog.mutate()}>Añadir</Button>
+        </Card>
+      )}
       {list.length === 0 && <Empty icon="🏋️" title="Crea tus ejercicios" text="Organízalos por grupo muscular para registrar series y ver tu progreso." />}
       {MUSCLES.map(m => {
         const xs = list.filter(e => e.muscle_group === m.value)
@@ -479,6 +512,70 @@ function ProgressTab() {
           <div className="text-right"><p className="tabular text-xl font-semibold">{r.maxW} kg</p>{r.maxWDay && <p className="muted text-[11px]">{fmtShort(r.maxWDay)}</p>}</div>
         </Card>
       ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------
+// Peso corporal (privado)
+interface BodyWeight { id: string; day: string; weight_kg: number; note: string | null }
+function BodyWeightTab() {
+  const { uid } = useAuth()
+  const { confirm } = useUi()
+  const [day, setDay] = useState(toISODate(new Date()))
+  const [kg, setKg] = useState('')
+  const q = useQuery({ queryKey: ['body_weights', uid], enabled: !!uid, queryFn: () => must(supabase.from('body_weights').select('*').order('day', { ascending: true }).limit(400)) as Promise<BodyWeight[]> })
+  const save = useAction(async () => must(supabase.from('body_weights').upsert({ user_id: uid, day, weight_kg: Number(kg.replace(',', '.')) }, { onConflict: 'user_id,day' })),
+    { invalidate: [['body_weights']], success: 'Peso guardado' })
+  const del = useAction(async (id: string) => must(supabase.from('body_weights').delete().eq('id', id)), { invalidate: [['body_weights']] })
+  const list = (q.data ?? []).map(x => ({ ...x, weight_kg: Number(x.weight_kg) }))
+  const last = list[list.length - 1], first = list[0]
+  const diff = last && first ? last.weight_kg - first.weight_kg : 0
+  const min = list.length ? Math.min(...list.map(x => x.weight_kg)) : 0
+  const chart = list.slice(-14).map(x => ({ day: fmtShort(x.day), kg: x.weight_kg }))
+  return (
+    <div className="space-y-3">
+      <Card>
+        <p className="mb-3 text-[15px] font-semibold">Registrar peso</p>
+        <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (Number(kg.replace(',', '.')) >= 20) save.mutate(undefined, { onSuccess: () => setKg('') }) }}>
+          <Input type="date" value={day} max={toISODate(new Date())} onChange={e => setDay(e.target.value)} className="w-[46%]" />
+          <Input type="number" inputMode="decimal" step="0.1" min={20} max={400} placeholder="kg" value={kg} onChange={e => setKg(e.target.value)} />
+          <Button type="submit" className="shrink-0 px-4" loading={save.isPending}>OK</Button>
+        </form>
+        <p className="muted mt-2 text-[12px]">Solo tú ves tu peso. Tu pareja nunca tiene acceso a este dato.</p>
+      </Card>
+      {list.length === 0 ? <Empty icon="⚖️" title="Sin registros todavía" text="Pésate una vez por semana, a la misma hora, para ver tu evolución." /> : (
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            <Card className="px-2 text-center"><p className="tabular text-[22px] font-bold">{last.weight_kg.toFixed(1)}</p><p className="muted text-[11px]">kg actual</p></Card>
+            <Card className="px-2 text-center"><p className={cx('tabular text-[22px] font-bold', diff < 0 ? 'text-emerald-600' : diff > 0 ? 'text-orange-500' : '')}>{diff > 0 ? '+' : ''}{diff.toFixed(1)}</p><p className="muted text-[11px]">kg desde el inicio</p></Card>
+            <Card className="px-2 text-center"><p className="tabular text-[22px] font-bold">{min.toFixed(1)}</p><p className="muted text-[11px]">kg mínimo</p></Card>
+          </div>
+          <Card>
+            <p className="mb-2 font-bold">Evolución</p>
+            <div className="h-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chart} margin={{ left: -18, right: 6, top: 8 }}>
+                  <CartesianGrid vertical={false} stroke="#f2dfd3" />
+                  <XAxis dataKey="day" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} domain={[(dataMin: number) => Math.floor(dataMin - 2), (dataMax: number) => Math.ceil(dataMax + 1)]} />
+                  <Tooltip formatter={v => `${v} kg`} />
+                  <Bar dataKey="kg" fill="#f97316" radius={[6, 6, 0, 0]} minPointSize={4} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+          <Card className="divide-y divide-black/[.05] p-0 dark:divide-white/[.06]">
+            {[...list].reverse().slice(0, 20).map(x => (
+              <div key={x.id} className="flex items-center gap-3 px-4 py-3">
+                <span className="flex-1 text-[14px] first-letter:uppercase">{fmtDay(x.day)}</span>
+                <span className="tabular font-semibold">{x.weight_kg.toFixed(1)} kg</span>
+                <button className="p-1.5 text-red-500" aria-label="Eliminar" onClick={async () => { if (await confirm({ title: '¿Eliminar este registro?', danger: true, confirm: 'Eliminar' })) del.mutate(x.id) }}><Trash2 className="size-4" /></button>
+              </div>
+            ))}
+          </Card>
+        </>
+      )}
     </div>
   )
 }

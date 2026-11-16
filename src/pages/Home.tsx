@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Bell, Dumbbell, Droplets, Activity, Moon, ChevronRight, Vote, CircleCheckBig, Hand, ArrowUpRight, Link2, Check } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { supabase, must } from '../lib/supabase'
-import { LOG_KEYS, rulesFor, useAction, useMemberDays, useProposals, useRules, useStreak, useStreakDays, useToday, useTodayWindow } from '../lib/queries'
+import { LOG_KEYS, rulesFor, useAction, useMemberDays, useNotifications, useProposals, useRules, useStreak, useStreakDays, useToday, useTodayWindow } from '../lib/queries'
 import { addDays, fmtLiters, fmtLongDay, startOfWeek, WEEKDAYS_MON } from '../lib/dates'
 import { Card, ProgressBar, SectionTitle, cx, useUi } from '../components/ui'
 import { Flame } from '../components/Flame'
@@ -74,7 +74,7 @@ export default function Home() {
   const ws = today ? startOfWeek(today) : null
   const weekDays = useStreakDays(ws, ws ? addDays(ws, 6) : null).data ?? []
   const water = useWaterToday().data ?? 0
-  const unread = (useQuery({ queryKey: ['notifications', uid], enabled: !!uid, queryFn: () => must(supabase.from('notifications').select('id, read_at').order('created_at', { ascending: false }).limit(60)) as Promise<{ id: string; read_at: string | null }[]> }).data ?? []).filter(n => !n.read_at).length
+  const unread = (useNotifications().data ?? []).filter(n => !n.read_at).length
   const toApprove = (useProposals().data ?? []).filter(p => p.status === 'pending' && p.proposed_by !== uid)
   const [sheet, setSheet] = useState<null | 'workout' | 'water' | 'activity'>(null)
   const quote = useMemo(() => QUOTES[new Date().getDate() % QUOTES.length], [])

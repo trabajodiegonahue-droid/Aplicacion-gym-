@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, Check, X, Ban } from 'lucide-react'
@@ -6,7 +6,7 @@ import { supabase, must } from '../lib/supabase'
 import { useAuth } from '../context/AuthProvider'
 import { useAction, useProposals } from '../lib/queries'
 import type { AuditLog, Proposal, Rules } from '../lib/types'
-import { fmtDateTime } from '../lib/dates'
+import { fmtDateTime, fmtShort } from '../lib/dates'
 import { Button, Card, Empty, Input, Segmented, cx, useUi } from '../components/ui'
 import { PageHeader } from '../components/AppShell'
 import { conditionText } from '../components/Today'
@@ -20,8 +20,31 @@ const STATE: Record<Proposal['status'], string> = { pending: 'Pendiente', approv
 function Detail({ p }: { p: Proposal }) {
   const d = p.payload as Record<string, unknown>
   if (p.kind === 'streak_rules') return <p className="text-sm">{conditionText(d.rules as Rules)} · {(d.rules as Rules).rest_days_per_week} descanso(s)/sem.{(d.rules as Rules).special_rules ? ` · ${(d.rules as Rules).special_rules}` : ''}</p>
-  if (p.kind === 'streak_recovery') return <p className="text-sm">Día: {String(d.day)}</p>
-  return <p className="text-sm">{Object.entries(d).filter(([k]) => !k.endsWith('_id')).map(([k, v]) => `${k}: ${v}`).join(' · ')}</p>
+  const date = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? fmtShort(v.slice(0, 10)) : String(v))
+  const METRIC: Record<string, string> = { workouts: 'entrenamientos', workout_days: 'días entrenados', water_ml: 'ml de agua', water_goal_days: 'días con meta de agua', steps: 'pasos', activity_minutes: 'minutos de actividad', activity_days: 'días con actividad', habit_checks: 'hábitos marcados', couple_streak_days: 'días de racha', manual: '' }
+  const FREQ: Record<string, string> = { daily: 'al día', weekly: 'por semana', monthly: 'al mes', once: 'en total' }
+  const rows: [string, string][] = []
+  if (p.kind === 'streak_recovery') rows.push(['Día a recuperar', date(d.day)])
+  if (p.kind === 'couple_settings') {
+    if (d.name) rows.push(['Nombre', String(d.name)])
+    if (d.together_since) rows.push(['Juntos desde', date(d.together_since)])
+    if (d.anniversary_date) rows.push(['Aniversario', date(d.anniversary_date)])
+  }
+  if (p.kind === 'shared_goal' || p.kind === 'shared_challenge') {
+    rows.push(['Nombre', String(d.name)])
+    rows.push(['Objetivo', `${Number(d.target).toLocaleString('es')} ${METRIC[String(d.metric)] ?? ''} ${p.kind === 'shared_goal' ? FREQ[String(d.frequency ?? 'weekly')] : ''}`.trim()])
+    if (p.kind === 'shared_challenge') {
+      rows.push(['Modo', d.mode === 'together' ? 'Suman entre los dos' : 'Cada uno lo cumple'])
+      rows.push(['Fecha límite', date(d.end_date)])
+      if (d.reward) rows.push(['Recompensa', String(d.reward)])
+    }
+  }
+  if (!rows.length) return null
+  return (
+    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[13px]">
+      {rows.map(([k, v]) => <Fragment key={k}><dt className="muted">{k}</dt><dd className="text-right font-medium text-ink dark:text-white">{v}</dd></Fragment>)}
+    </dl>
+  )
 }
 
 export default function Proposals() {
