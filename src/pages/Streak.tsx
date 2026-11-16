@@ -9,7 +9,9 @@ import { addDays, diffDays, endOfMonth, fmtMonth, fmtShort, parseISODate, startO
 import { Button, Card, Empty, ProgressBar, SectionTitle, cx, useUi } from '../components/ui'
 import { PageHeader } from '../components/AppShell'
 import { Flame } from '../components/Flame'
-import { PartnerRing, conditionText } from '../components/Today'
+import { conditionText } from '../components/Today'
+import { CoupleScene, EvolutionPath } from '../components/Characters'
+import { colorFor, useLevels } from '../lib/levels'
 import { WeekStrip, useMyAndPartnerToday } from './Home'
 
 export const MILESTONES = [
@@ -18,7 +20,7 @@ export const MILESTONES = [
 ]
 
 export default function Streak() {
-  const { couple, profile, partner, uid } = useAuth()
+  const { couple, partner, uid } = useAuth()
   const nav = useNavigate()
   const { confirm } = useUi()
   const today = useToday()
@@ -28,6 +30,7 @@ export default function Streak() {
   const upcoming = rulesAll?.find(r => today && r.effective_from > today)
   const proposals = useProposals().data ?? []
   const { mine, theirs } = useMyAndPartnerToday()
+  const levels = useLevels().data ?? []
   const [month, setMonth] = useState<string | null>(null)
   const m = month ?? (today ? startOfMonth(today) : null)
   const days = useStreakDays(m ? addDays(m, -7) : null, m ? endOfMonth(m) : null).data ?? []
@@ -74,16 +77,16 @@ export default function Streak() {
       <PageHeader title="Racha" subtitle={couple.name ?? 'Su llama compartida'}
         right={<Link to="/racha/reglas" className="icon-btn mb-1" aria-label="Reglas"><SlidersHorizontal className="size-[18px]" strokeWidth={1.9} /></Link>} />
       <div className="space-y-3 px-4">
-        <div className="relative overflow-hidden rounded-[26px] bg-ink px-5 pb-5 pt-7 text-center text-white dark:bg-noche-800 dark:ring-1 dark:ring-white/[.06]">
-          <div className="pointer-events-none absolute left-1/2 top-0 size-64 -translate-x-1/2 rounded-full bg-ember opacity-20 blur-3xl" />
+        <div className="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-orange-400 via-fuego-400 to-fuego-600 px-5 pb-5 pt-7 text-center text-white shadow-[0_20px_40px_-18px_rgba(225,29,72,.55)]">
+          <div className="pointer-events-none absolute left-1/2 top-0 size-64 -translate-x-1/2 rounded-full bg-amber-200 opacity-30 blur-3xl" />
           <div className="relative flex flex-col items-center">
-            <Flame size={120} lit={count > 0 || mine?.status === 'completed'} intensity={Math.min(1, count / 30)} />
+            <div className="float-soft rounded-full bg-white/20 p-3 backdrop-blur-sm"><Flame size={100} lit intensity={Math.min(1, count / 30)} /></div>
             <p className="tabular mt-1 text-[80px] font-bold leading-none tracking-[-0.06em]">{count}</p>
-            <p className="mt-1 text-[14px] text-white/60">{count === 1 ? 'día seguido juntos' : 'días seguidos juntos'}</p>
-            <div className="mt-5 grid w-full grid-cols-3 divide-x divide-white/10 rounded-2xl bg-white/[.06] py-3">
-              <div><p className="tabular text-[20px] font-semibold">{best}</p><p className="text-[11px] text-white/45">Récord</p></div>
-              <div><p className="tabular text-[20px] font-semibold">{runs.length}</p><p className="text-[11px] text-white/45">Rachas</p></div>
-              <div><p className="tabular text-[20px] font-semibold">{diffDays(today ?? couple.streak_start_date, couple.streak_start_date) + 1}</p><p className="text-[11px] text-white/45">Días juntos aquí</p></div>
+            <p className="mt-1 text-[14px] text-white/85">{count === 1 ? 'día seguido juntos' : 'días seguidos juntos'}</p>
+            <div className="mt-5 grid w-full grid-cols-3 divide-x divide-white/20 rounded-2xl bg-white/15 py-3">
+              <div><p className="tabular text-[20px] font-semibold">{best}</p><p className="text-[11px] text-white/80">Récord</p></div>
+              <div><p className="tabular text-[20px] font-semibold">{runs.length}</p><p className="text-[11px] text-white/80">Rachas</p></div>
+              <div><p className="tabular text-[20px] font-semibold">{diffDays(today ?? couple.streak_start_date, couple.streak_start_date) + 1}</p><p className="text-[11px] text-white/80">Días juntos aquí</p></div>
             </div>
             <div className="mt-4 w-full"><WeekStrip today={today} days={weekStreak} dark /></div>
           </div>
@@ -104,12 +107,17 @@ export default function Streak() {
         )}
 
         <SectionTitle>Hoy</SectionTitle>
-        <Card className="py-5">
-          <div className="flex">
-            <PartnerRing row={mine} rules={rules} name={profile?.display_name ?? 'Tú'} avatar={profile?.avatar_path} me size={96} />
-            <PartnerRing row={theirs} rules={rules} name={partner?.display_name ?? 'Pareja'} avatar={partner?.avatar_path} size={96} />
-          </div>
-          {rules && <p className="muted mt-4 border-t border-black/[.05] pt-3 text-center text-[13px] dark:border-white/[.06]">Para sumar: {conditionText(rules).toLowerCase()}</p>}
+        <CoupleScene mine={mine} theirs={theirs} rules={rules}>
+          {rules && <p className="muted text-center text-[13px]">Para sumar: {conditionText(rules).toLowerCase()}</p>}
+        </CoupleScene>
+
+        <SectionTitle>Su evolución</SectionTitle>
+        <Card className="space-y-5">
+          <EvolutionPath xp={levels.find(l => l.user_id === uid)?.xp ?? 0} color={colorFor(uid, partner?.id)} name="Tu llamita" />
+          {partner && <EvolutionPath xp={levels.find(l => l.user_id === partner.id)?.xp ?? 0} color={colorFor(partner.id, uid)} name={`Llamita de ${partner.display_name}`} />}
+          <p className="muted rounded-2xl bg-fuego-100/70 p-3 text-[12px] leading-relaxed dark:bg-noche-900">
+            Ganan experiencia con todo lo que registran: entrenamiento +40, hábito +10, cada minuto de actividad +1, cada 50 ml de agua +1, día cumplido +25 y día de racha en pareja +15.
+          </p>
         </Card>
 
         <SectionTitle>Logros</SectionTitle>
@@ -117,7 +125,7 @@ export default function Streak() {
           {next && (
             <div className="mb-4">
               <div className="flex items-baseline justify-between"><p className="text-[15px] font-semibold">Próximo: {next.name}</p><span className="tabular muted text-[13px]">{count} / {next.days}</span></div>
-              <ProgressBar className="mt-2" value={count} max={next.days} />
+              <ProgressBar className="mt-2" size="lg" value={count} max={next.days} />
             </div>
           )}
           <div className="grid grid-cols-4 gap-2">
@@ -125,7 +133,7 @@ export default function Streak() {
               const got = best >= x.days
               return (
                 <div key={x.days} className="flex flex-col items-center gap-1.5 text-center">
-                  <span className={cx('relative flex size-14 items-center justify-center rounded-full', got ? 'bg-ember text-white shadow-[0_6px_16px_-6px_rgba(225,29,72,.6)]' : 'bg-fuego-100 text-fuego-800/35 dark:bg-noche-700 dark:text-white/25')}>
+                  <span className={cx('relative flex size-14 items-center justify-center rounded-full', got ? 'bg-gradient-to-br from-orange-400 to-fuego-500 text-white shadow-[0_6px_16px_-6px_rgba(225,29,72,.6)]' : 'bg-fuego-100 text-fuego-800/35 dark:bg-noche-700 dark:text-white/25')}>
                     <span className="tabular text-[17px] font-bold">{x.days}</span>
                     {!got && <Lock className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full bg-white p-0.5 text-fuego-800/50 dark:bg-noche-800" />}
                   </span>

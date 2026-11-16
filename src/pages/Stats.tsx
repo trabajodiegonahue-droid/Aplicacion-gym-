@@ -7,9 +7,11 @@ import { supabase, must } from '../lib/supabase'
 import { useAuth } from '../context/AuthProvider'
 import { useStreak, useToday } from '../lib/queries'
 import { addDays, endOfMonth, fmtLiters, fmtNum, fmtShort, startOfMonth, startOfWeek } from '../lib/dates'
-import { Card, Loading, Segmented } from '../components/ui'
+import { Card, Loading, ProgressBar, Segmented, cx } from '../components/ui'
 import { PageHeader } from '../components/AppShell'
 import type { Goal } from '../lib/types'
+import { colorFor, levelFromXp, stageForLevel, useLevels } from '../lib/levels'
+import { Buddy } from '../components/Buddy'
 
 type Range = 'dia' | 'semana' | 'mes'
 interface Row { user_id: string; workouts: number; workout_minutes: number; activity_minutes: number; steps: number; water_ml: number; habit_checks: number; completed_days: number; rest_days: number }
@@ -41,6 +43,8 @@ export default function Stats() {
     })
   }, [series.data, uid, partner])
   const pName = partner?.display_name ?? 'Pareja'
+  const levels = useLevels().data ?? []
+  const myColor = colorFor(uid, partner?.id)
 
   const metrics: { icon: typeof Dumbbell; label: string; val: (r?: Row) => string; num: (r?: Row) => number }[] = [
     { icon: Dumbbell, label: 'Entrenamientos', val: r => String(r?.workouts ?? 0), num: r => r?.workouts ?? 0 },
@@ -64,17 +68,45 @@ export default function Stats() {
             <Card className="text-center"><p className="tabular text-3xl font-semibold">{goalsDone}</p><p className="muted text-xs">metas cumplidas</p></Card>
           </div>
         )}
+        {levels.length > 0 && (
+          <Card>
+            <p className="eyebrow mb-3">Niveles</p>
+            <div className="space-y-3">
+              {levels.map(l => {
+                const lv = levelFromXp(l.xp)
+                const col = colorFor(l.user_id, l.user_id === uid ? partner?.id : uid)
+                return (
+                  <div key={l.user_id} className="flex items-center gap-3">
+                    <Buddy stage={stageForLevel(lv.level)} color={col} mood="idle" size={52} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between"><span className="text-[14px] font-semibold">{l.user_id === uid ? 'Tú' : pName} · Nivel {lv.level}</span><span className="tabular muted text-[12px]">{l.xp} XP</span></div>
+                      <ProgressBar className="mt-1.5" value={lv.into} max={lv.need} color={col === 'rojo' ? 'bg-gradient-to-r from-rose-300 to-fuego-500' : 'bg-gradient-to-r from-amber-300 to-orange-500'} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        )}
         {stats.isLoading ? <Loading /> : (
           <Card>
-            <div className="mb-2 grid grid-cols-[1fr_80px_80px] text-xs font-bold"><span /><span className="text-center">Tú</span>{partner && <span className="text-center">{pName}</span>}</div>
-            {metrics.map(m => {
+                        {metrics.map(m => {
               const a = m.num(me), b = m.num(pa)
+              const top = Math.max(a, b, 1)
+              const row = (name: string, v: number, txt: string, cls: string) => (
+                <div className="flex items-center gap-2">
+                  <span className="w-12 shrink-0 truncate text-[12px] font-medium">{name}</span>
+                  <div className="relative h-4 flex-1 overflow-hidden rounded-full bg-fuego-100 dark:bg-noche-700">
+                    {v > 0 && <div className={cx('bar-grow bar-shine relative h-full overflow-hidden rounded-full', cls)} style={{ width: `${Math.max(6, (v / top) * 100)}%` }} />}
+                  </div>
+                  <span className="tabular w-14 shrink-0 text-right text-[13px] font-bold">{txt}</span>
+                </div>
+              )
               return (
-                <div key={m.label} className="grid grid-cols-[1fr_80px_80px] items-center border-t border-fuego-100 py-2.5 dark:border-noche-700">
-                  <span className="flex items-center gap-2 text-sm"><m.icon className="size-4 text-ember" />{m.label}</span>
-                  <span className="text-center font-bold">{m.val(me)}</span>
-                  {partner && <span className="text-center font-bold">{m.val(pa)}</span>}
-                  {partner && (a + b) > 0 && <div className="col-span-3 mt-1 flex h-2 overflow-hidden rounded-full bg-fuego-100 dark:bg-noche-700"><div className="bg-ink dark:bg-white" style={{ width: `${(a / (a + b)) * 100}%` }} /><div className="bg-ember" style={{ width: `${(b / (a + b)) * 100}%` }} /></div>}
+                <div key={m.label} className="space-y-1.5 border-t border-black/[.05] py-3 first:border-0 dark:border-white/[.06]">
+                  <span className="flex items-center gap-2 text-[14px] font-semibold"><m.icon className="size-4 text-ember" />{m.label}</span>
+                  {row('Tú', a, m.val(me), myColor === 'rojo' ? 'bg-gradient-to-r from-rose-300 to-fuego-500' : 'bg-gradient-to-r from-amber-300 to-orange-500')}
+                  {partner && row(pName, b, m.val(pa), myColor === 'rojo' ? 'bg-gradient-to-r from-amber-300 to-orange-500' : 'bg-gradient-to-r from-rose-300 to-fuego-500')}
                 </div>
               )
             })}
@@ -93,8 +125,8 @@ export default function Stats() {
               <div className="h-52"><ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chart} margin={{ left: -24, right: 4 }}>
                   <XAxis dataKey="day" tick={{ fontSize: 10 }} interval={range === 'mes' ? 4 : 0} /><YAxis tick={{ fontSize: 10 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="Tú" fill="#17130f" radius={[4, 4, 0, 0]} />
-                  {partner && <Bar dataKey={pName} fill="#e11d48" radius={[4, 4, 0, 0]} />}
+                  <Bar dataKey="Tú" fill={myColor === 'rojo' ? '#e11d48' : '#f97316'} radius={[6, 6, 0, 0]} minPointSize={3} />
+                  {partner && <Bar dataKey={pName} fill={myColor === 'rojo' ? '#f97316' : '#e11d48'} radius={[6, 6, 0, 0]} minPointSize={3} />}
                 </BarChart>
               </ResponsiveContainer></div>
             </Card>
@@ -103,8 +135,8 @@ export default function Stats() {
               <div className="h-52"><ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chart} margin={{ left: -24, right: 4 }}>
                   <XAxis dataKey="day" tick={{ fontSize: 10 }} interval={range === 'mes' ? 4 : 0} /><YAxis tick={{ fontSize: 10 }} /><Tooltip />
-                  <Bar dataKey="aguaTú" name="Tú" fill="#17130f" radius={[4, 4, 0, 0]} />
-                  {partner && <Bar dataKey={`agua${pName}`} name={pName} fill="#e11d48" radius={[4, 4, 0, 0]} />}
+                  <Bar dataKey="aguaTú" name="Tú" fill="#0ea5e9" radius={[6, 6, 0, 0]} minPointSize={3} />
+                  {partner && <Bar dataKey={`agua${pName}`} name={pName} fill="#7dd3fc" radius={[6, 6, 0, 0]} minPointSize={3} />}
                 </BarChart>
               </ResponsiveContainer></div>
             </Card>

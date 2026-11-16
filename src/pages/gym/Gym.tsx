@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Star, Trash2, Pencil, Play, Dumbbell, Timer, Trophy, ChevronDown, ChevronUp, X, Copy, Check } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { supabase, must } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthProvider'
 import { LOG_KEYS, useAction } from '../../lib/queries'
@@ -459,13 +459,13 @@ function ProgressTab() {
         <p className="mb-2 font-bold">Evolución del peso máximo (kg)</p>
         <div className="h-56">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={series} margin={{ left: -20, right: 8, top: 8 }}>
+            <BarChart data={series} margin={{ left: -20, right: 8, top: 8 }}>
               <CartesianGrid vertical={false} stroke="#e7e5e2" />
               <XAxis dataKey="day" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Line type="monotone" dataKey="kg" stroke="#e11d48" strokeWidth={2.5} dot={{ r: 3, fill: '#e11d48', strokeWidth: 0 }} />
-            </LineChart>
+              <Bar dataKey="kg" fill="#f97316" radius={[6, 6, 0, 0]} minPointSize={4} />
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </Card>

@@ -280,3 +280,13 @@ reset role;
 select private.enqueue_reminders(now());
 select private.cron_tick();
 select pg_temp.check(true, 'recordatorios y tarea programada se ejecutan sin errores');
+
+-- 13) NIVELES / XP ------------------------------------------------------
+set role authenticated;
+select pg_temp.login(:D);
+select pg_temp.check((select count(*) from public.member_levels()) = 2, 'niveles: se ven los dos miembros');
+select pg_temp.check((select xp from public.member_levels() where user_id = :D) > 0, 'Dani tiene XP');
+select pg_temp.check((select xp_today from public.member_levels() where user_id = :E) >= 40, 'Eli tiene XP de hoy (entrenó)');
+select pg_temp.login(:C);
+select pg_temp.check((select count(*) from public.member_levels()) = 1, 'sin pareja solo se ve a sí mismo');
+reset role;

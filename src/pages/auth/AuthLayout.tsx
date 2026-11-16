@@ -1,11 +1,15 @@
 import type { ReactNode } from 'react'
-import { Flame } from '../../components/Flame'
+import { Buddy } from '../../components/Buddy'
 
 export function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col px-6" style={{ paddingTop: 'calc(var(--safe-top) + 32px)', paddingBottom: 'calc(var(--safe-bottom) + 24px)' }}>
-      <div className="flex flex-col items-center pb-8 pt-6 text-center">
-        <Flame size={72} />
+      <div className="relative flex flex-col items-center pb-8 pt-2 text-center">
+        <div className="absolute inset-x-0 top-6 mx-auto h-28 w-64 rounded-[50%] bg-gradient-to-b from-orange-100 to-transparent dark:from-noche-800" />
+        <div className="relative flex items-end gap-1">
+          <Buddy stage={1} color="rojo" mood="cheer" size={78} />
+          <Buddy stage={1} color="naranja" mood="happy" size={70} />
+        </div>
         <h1 className="mt-4 text-[28px] font-bold tracking-[-0.035em]">Fuego Juntos</h1>
         <p className="muted mt-1 text-[15px]">Entrenen juntos, aunque estén lejos.</p>
       </div>

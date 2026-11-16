@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthProvider'
 import { Button, Card, Field, Input, useUi } from '../components/ui'
 import { PageHeader } from '../components/AppShell'
 import { Flame } from '../components/Flame'
+import { Buddy } from '../components/Buddy'
 import { useAction } from '../lib/queries'
 
 export default function LinkPartner() {
@@ -56,6 +57,11 @@ export default function LinkPartner() {
     <div>
       <PageHeader title="Vincular pareja" subtitle="Un código, dos cuentas, una sola racha" />
       <div className="space-y-4 px-4">
+        <div className="flex items-end justify-center gap-2 pt-1">
+          <Buddy stage={1} color="rojo" mood="cheer" size={72} />
+          <Buddy stage={1} color="naranja" mood="sleep" size={64} />
+        </div>
+        <p className="muted -mt-2 text-center text-[13px]">Tu llamita está esperando a su compañera 💞</p>
         <Card>
           <div className="flex items-center gap-3"><HeartHandshake className="size-7 text-ember" /><h2 className="text-lg font-bold">Opción 1: invita a tu pareja</h2></div>
           <p className="muted mt-1 text-sm">Genera un código y envíaselo. Es válido 7 días y solo sirve una vez.</p>

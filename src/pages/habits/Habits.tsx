@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Trash2, Pencil, Check, Droplets, Archive, Target, Users, User } from 'lucide-react'
+import { Plus, Trash2, Pencil, Check, Archive, Target, Users, User } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { supabase, must } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthProvider'
 import { LOG_KEYS, useAction, useToday } from '../../lib/queries'
 import type { ActivityLog, Badge, Category, Challenge, Goal, Habit, HabitLog, Metric, WaterLog, WaterPreset } from '../../lib/types'
 import { addDays, fmtDay, fmtLiters, fmtNum, fmtShort, fmtTime, startOfWeek } from '../../lib/dates'
-import { Button, Card, Empty, Field, Input, Loading, ProgressBar, Ring, Segmented, Sheet, cx, useUi } from '../../components/ui'
+import { Button, Card, Empty, Field, Input, Loading, ProgressBar, Segmented, Sheet, cx, useUi } from '../../components/ui'
 import { PageHeader } from '../../components/AppShell'
 import { ACTIVITY_KINDS, ActivitySheet, presetIcon, useAddWater, useWaterPresets, useWaterToday } from '../../components/Today'
 import { celebrate } from '../../components/Celebration'
@@ -72,9 +72,10 @@ function HabitsTab() {
   return (
     <div className="space-y-3">
       {active.length > 0 && (
-        <Card className="flex items-center gap-4">
-          <Ring value={doneToday} max={active.length} size={72} stroke={8}><span className="text-lg font-bold">{doneToday}/{active.length}</span></Ring>
-          <div><p className="font-bold">{doneToday === active.length ? '¡Todo listo por hoy! ✨' : 'Sigue así'}</p><p className="muted text-sm">Toca un hábito para marcarlo.</p></div>
+        <Card>
+          <div className="mb-3 flex items-baseline justify-between"><p className="font-bold">{doneToday === active.length ? '¡Todo listo por hoy! ✨' : 'Hábitos de hoy'}</p><span className="tabular text-[15px] font-bold">{doneToday}/{active.length}</span></div>
+          <ProgressBar size="lg" value={doneToday} max={active.length} />
+          <p className="muted mt-2 text-[12px]">Toca un hábito para marcarlo. Cada uno suma +10 XP.</p>
         </Card>
       )}
       {active.length === 0 && <Empty icon="🌱" title="Crea tu primer hábito" text="Ej.: dormir 8 horas, estirar, comer fruta, meditar." />}
@@ -223,17 +224,18 @@ function WaterTab() {
   }, [hist.data, from, today])
   const avg = chart.length ? chart.reduce((s, x) => s + x.litros, 0) / chart.length : 0
   const del = useAction(async (id: string) => must(supabase.from('water_logs').delete().eq('id', id)), { invalidate: [['water'], ['water_history'], ...LOG_KEYS] })
-  const pct = Math.round((total / goal) * 100)
 
   return (
     <div className="space-y-3">
-      <Card className="flex flex-col items-center py-6">
-        <Ring value={total} max={goal} size={180} stroke={12} color="#0ea5e9">
-          <Droplets className="size-6 text-sky-500" strokeWidth={1.8} />
-          <span className="tabular text-3xl font-semibold tracking-tight">{fmtLiters(total)}</span>
-          <span className="muted text-sm">de {fmtLiters(goal)} · {pct}%</span>
-        </Ring>
-        <button className="mt-3 text-sm font-semibold text-fuego-600" onClick={() => setGoalEdit(true)}>Cambiar meta diaria</button>
+      <Card className="flex items-center gap-5 py-5">
+        <WaterGlass value={total} max={goal} />
+        <div className="min-w-0 flex-1">
+          <p className="muted text-[13px]">Hoy llevas</p>
+          <p className="tabular text-[34px] font-bold leading-tight tracking-tight">{fmtLiters(total)}</p>
+          <p className="muted text-[13px]">de {fmtLiters(goal)}</p>
+          <ProgressBar className="mt-3" size="lg" value={total} max={goal} color="bg-gradient-to-r from-sky-300 to-sky-500" showPct />
+          <button className="mt-3 text-[13px] font-semibold text-fuego-600" onClick={() => setGoalEdit(true)}>Cambiar meta diaria</button>
+        </div>
       </Card>
       <div className="grid grid-cols-3 gap-2">
         {presets.map(p => (
@@ -274,7 +276,7 @@ function WaterTab() {
               <YAxis tick={{ fontSize: 10 }} />
               <Tooltip formatter={v => `${v} L`} />
               <ReferenceLine y={goal / 1000} stroke="#a8a29e" strokeDasharray="3 3" />
-              <Bar dataKey="litros" fill="#0ea5e9" radius={[5, 5, 0, 0]} />
+              <Bar dataKey="litros" fill="#0ea5e9" radius={[6, 6, 0, 0]} minPointSize={4} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -345,10 +347,10 @@ function ActivityTab() {
   }, [list, from, today])
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="flex flex-col items-center"><Ring value={tMin} max={profile?.activity_goal_min || 30} size={110} color="#e11d48"><span className="tabular text-2xl font-semibold">{tMin}</span><span className="muted text-xs">/ {profile?.activity_goal_min} min</span></Ring></Card>
-        <Card className="flex flex-col items-center"><Ring value={tSteps} max={profile?.steps_goal || 8000} size={110} color="#0ea5e9"><span className="tabular text-xl font-semibold">{fmtNum(tSteps)}</span><span className="muted text-xs">/ {fmtNum(profile?.steps_goal ?? 0)} pasos</span></Ring></Card>
-      </div>
+      <Card className="space-y-4">
+        <ProgressBar size="lg" value={tMin} max={profile?.activity_goal_min || 30} showPct label={<span className="font-semibold">Minutos activos · <span className="tabular">{tMin} / {profile?.activity_goal_min}</span></span>} />
+        <ProgressBar size="lg" value={tSteps} max={profile?.steps_goal || 8000} color="bg-gradient-to-r from-sky-300 to-sky-500" showPct label={<span className="font-semibold">Pasos · <span className="tabular">{fmtNum(tSteps)} / {fmtNum(profile?.steps_goal ?? 0)}</span></span>} />
+      </Card>
       <div className="grid grid-cols-2 gap-2">
         <Button onClick={() => setSheet(true)}><Plus className="size-4" />Registrar</Button>
         <Button variant="soft" onClick={() => setGoals(true)}><Target className="size-4" />Mis objetivos</Button>
@@ -361,7 +363,7 @@ function ActivityTab() {
             <BarChart data={chart} margin={{ left: -24, right: 4 }}>
               <XAxis dataKey="day" tick={{ fontSize: 10 }} interval={1} /><YAxis tick={{ fontSize: 10 }} /><Tooltip />
               <ReferenceLine y={profile?.activity_goal_min} stroke="#a8a29e" strokeDasharray="3 3" />
-              <Bar dataKey="min" fill="#e11d48" radius={[5, 5, 0, 0]} />
+              <Bar dataKey="min" fill="#f97316" radius={[6, 6, 0, 0]} minPointSize={4} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -424,7 +426,7 @@ function GoalProgress({ g }: { g: Goal }) {
       {rows.map(r => (
         <div key={r.user_id}>
           <div className="flex justify-between text-xs"><span>{g.couple_id ? (r.user_id === uid ? 'Tú' : partner?.display_name) : `${fmtShort(r.period_from)} – ${fmtShort(r.period_to)}`}</span><span className="font-bold">{fmtNum(Number(r.value))} / {fmtNum(Number(r.target))} {metricLabel(g.metric)?.unit}</span></div>
-          <ProgressBar className="mt-1" value={Number(r.value)} max={Number(r.target)} />
+          <ProgressBar className="mt-1" size="lg" value={Number(r.value)} max={Number(r.target)} />
         </div>
       ))}
     </div>
@@ -617,5 +619,19 @@ function ChallengeForm({ shared, onClose }: { shared: boolean; onClose: () => vo
         <Button type="submit" className="w-full" loading={save.isPending}>{shared ? 'Enviar propuesta' : 'Crear reto'}</Button>
       </form>
     </Sheet>
+  )
+}
+
+/** Vaso que se llena (barra vertical animada). */
+function WaterGlass({ value, max }: { value: number; max: number }) {
+  const pct = max > 0 ? Math.min(1, value / max) : 0
+  const h = value > 0 ? Math.max(0.07, pct) : 0
+  return (
+    <div className="relative h-36 w-20 shrink-0 overflow-hidden rounded-b-[22px] rounded-t-md border-[3px] border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-noche-900">
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-sky-500 to-sky-300 transition-[height] duration-1000" style={{ height: `${h * 100}%` }}>
+        <svg viewBox="0 0 80 10" preserveAspectRatio="none" className="water-wave absolute -top-2 left-0 h-3 w-[200%]"><path d="M0 5 Q10 0 20 5 T40 5 T60 5 T80 5 V10 H0Z" fill="#7dd3fc" /></svg>
+      </div>
+      <span className="tabular absolute inset-x-0 top-2 text-center text-[13px] font-bold text-sky-700 dark:text-sky-300">{Math.round(pct * 100)}%</span>
+    </div>
   )
 }

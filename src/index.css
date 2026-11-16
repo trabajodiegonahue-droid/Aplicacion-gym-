@@ -12,10 +12,10 @@
 @theme {
   --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
 
-  --color-fuego-50: #fafaf9;
-  --color-fuego-100: #f3f2f0;
-  --color-fuego-200: #e7e5e2;
-  --color-fuego-300: #c9c5c0;
+  --color-fuego-50: #fff8f3;
+  --color-fuego-100: #fbeee6;
+  --color-fuego-200: #f2dfd3;
+  --color-fuego-300: #d9c2b5;
   --color-fuego-400: #f0476b;
   --color-fuego-500: #e11d48;
   --color-fuego-600: #be123c;
@@ -32,7 +32,9 @@
 
   --color-ink: #17130f;
   --color-ember: #e11d48;
-  --color-blush: #fdf0f3;
+  --color-blush: #ffe9ec;
+  --color-peach: #ffedd5;
+  --color-cream: #fff8f3;
 
   --animate-flicker: flicker 2.4s ease-in-out infinite;
   --animate-pop: pop 0.4s cubic-bezier(.2,1.3,.4,1);
@@ -121,3 +123,51 @@ input[type="date"], input[type="time"] { min-height: 48px; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 .animate-glow { animation: glow 3s ease-in-out infinite; }
+
+/* ---------------- Personajes (llamitas) ---------------- */
+.buddy-body { transform-box: view-box; transform-origin: 60px 132px; animation: buddy-bounce 1.8s ease-in-out infinite; }
+.buddy-body.mood-happy, .buddy-body.mood-cheer { animation: buddy-jump .9s cubic-bezier(.3,.7,.4,1) infinite; }
+.buddy-body.mood-sleep { animation: buddy-breathe 3.2s ease-in-out infinite; }
+.buddy-body.mood-sad { animation: buddy-sway 3s ease-in-out infinite; }
+.buddy-shadow { transform-box: fill-box; transform-origin: center; animation: buddy-shadow 1.8s ease-in-out infinite; }
+.buddy-shadow.fast { animation-duration: .9s; }
+.buddy-flicker { transform-box: view-box; transform-origin: 60px 128px; animation: buddy-flicker 1.2s ease-in-out infinite; }
+.buddy-eyes { transform-box: fill-box; transform-origin: center; animation: buddy-blink 4.2s infinite; }
+.buddy-arm-l.wave { transform-box: view-box; transform-origin: 32px 96px; animation: buddy-wave-l .9s ease-in-out infinite; }
+.buddy-arm-r.wave { transform-box: view-box; transform-origin: 88px 96px; animation: buddy-wave-r .9s ease-in-out infinite; }
+.buddy-lift { animation: buddy-lift 1.4s ease-in-out infinite; }
+.buddy-crown { transform-box: fill-box; transform-origin: center bottom; animation: buddy-crown 2.4s ease-in-out infinite; }
+.buddy-aura { transform-box: fill-box; transform-origin: center; animation: buddy-aura 2.6s ease-in-out infinite; }
+.buddy-z { animation: buddy-z 2.6s ease-in-out infinite; opacity: 0; }
+.buddy-z.z2 { animation-delay: 1.3s; }
+.buddy-spark { transform-box: fill-box; transform-origin: center; animation: buddy-spark 1.6s ease-in-out infinite; }
+.buddy-spark.s2 { animation-delay: .5s; } .buddy-spark.s3 { animation-delay: 1s; }
+
+@keyframes buddy-bounce { 0%,100% { transform: translateY(0) scale(1.03,.97); } 50% { transform: translateY(-5px) scale(.98,1.02); } }
+@keyframes buddy-jump { 0%,100% { transform: translateY(0) scale(1.06,.94); } 40% { transform: translateY(-16px) scale(.95,1.06); } 70% { transform: translateY(-4px) scale(1,1); } }
+@keyframes buddy-breathe { 0%,100% { transform: scale(1,1); } 50% { transform: scale(1.03,.97); } }
+@keyframes buddy-sway { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes buddy-shadow { 0%,100% { transform: scaleX(1); opacity: .14; } 50% { transform: scaleX(.8); opacity: .08; } }
+@keyframes buddy-flicker { 0%,100% { transform: skewX(0) scaleY(1); } 33% { transform: skewX(-2deg) scaleY(1.02); } 66% { transform: skewX(2deg) scaleY(.99); } }
+@keyframes buddy-blink { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+@keyframes buddy-wave-l { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-18deg); } }
+@keyframes buddy-wave-r { 0%,100% { transform: rotate(0); } 50% { transform: rotate(18deg); } }
+@keyframes buddy-lift { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes buddy-crown { 0%,100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes buddy-aura { 0%,100% { transform: scale(.92); opacity: .7; } 50% { transform: scale(1.06); opacity: 1; } }
+@keyframes buddy-z { 0% { opacity: 0; transform: translate(0,6px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(8px,-14px); } }
+@keyframes buddy-spark { 0%,100% { transform: scale(.4) rotate(0); opacity: .2; } 50% { transform: scale(1.1) rotate(45deg); opacity: 1; } }
+
+/* Barras de progreso con brillo en movimiento */
+@keyframes bar-shine { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+.bar-shine::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); animation: bar-shine 2.4s ease-in-out infinite; }
+@keyframes grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.bar-grow { transform-origin: left; animation: grow-x .9s cubic-bezier(.2,.8,.2,1); }
+@keyframes float-soft { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.float-soft { animation: float-soft 4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .buddy-body, .buddy-shadow, .buddy-flicker, .buddy-eyes, .buddy-arm-l, .buddy-arm-r, .buddy-lift, .buddy-crown, .buddy-aura, .buddy-z, .buddy-spark, .bar-shine::after, .float-soft, .animate-flicker { animation: none !important; }
+}
+@keyframes water-wave { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.water-wave { animation: water-wave 2.2s linear infinite; }

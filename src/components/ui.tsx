@@ -41,11 +41,31 @@ export function Loading({ label = 'Cargando…' }: { label?: string }) {
   return <div className="flex flex-col items-center justify-center gap-3 py-16"><Spinner /><span className="muted text-sm">{label}</span></div>
 }
 
-export function ProgressBar({ value, max, className, color = 'bg-ember' }: { value: number; max: number; className?: string; color?: string }) {
-  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0
+/**
+ * Barra de progreso: gruesa, animada y SIEMPRE visible si hay algo de avance
+ * (mínimo 6% de ancho aunque el progreso sea muy pequeño).
+ */
+export function ProgressBar({ value, max, className, color = 'bg-gradient-to-r from-orange-400 via-fuego-400 to-fuego-500', size = 'md', label, showPct }:
+  { value: number; max: number; className?: string; color?: string; size?: 'sm' | 'md' | 'lg'; label?: ReactNode; showPct?: boolean }) {
+  const raw = max > 0 ? value / max : 0
+  const pct = Math.min(100, Math.round(raw * 100))
+  const width = value > 0 ? Math.max(6, pct) : 0
+  const done = raw >= 1
+  const h = size === 'sm' ? 'h-2' : size === 'lg' ? 'h-5' : 'h-3'
   return (
-    <div className={cx('h-1.5 w-full overflow-hidden rounded-full bg-fuego-100 dark:bg-noche-700', className)}>
-      <div className={cx('h-full rounded-full transition-all duration-700', pct >= 100 ? 'bg-emerald-500' : color)} style={{ width: `${pct}%` }} />
+    <div className={className}>
+      {(label || showPct) && (
+        <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[13px]">
+          <span className="min-w-0 truncate">{label}</span>
+          {showPct && <span className={cx('tabular shrink-0 font-semibold', done ? 'text-emerald-600' : 'text-fuego-600')}>{done ? '¡Listo!' : `${pct}%`}</span>}
+        </div>
+      )}
+      <div className={cx('relative w-full overflow-hidden rounded-full bg-fuego-100 dark:bg-noche-700', h)}>
+        {value > 0 && (
+          <div className={cx('bar-grow relative h-full overflow-hidden rounded-full transition-[width] duration-700', done ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' : color, !done && 'bar-shine')}
+            style={{ width: `${width}%` }} />
+        )}
+      </div>
     </div>
   )
 }

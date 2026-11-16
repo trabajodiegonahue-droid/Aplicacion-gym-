@@ -9,7 +9,8 @@ import { addDays, fmtLiters, fmtLongDay, startOfWeek, WEEKDAYS_MON } from '../li
 import { Card, ProgressBar, SectionTitle, cx, useUi } from '../components/ui'
 import { Flame } from '../components/Flame'
 import { Avatar } from '../components/Avatar'
-import { ActivitySheet, PartnerRing, QuickWorkoutSheet, WaterSheet, conditionText, useWaterToday } from '../components/Today'
+import { ActivitySheet, QuickWorkoutSheet, WaterSheet, conditionText, useWaterToday } from '../components/Today'
+import { CoupleScene, LevelUpWatcher } from '../components/Characters'
 import type { Habit, HabitLog, MemberDay, StreakDay } from '../lib/types'
 
 const QUOTES = [
@@ -44,13 +45,13 @@ export function WeekStrip({ today, days, dark }: { today: string | null; days: S
         const future = d > today
         return (
           <div key={d} className="flex flex-col items-center gap-1.5">
-            <span className={cx('text-[11px] font-medium', dark ? 'text-white/45' : 'muted')}>{WEEKDAYS_MON[i]}</span>
+            <span className={cx('text-[11px] font-medium', dark ? 'text-white/75' : 'muted')}>{WEEKDAYS_MON[i]}</span>
             <span className={cx('flex size-8 items-center justify-center rounded-full text-[12px] font-semibold tabular transition',
-              st === 'completed' ? 'bg-ember text-white'
+              st === 'completed' ? (dark ? 'bg-white text-fuego-600 shadow-sm' : 'bg-ember text-white')
                 : st === 'rest' || st === 'recovered' ? (dark ? 'bg-white/15 text-white' : 'bg-sky-100 text-sky-700')
-                : st === 'missed' ? (dark ? 'text-white/25' : 'text-fuego-800/30')
-                : future ? (dark ? 'text-white/25' : 'text-fuego-800/30')
-                : (dark ? 'bg-white/[.07] text-white/80' : 'bg-fuego-100 text-ink'),
+                : st === 'missed' ? (dark ? 'text-white/40' : 'text-fuego-800/30')
+                : future ? (dark ? 'text-white/45' : 'text-fuego-800/30')
+                : (dark ? 'bg-white/20 text-white' : 'bg-fuego-100 text-ink'),
               d === today && st !== 'completed' && (dark ? 'ring-1 ring-white/60' : 'ring-1 ring-ink/40'))}>
               {st === 'completed' ? <Check className="size-4" strokeWidth={3} /> : st === 'rest' ? <Moon className="size-3.5" /> : Number(d.slice(8))}
             </span>
@@ -140,33 +141,27 @@ export default function Home() {
         {couple && (
           <>
             {/* Tarjeta principal de la racha */}
-            <button onClick={() => nav('/racha')} className="relative block w-full overflow-hidden rounded-[26px] bg-ink p-5 text-left text-white shadow-[0_20px_40px_-20px_rgba(23,19,15,.6)] transition active:scale-[.99] dark:bg-noche-800 dark:ring-1 dark:ring-white/[.06]">
-              <div className="pointer-events-none absolute -right-10 -top-16 size-56 rounded-full bg-ember opacity-25 blur-3xl" />
+            <button onClick={() => nav('/racha')} className="relative block w-full overflow-hidden rounded-[26px] bg-gradient-to-br from-orange-400 via-fuego-400 to-fuego-600 p-5 text-left text-white shadow-[0_20px_40px_-18px_rgba(225,29,72,.55)] transition active:scale-[.99]">
+              <div className="pointer-events-none absolute -right-10 -top-16 size-56 rounded-full bg-amber-200 opacity-30 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-20 -left-10 size-48 rounded-full bg-rose-900 opacity-25 blur-3xl" />
               <div className="relative flex items-center gap-4">
                 <div className="flex-1">
-                  <p className="text-[12px] font-medium uppercase tracking-[.08em] text-white/50">Racha compartida</p>
+                  <p className="text-[12px] font-medium uppercase tracking-[.08em] text-white/80">Racha compartida</p>
                   <p className="mt-1 flex items-baseline gap-2">
                     <span data-testid="streak-count" className="tabular text-[64px] font-bold leading-none tracking-[-0.05em]">{count}</span>
                     <span className="text-[15px] font-medium text-white/70">{count === 1 ? 'día' : 'días'}</span>
                   </p>
-                  <p className="mt-1.5 text-[13px] text-white/50">Récord {streak?.best_count ?? 0} · {couple.name ?? `Tú y ${partner?.display_name ?? ''}`}</p>
+                  <p className="mt-1.5 text-[13px] text-white/80">Récord {streak?.best_count ?? 0} · {couple.name ?? `Tú y ${partner?.display_name ?? ''}`}</p>
                 </div>
-                <Flame size={92} lit={count > 0 || bothDone} intensity={Math.min(1, count / 30)} />
+                <div className="float-soft rounded-full bg-white/20 p-2 backdrop-blur-sm"><Flame size={80} lit intensity={Math.min(1, count / 30)} /></div>
               </div>
-              <div className="relative mt-5 border-t border-white/10 pt-4"><WeekStrip today={today} days={weekDays} dark /></div>
+              <div className="relative mt-5 border-t border-white/20 pt-4"><WeekStrip today={today} days={weekDays} dark /></div>
               <ArrowUpRight className="absolute right-4 top-4 size-4 text-white/30" />
             </button>
 
-            {/* Hoy: los dos */}
-            <Card className="pb-5 pt-5">
-              <div className="flex items-start">
-                <PartnerRing row={mine} rules={rules} name={profile?.display_name ?? 'Tú'} avatar={profile?.avatar_path} me />
-                <div className="mt-12 flex flex-col items-center gap-1 px-1 text-fuego-300">
-                  <span className="h-px w-6 bg-fuego-200 dark:bg-noche-700" />
-                </div>
-                <PartnerRing row={theirs} rules={rules} name={partner?.display_name ?? 'Pareja'} avatar={partner?.avatar_path} />
-              </div>
-              <p className={cx('mx-auto mt-4 max-w-[300px] text-center text-[13.5px] leading-snug', bothDone ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'muted')}>{status}</p>
+            {/* Hoy: los dos personajes */}
+            <CoupleScene mine={mine} theirs={theirs} rules={rules}>
+              <p className={cx('mx-auto max-w-[300px] text-center text-[13.5px] leading-snug', bothDone ? 'font-semibold text-emerald-600 dark:text-emerald-400' : 'muted')}>{status}</p>
               {!done(theirs?.status) && (
                 <button disabled={nudged || nudge.isPending}
                   onClick={() => nudge.mutate(undefined, { onSuccess: () => { setNudged(true); try { localStorage.setItem(nudgeKey, '1') } catch { /* */ } } })}
@@ -174,7 +169,7 @@ export default function Home() {
                   <Hand className="size-4" />{nudged ? 'Toque enviado hoy' : `Dar un toque a ${partner?.display_name ?? 'tu pareja'}`}
                 </button>
               )}
-            </Card>
+            </CoupleScene>
           </>
         )}
 
@@ -225,6 +220,7 @@ export default function Home() {
         <p className="px-6 pb-2 pt-6 text-center text-[13px] italic leading-relaxed text-fuego-800/60 dark:text-white/40">“{quote}”</p>
       </div>
 
+      <LevelUpWatcher />
       <QuickWorkoutSheet open={sheet === 'workout'} onClose={() => setSheet(null)} />
       <WaterSheet open={sheet === 'water'} onClose={() => setSheet(null)} />
       <ActivitySheet open={sheet === 'activity'} onClose={() => setSheet(null)} />
