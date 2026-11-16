@@ -20,7 +20,7 @@ export const MILESTONES = [
 ]
 
 export default function Streak() {
-  const { couple, partner, uid } = useAuth()
+  const { couple, partner, uid, profile } = useAuth()
   const nav = useNavigate()
   const { confirm } = useUi()
   const today = useToday()
@@ -113,8 +113,8 @@ export default function Streak() {
 
         <SectionTitle>Su evolución</SectionTitle>
         <Card className="space-y-5">
-          <EvolutionPath xp={levels.find(l => l.user_id === uid)?.xp ?? 0} color={colorFor(uid, partner?.id)} name="Tu llamita" />
-          {partner && <EvolutionPath xp={levels.find(l => l.user_id === partner.id)?.xp ?? 0} color={colorFor(partner.id, uid)} name={`Llamita de ${partner.display_name}`} />}
+          <EvolutionPath xp={levels.find(l => l.user_id === uid)?.xp ?? 0} color={colorFor(uid, partner?.id)} name="Tu personaje" profile={profile} />
+          {partner && <EvolutionPath xp={levels.find(l => l.user_id === partner.id)?.xp ?? 0} color={colorFor(partner.id, uid)} name={partner.display_name} profile={partner} />}
           <p className="muted rounded-2xl bg-fuego-100/70 p-3 text-[12px] leading-relaxed dark:bg-noche-900">
             Ganan experiencia con todo lo que registran: entrenamiento +40, hábito +10, cada minuto de actividad +1, cada 50 ml de agua +1, día cumplido +25 y día de racha en pareja +15.
           </p>

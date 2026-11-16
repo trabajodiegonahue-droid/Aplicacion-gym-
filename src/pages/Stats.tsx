@@ -11,7 +11,7 @@ import { Card, Loading, ProgressBar, Segmented, cx } from '../components/ui'
 import { PageHeader } from '../components/AppShell'
 import type { Goal } from '../lib/types'
 import { colorFor, levelFromXp, stageForLevel, useLevels } from '../lib/levels'
-import { Buddy } from '../components/Buddy'
+import { Character } from '../components/Character'
 
 type Range = 'dia' | 'semana' | 'mes'
 interface Row { user_id: string; workouts: number; workout_minutes: number; activity_minutes: number; steps: number; water_ml: number; habit_checks: number; completed_days: number; rest_days: number }
@@ -19,7 +19,7 @@ interface Series { user_id: string; day: string; workouts: number; activity_minu
 
 export default function Stats() {
   const nav = useNavigate()
-  const { uid, partner, couple } = useAuth()
+  const { uid, partner, couple, profile } = useAuth()
   const today = useToday()
   const streak = useStreak().data
   const [range, setRange] = useState<Range>('semana')
@@ -77,7 +77,7 @@ export default function Stats() {
                 const col = colorFor(l.user_id, l.user_id === uid ? partner?.id : uid)
                 return (
                   <div key={l.user_id} className="flex items-center gap-3">
-                    <Buddy stage={stageForLevel(lv.level)} color={col} mood="idle" size={52} />
+                    <Character profile={l.user_id === uid ? profile : partner} stage={stageForLevel(lv.level)} color={col} mood="idle" size={52} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between"><span className="text-[14px] font-semibold">{l.user_id === uid ? 'Tú' : pName} · Nivel {lv.level}</span><span className="tabular muted text-[12px]">{l.xp} XP</span></div>
                       <ProgressBar className="mt-1.5" value={lv.into} max={lv.need} color={col === 'rojo' ? 'bg-gradient-to-r from-rose-300 to-fuego-500' : 'bg-gradient-to-r from-amber-300 to-orange-500'} />

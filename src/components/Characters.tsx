@@ -4,7 +4,9 @@ import { Dumbbell, Droplets, Footprints, Activity, ListChecks, Heart, Lock } fro
 import { useAuth } from '../context/AuthProvider'
 import { colorFor, levelFromXp, STAGES, stageForLevel, useLevels, type BuddyColor } from '../lib/levels'
 import type { MemberDay, Rules } from '../lib/types'
-import { Buddy, type Mood } from './Buddy'
+import { type Mood } from './Buddy'
+import { Character } from './Character'
+import type { Profile } from '../lib/types'
 import { ProgressBar, cx } from './ui'
 import { CONDITION_LABEL, dayProgress } from './Today'
 import { celebrate } from './Celebration'
@@ -23,8 +25,8 @@ function bubbleText(row: MemberDay | undefined, p: number, me: boolean) {
 }
 
 /** Ficha de una persona: personaje animado + nivel + barras de progreso. */
-function BuddyColumn({ row, rules, name, me, color, xp, xpToday }:
-  { row?: MemberDay; rules?: Rules | null; name: string; me?: boolean; color: BuddyColor; xp: number; xpToday: number }) {
+function BuddyColumn({ row, rules, name, me, color, xp, xpToday, profile, love }:
+  { row?: MemberDay; rules?: Rules | null; name: string; me?: boolean; color: BuddyColor; xp: number; xpToday: number; profile?: Profile | null; love?: boolean }) {
   const lv = levelFromXp(xp)
   const stage = stageForLevel(lv.level)
   const p = dayProgress(row, rules)
@@ -35,7 +37,7 @@ function BuddyColumn({ row, rules, name, me, color, xp, xpToday }:
         {bubbleText(row, p, !!me)}
         <span className="absolute -bottom-1 left-1/2 size-2.5 -translate-x-1/2 rotate-45 bg-white dark:bg-noche-700" />
       </div>
-      <Buddy stage={stage} color={color} mood={moodFor(row)} size={96} />
+      <Character profile={profile} stage={stage} color={color} mood={love ? 'love' : moodFor(row)} size={96} />
       <p className="mt-1 truncate text-[15px] font-bold">{me ? 'Tú' : name}</p>
       <span className={cx('mt-0.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white', color === 'rojo' ? 'bg-fuego-500' : 'bg-orange-500')}>
         Nivel {lv.level} · {STAGES[stage].name}
@@ -65,15 +67,15 @@ export function CoupleScene({ mine, theirs, rules, children }: { mine?: MemberDa
   const lm = levels.find(l => l.user_id === uid), lp = levels.find(l => l.user_id === partner?.id)
   const bothDone = ['completed', 'rest'].includes(mine?.status ?? '') && ['completed', 'rest'].includes(theirs?.status ?? '')
   return (
-    <div className="card relative overflow-hidden p-0">
+    <div className="card relative overflow-hidden p-0" data-tour="scene">
       <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-orange-100 via-rose-50 to-transparent dark:from-noche-700 dark:via-noche-800" />
       <div className="absolute inset-x-[-20%] top-[150px] h-24 rounded-[50%] bg-gradient-to-b from-orange-200/70 to-transparent dark:from-noche-700" />
       <div className="relative flex items-start gap-1 px-3 pb-4 pt-4">
-        <BuddyColumn row={mine} rules={rules} name={profile?.display_name ?? 'Tú'} me color={colorFor(uid, partner?.id)} xp={lm?.xp ?? 0} xpToday={lm?.xp_today ?? 0} />
+        <BuddyColumn row={mine} rules={rules} name={profile?.display_name ?? 'Tú'} me color={colorFor(uid, partner?.id)} xp={lm?.xp ?? 0} xpToday={lm?.xp_today ?? 0} profile={profile} love={bothDone} />
         <div className="flex w-6 shrink-0 justify-center pt-24">
           <Heart className={cx('size-6 transition', bothDone ? 'float-soft fill-fuego-500 text-fuego-500' : 'text-fuego-300')} />
         </div>
-        <BuddyColumn row={theirs} rules={rules} name={partner?.display_name ?? 'Pareja'} color={colorFor(partner?.id, uid)} xp={lp?.xp ?? 0} xpToday={lp?.xp_today ?? 0} />
+        <BuddyColumn row={theirs} rules={rules} name={partner?.display_name ?? 'Pareja'} color={colorFor(partner?.id, uid)} xp={lp?.xp ?? 0} xpToday={lp?.xp_today ?? 0} profile={partner} love={bothDone} />
       </div>
       {children && <div className="relative border-t border-black/[.05] px-4 pb-4 pt-3 dark:border-white/[.06]">{children}</div>}
     </div>
@@ -81,7 +83,7 @@ export function CoupleScene({ mine, theirs, rules, children }: { mine?: MemberDa
 }
 
 /** Camino de evolución de un personaje. */
-export function EvolutionPath({ xp, color, name }: { xp: number; color: BuddyColor; name: string }) {
+export function EvolutionPath({ xp, color, name, profile }: { xp: number; color: BuddyColor; name: string; profile?: Profile | null }) {
   const lv = levelFromXp(xp)
   const cur = stageForLevel(lv.level)
   const next = STAGES[cur + 1]
@@ -95,7 +97,7 @@ export function EvolutionPath({ xp, color, name }: { xp: number; color: BuddyCol
         {STAGES.map((s, i) => (
           <div key={s.name} className={cx('flex w-[68px] shrink-0 flex-col items-center rounded-2xl py-2 text-center', i === cur ? 'bg-white ring-2 ring-fuego-400 dark:bg-noche-700' : 'bg-fuego-100/60 dark:bg-noche-900')}>
             <div className={cx('relative', i > cur && 'opacity-30 grayscale')}>
-              <Buddy stage={i} color={color} mood={i === cur ? 'happy' : 'idle'} size={46} />
+              <Character profile={profile} stage={i} color={color} mood={i === cur ? 'happy' : 'idle'} size={46} />
               {i > cur && <Lock className="absolute bottom-1 left-1/2 size-4 -translate-x-1/2 text-fuego-800" />}
             </div>
             <span className="mt-0.5 text-[11px] font-bold">{s.name}</span>
@@ -110,7 +112,7 @@ export function EvolutionPath({ xp, color, name }: { xp: number; color: BuddyCol
 
 /** Muestra una celebración cuando subo de nivel o mi personaje evoluciona. */
 export function LevelUpWatcher() {
-  const { uid, partner } = useAuth()
+  const { uid, partner, profile } = useAuth()
   const levels = useLevels().data
   const [show, setShow] = useState<{ level: number; stage: number; evolved: boolean } | null>(null)
   useEffect(() => {
@@ -135,9 +137,9 @@ export function LevelUpWatcher() {
         <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-orange-100 to-transparent dark:from-noche-700" />
         <div className="relative">
           <p className="text-[13px] font-bold uppercase tracking-[.1em] text-fuego-500">{show.evolved ? '¡Evolución!' : '¡Subiste de nivel!'}</p>
-          <div className="my-2 flex justify-center"><Buddy stage={show.stage} color={colorFor(uid, partner?.id)} mood="happy" size={130} /></div>
+          <div className="my-2 flex justify-center"><Character profile={profile} stage={show.stage} color={colorFor(uid, partner?.id)} mood="happy" size={130} /></div>
           <p className="tabular text-[44px] font-bold leading-none tracking-tight">Nivel {show.level}</p>
-          <p className="muted mt-2 text-[14px]">{show.evolved ? `Tu llamita ahora es ${STAGES[show.stage].name}. ${STAGES[show.stage].text}` : '¡Sigue así! Cada día suma experiencia.'}</p>
+          <p className="muted mt-2 text-[14px]">{show.evolved ? `¡Nueva etapa: ${STAGES[show.stage].name}! Desbloqueaste un accesorio nuevo.` : '¡Sigue así! Cada día suma experiencia.'}</p>
           <button className="btn-ember mt-5 w-full" onClick={() => setShow(null)}>¡Genial!</button>
         </div>
       </div>

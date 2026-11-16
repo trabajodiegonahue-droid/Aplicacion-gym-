@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Camera, LogOut, BellRing, ChevronRight, HeartHandshake, BarChart3, KeyRound, Smartphone, Share, PlusSquare, Vote } from 'lucide-react'
+import { Camera, LogOut, BellRing, ChevronRight, HeartHandshake, BarChart3, KeyRound, Smartphone, Share, PlusSquare, Vote, CircleHelp } from 'lucide-react'
 import { supabase, must, errorMessage } from '../lib/supabase'
 import { useAuth } from '../context/AuthProvider'
 import { useAction } from '../lib/queries'
@@ -12,6 +12,8 @@ import { deviceTimezone } from '../lib/dates'
 import { Button, Card, Field, Input, SectionTitle, Segmented, Sheet, Toggle, useUi } from '../components/ui'
 import { PageHeader } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
+import { CharacterEditor } from '../components/CharacterEditor'
+import { startTour } from '../components/Tour'
 import { isStandalone } from '../components/InstallBanner'
 
 const NOTIF: { kind: NotifKind; label: string; time?: string; water?: boolean }[] = [
@@ -90,6 +92,9 @@ export default function Profile() {
             onClick={() => save.mutate({ display_name: f.display_name!.trim(), bio: f.bio || null, birthday: f.birthday || null, timezone: f.timezone })}>Guardar cambios</Button>
         </Card>
 
+        <SectionTitle>Mi personaje</SectionTitle>
+        <CharacterEditor />
+
         <SectionTitle>Apariencia</SectionTitle>
         <Card>
           <Segmented value={profile.theme} onChange={v => save.mutate({ theme: v })} options={[{ value: 'system', label: 'Automático' }, { value: 'light', label: 'Claro ☀️' }, { value: 'dark', label: 'Oscuro 🌙' }]} />
@@ -110,6 +115,7 @@ export default function Profile() {
               <x.icon className="size-5 text-ember" /><span className="flex-1">{x.label}</span><ChevronRight className="size-4 opacity-50" />
             </button>
           ))}
+          <button onClick={startTour} className="flex min-h-14 w-full items-center gap-3 px-4 text-left font-semibold"><CircleHelp className="size-5 text-ember" /><span className="flex-1">Ver el tour de la app</span><ChevronRight className="size-4 opacity-50" /></button>
           <button onClick={() => setPwd(true)} className="flex min-h-14 w-full items-center gap-3 px-4 text-left font-semibold"><KeyRound className="size-5 text-ember" /><span className="flex-1">Cambiar contraseña</span><ChevronRight className="size-4 opacity-50" /></button>
         </Card>
 

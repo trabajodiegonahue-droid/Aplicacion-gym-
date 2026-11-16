@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, Dumbbell, Droplets, Activity, Moon, ChevronRight, Vote, CircleCheckBig, Hand, ArrowUpRight, Link2, Check } from 'lucide-react'
+import { Bell, Dumbbell, Droplets, Activity, Moon, ChevronRight, Vote, CircleCheckBig, Hand, ArrowUpRight, Link2, Check, CircleHelp } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { supabase, must } from '../lib/supabase'
 import { LOG_KEYS, rulesFor, useAction, useMemberDays, useNotifications, useProposals, useRules, useStreak, useStreakDays, useToday, useTodayWindow } from '../lib/queries'
@@ -11,6 +11,7 @@ import { Flame } from '../components/Flame'
 import { Avatar } from '../components/Avatar'
 import { ActivitySheet, QuickWorkoutSheet, WaterSheet, conditionText, useWaterToday } from '../components/Today'
 import { CoupleScene, LevelUpWatcher } from '../components/Characters'
+import { startTour } from '../components/Tour'
 import type { Habit, HabitLog, MemberDay, StreakDay } from '../lib/types'
 
 const QUOTES = [
@@ -119,11 +120,12 @@ export default function Home() {
           <p className="eyebrow first-letter:uppercase">{today ? fmtLongDay(today) : ' '}</p>
           <h1 className="mt-0.5 truncate text-[30px] font-bold leading-tight tracking-[-0.03em]">{greet}, {profile?.display_name?.split(' ')[0] ?? ''}</h1>
         </div>
-        <Link to="/notificaciones" className="icon-btn relative mb-1" aria-label="Notificaciones">
+        <button onClick={startTour} className="icon-btn mb-1" aria-label="Cómo funciona la app"><CircleHelp className="size-[18px]" strokeWidth={1.9} /></button>
+        <Link to="/notificaciones" data-tour="bell" className="icon-btn relative mb-1" aria-label="Notificaciones">
           <Bell className="size-[18px]" strokeWidth={1.9} />
           {unread > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-ember px-1 text-[10px] font-bold text-white ring-2 ring-fuego-50 dark:ring-noche-900">{unread > 9 ? '9+' : unread}</span>}
         </Link>
-        <Link to="/perfil" aria-label="Perfil" className="mb-1"><Avatar path={profile?.avatar_path} name={profile?.display_name} size={40} /></Link>
+        <Link to="/perfil" aria-label="Perfil" className="mb-1" data-tour="profile"><Avatar path={profile?.avatar_path} name={profile?.display_name} size={40} /></Link>
       </header>
 
       <div className="space-y-3 px-4">
@@ -141,7 +143,7 @@ export default function Home() {
         {couple && (
           <>
             {/* Tarjeta principal de la racha */}
-            <button onClick={() => nav('/racha')} className="relative block w-full overflow-hidden rounded-[26px] bg-gradient-to-br from-orange-400 via-fuego-400 to-fuego-600 p-5 text-left text-white shadow-[0_20px_40px_-18px_rgba(225,29,72,.55)] transition active:scale-[.99]">
+            <button data-tour="streak" onClick={() => nav('/racha')} className="relative block w-full overflow-hidden rounded-[26px] bg-gradient-to-br from-orange-400 via-fuego-400 to-fuego-600 p-5 text-left text-white shadow-[0_20px_40px_-18px_rgba(225,29,72,.55)] transition active:scale-[.99]">
               <div className="pointer-events-none absolute -right-10 -top-16 size-56 rounded-full bg-amber-200 opacity-30 blur-3xl" />
               <div className="pointer-events-none absolute -bottom-20 -left-10 size-48 rounded-full bg-rose-900 opacity-25 blur-3xl" />
               <div className="relative flex items-center gap-4">
@@ -163,7 +165,7 @@ export default function Home() {
             <CoupleScene mine={mine} theirs={theirs} rules={rules}>
               <p className={cx('mx-auto max-w-[300px] text-center text-[13.5px] leading-snug', bothDone ? 'font-semibold text-emerald-600 dark:text-emerald-400' : 'muted')}>{status}</p>
               {!done(theirs?.status) && (
-                <button disabled={nudged || nudge.isPending}
+                <button data-tour="nudge" disabled={nudged || nudge.isPending}
                   onClick={() => nudge.mutate(undefined, { onSuccess: () => { setNudged(true); try { localStorage.setItem(nudgeKey, '1') } catch { /* */ } } })}
                   className="mx-auto mt-3 flex min-h-10 items-center gap-2 rounded-full bg-fuego-100 px-4 text-[13px] font-semibold text-ink transition active:scale-95 disabled:opacity-45 dark:bg-noche-700 dark:text-white">
                   <Hand className="size-4" />{nudged ? 'Toque enviado hoy' : `Dar un toque a ${partner?.display_name ?? 'tu pareja'}`}
@@ -182,7 +184,7 @@ export default function Home() {
         )}
 
         <SectionTitle>Registrar</SectionTitle>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-2" data-tour="quick">
           {[
             { k: 'workout', label: 'Entreno', icon: Dumbbell, onClick: () => setSheet('workout') },
             { k: 'water', label: 'Agua', icon: Droplets, onClick: () => setSheet('water') },
@@ -200,7 +202,7 @@ export default function Home() {
         </div>
 
         <SectionTitle action={<Link to="/estadisticas" className="text-[13px] font-medium text-ember">Estadísticas</Link>}>Tu día</SectionTitle>
-        <Card className="divide-y divide-black/[.05] p-0 dark:divide-white/[.06]">
+        <Card className="divide-y divide-black/[.05] p-0 dark:divide-white/[.06]" data-tour="day">
           {[
             { icon: Droplets, tint: 'text-sky-500', label: 'Agua', value: `${fmtLiters(water)} / ${fmtLiters(goal)}`, v: water, max: goal, to: '/habitos/agua' },
             { icon: Activity, tint: 'text-ember', label: 'Actividad', value: `${mine?.details.activity_minutes ?? 0} / ${profile?.activity_goal_min ?? 30} min`, v: mine?.details.activity_minutes ?? 0, max: profile?.activity_goal_min || 30, to: '/habitos/actividad' },

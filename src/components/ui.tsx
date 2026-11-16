@@ -5,8 +5,8 @@ import { X, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
 
 // ---------------------------------------------------------------------
-export function Card({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
-  return <div onClick={onClick} className={cx('card', onClick && 'cursor-pointer transition active:scale-[.985]', className)}>{children}</div>
+export function Card({ children, className, onClick, ...rest }: { children: ReactNode; className?: string; onClick?: () => void; 'data-tour'?: string }) {
+  return <div {...rest} onClick={onClick} className={cx('card', onClick && 'cursor-pointer transition active:scale-[.985]', className)}>{children}</div>
 }
 
 export function Button({ variant = 'primary', loading, className, children, ...rest }:

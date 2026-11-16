@@ -1,8 +1,8 @@
 // Datos de ejemplo SOLO para la demo (nunca se usan en producción).
 // Dos cuentas ya vinculadas con una semana de historia para poder probar todo.
 export const DEMO_ACCOUNTS = [
-  { name: 'Ana', email: 'ana@demo.app', password: 'demo1234' },
-  { name: 'Beto', email: 'beto@demo.app', password: 'demo1234' },
+  { name: 'Diego', email: 'diego@demo.app', password: 'demo1234' },
+  { name: 'Maite', email: 'maite@demo.app', password: 'demo1234' },
 ]
 
 export function seedSql(tzRaw: string) {
@@ -23,16 +23,18 @@ declare
   e1 uuid; e2 uuid; e3 uuid; e4 uuid; e5 uuid;
 begin
   insert into auth.users(id, email, raw_user_meta_data) values
-    (a, 'ana@demo.app', jsonb_build_object('display_name','Ana','timezone',tz)),
-    (b, 'beto@demo.app', jsonb_build_object('display_name','Beto','timezone',tz));
-  insert into auth.demo_passwords values ('ana@demo.app','demo1234',a), ('beto@demo.app','demo1234',b);
+    (a, 'diego@demo.app', jsonb_build_object('display_name','Diego','timezone',tz)),
+    (b, 'maite@demo.app', jsonb_build_object('display_name','Maite','timezone',tz));
+  insert into auth.demo_passwords values ('diego@demo.app','demo1234',a), ('maite@demo.app','demo1234',b);
   t := (now() at time zone tz)::date;
 
-  update public.profiles set bio = 'Piernas los lunes, siempre 💪', birthday = (t + 9) - interval '27 years' where id = a;
-  update public.profiles set bio = 'Corredor de fin de semana' where id = b;
+  update public.profiles set bio = 'Piernas los lunes, siempre 💪', birthday = (t + 9) - interval '19 years',
+    character = '{"kind":"person","skin":"#e3ab84","hair":"short","hairColor":"#141010","outfit":"tee","top":"#f5f5f4","pants":"#2f3b55","mole":true}' where id = a;
+  update public.profiles set bio = 'Corriendo hacia vos 🏃‍♀️',
+    character = '{"kind":"person","skin":"#f0c4a4","hair":"long","hairColor":"#2b1b13","outfit":"blazer","top":"#f5f5f4","pants":"#1f2937","lashes":true}' where id = b;
 
   insert into public.couples(id, name, together_since, anniversary_date, streak_start_date, created_at)
-    values (c, 'Ana y Beto', t - 520, (t + 23) - interval '2 years', t - 6, now() - interval '6 days');
+    values (c, 'Diego y Maite', t - 520, (t + 23) - interval '2 years', t - 6, now() - interval '6 days');
   insert into public.couple_members(couple_id, user_id, joined_at) values (c, a, now() - interval '6 days'), (c, b, now() - interval '6 days');
   insert into public.streak_rules(couple_id, version, effective_from, rules, proposed_by, approved_by)
     values (c, 1, t - 6, private.default_rules(), a, b);
@@ -102,19 +104,19 @@ begin
 
   -- Espacio de pareja
   insert into public.messages(couple_id, sender_id, kind, body, created_at) values
-    (c, b, 'text', '¡Buenísimo el entreno de ayer! 🔥', now() - interval '20 hours'),
+    (c, b, 'text', '¡Buenísimo el entreno de ayer, amor! 🔥', now() - interval '20 hours'),
     (c, a, 'heart', null, now() - interval '19 hours'),
     (c, a, 'motivation', '¡No apaguemos la racha! 🔥', now() - interval '2 hours');
-  insert into public.notes(couple_id, created_by, body, pinned) values (c, b, 'Faltan pocos días para vernos ✈️ ¡A entrenar para esa caminata juntos!', true), (c, a, 'Orgullosa de vos por correr toda la semana 💪', false);
-  insert into public.calendar_events(couple_id, created_by, title, kind, event_date, notes) values (c, b, 'Visita a Ana', 'visita', t + 12, 'Vuelo a las 10:00');
+  insert into public.notes(couple_id, created_by, body, pinned) values (c, b, 'Faltan pocos días para vernos ✈️ ¡A entrenar para esa caminata juntos!', true), (c, a, 'Orgulloso de vos por correr toda la semana 💪', false);
+  insert into public.calendar_events(couple_id, created_by, title, kind, event_date, notes) values (c, b, 'Visita a Diego', 'visita', t + 12, 'Llego a las 10:00');
   insert into public.goals(user_id, created_by, name, metric, target, frequency, category_label) values (a, a, 'Entrenar 4 veces por semana', 'workouts', 4, 'weekly', 'Gimnasio'), (b, b, 'Caminar 50.000 pasos', 'steps', 50000, 'weekly', 'Salud');
   insert into public.goals(couple_id, created_by, name, metric, target, frequency, category_label) values (c, a, 'Tomar 2 L de agua', 'water_goal_days', 5, 'weekly', 'Salud');
   insert into public.challenges(couple_id, created_by, name, metric, target, mode, start_date, end_date, badge, reward)
     values (c, b, '10 entrenamientos entre los dos', 'workouts', 10, 'together', t - 6, t + 7, '🏆', 'Quien entrene menos cocina en la visita');
   delete from public.notifications;
   insert into public.notifications(user_id, kind, title, body) values
-    (b, 'partner_activity', 'Ana completó su día 💪', '¡Ahora te toca a ti para sumar a la racha!'),
-    (a, 'messages', '🔥 Ánimo de Beto', 'Bienvenida a la demo de Fuego Juntos');
+    (b, 'partner_activity', 'Diego completó su día 💪', '¡Ahora te toca a ti para sumar a la racha!'),
+    (a, 'messages', '🔥 Ánimo de Maite', 'Bienvenida a la demo de Fuego Juntos');
 end
 $seed$;`
 }

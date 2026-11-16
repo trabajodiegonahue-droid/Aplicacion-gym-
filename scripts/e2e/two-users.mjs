@@ -72,7 +72,7 @@ await shot(B, '04-beto-ve-a-ana')
 
 step('4. Beto cumple con actividad física')
 await B.getByRole('button', { name: 'Actividad', exact: true }).click()
-await B.locator('input[type=number]').first().fill('40')
+await B.getByRole('button', { name: '45′' }).click()
 await B.getByRole('button', { name: 'Guardar' }).click()
 await B.getByText('Los dos cumplieron hoy.').waitFor()
 const countB = await B.getByTestId('streak-count').textContent()

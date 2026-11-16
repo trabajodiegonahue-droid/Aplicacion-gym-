@@ -1,6 +1,16 @@
 // Convierte dist-artifact/index.html en una página publicable como Artifact de Claude
 // (sin <html>/<head>/<body>, rutas relativas) y lista los archivos a publicar.
-import { readFileSync, writeFileSync, readdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, readdirSync, renameSync } from 'node:fs'
+
+// Los Artifacts no sirven archivos .data: se renombran a .wasm (binario) y se actualizan las referencias.
+for (const f of readdirSync('dist-artifact/assets').filter(f => f.endsWith('.data'))) {
+  const nf = f.replace(/\.data$/, '-fs.wasm')
+  renameSync(`dist-artifact/assets/${f}`, `dist-artifact/assets/${nf}`)
+  for (const js of readdirSync('dist-artifact/assets').filter(x => x.endsWith('.js'))) {
+    const path = `dist-artifact/assets/${js}`, src = readFileSync(path, 'utf8')
+    if (src.includes(f)) writeFileSync(path, src.split(f).join(nf))
+  }
+}
 const html = readFileSync('dist-artifact/index.html', 'utf8')
 const assets = [...html.matchAll(/<(script|link)[^>]+(?:src|href)="\.\/assets\/[^"]+"[^>]*>(?:<\/script>)?/g)].map(m => m[0])
 const page = `<title>Fuego Juntos Demo</title>
@@ -16,5 +26,5 @@ ${assets.join('\n')}
 `
 writeFileSync('dist-artifact/demo.html', page)
 const files = readdirSync('dist-artifact/assets').map(f => `assets/${f}`)
-writeFileSync('dist-artifact/files.json', JSON.stringify(files, null, 1))
+writeFileSync('dist-artifact/files.json', JSON.stringify(Object.fromEntries(files.map(f => [f, `${process.cwd()}/dist-artifact/${f}`])), null, 1))
 console.log('demo.html listo;', files.length, 'archivos')

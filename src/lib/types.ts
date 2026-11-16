@@ -15,6 +15,7 @@ export interface Profile {
   theme: 'system' | 'light' | 'dark'
   accent: string
   notification_prefs: NotificationPrefs
+  character?: Record<string, unknown>
 }
 
 export type NotifKind = 'workout' | 'water' | 'habits' | 'streak_risk' | 'partner_activity' | 'streak' | 'goals' | 'challenges' | 'messages' | 'dates' | 'proposals' | 'couple'

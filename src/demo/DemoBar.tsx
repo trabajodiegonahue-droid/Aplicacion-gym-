@@ -53,7 +53,7 @@ export function DemoLoginButtons() {
     <div className="mb-6 rounded-[22px] bg-violet-50 p-4 ring-1 ring-violet-200 dark:bg-violet-950/40 dark:ring-violet-900">
       <p className="flex items-center gap-2 text-[14px] font-semibold text-violet-800 dark:text-violet-200"><FlaskConical className="size-4" />Versión de prueba</p>
       <p className="mt-1 text-[12.5px] leading-snug text-violet-900/70 dark:text-violet-100/70">
-        Todo funciona de verdad, pero los datos se guardan solo en este teléfono. Hay dos cuentas ya vinculadas con una semana de historia. Puedes cambiar de una a otra para probar la racha compartida.
+        Todo funciona de verdad, pero los datos se guardan solo en este teléfono. Diego y Maite ya están vinculados, con una semana de historia. Puedes cambiar de uno a otro para probar la racha compartida.
       </p>
       <div className="mt-3 grid grid-cols-2 gap-2">
         {DEMO_ACCOUNTS.map(a => (

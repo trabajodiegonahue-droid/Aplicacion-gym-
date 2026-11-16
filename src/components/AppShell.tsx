@@ -8,6 +8,7 @@ import { DemoBar } from '../demo/DemoBar'
 import { ErrorBoundary } from './ErrorBoundary'
 import { OfflineBanner } from './OfflineBanner'
 import { Onboarding } from './Onboarding'
+import { Tour, useFirstTour } from './Tour'
 import { isDemo } from '../lib/supabase'
 
 const tabs = [
@@ -21,6 +22,7 @@ const tabs = [
 export function AppShell() {
   useRealtimeSync()
   useEnsureToday()
+  useFirstTour()
   const loc = useLocation()
   const nav = useNavigate()
   useEffect(() => { const h = () => nav('/'); window.addEventListener('fj-go-home', h); return () => window.removeEventListener('fj-go-home', h) }, [nav])
@@ -28,6 +30,7 @@ export function AppShell() {
     <div className="mx-auto min-h-dvh max-w-lg">
       {!isDemo && <OfflineBanner />}
       <Onboarding />
+      <Tour />
       <main className="pb-nav" style={{ paddingLeft: 'var(--safe-left)', paddingRight: 'var(--safe-right)' }}>
         {isDemo ? <DemoBar /> : <InstallBanner />}
         <Suspense fallback={<Loading />}>
@@ -40,7 +43,7 @@ export function AppShell() {
         style={{ paddingBottom: 'var(--safe-bottom)' }}>
         <div className="mx-auto grid max-w-lg grid-cols-5 px-2">
           {tabs.map(t => (
-            <NavLink key={t.to} to={t.to} end={t.end}
+            <NavLink key={t.to} to={t.to} end={t.end} data-tour={`nav-${t.to.replace('/', '') || 'inicio'}`}
               className={({ isActive }) => cx('relative flex min-h-[58px] flex-col items-center justify-center gap-1 text-[10.5px] font-medium tracking-tight transition-colors',
                 isActive ? 'text-ink dark:text-white' : 'text-fuego-800/55 dark:text-white/40')}>
               {({ isActive }) => (<>

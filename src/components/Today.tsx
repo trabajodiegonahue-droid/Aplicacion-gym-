@@ -1,12 +1,13 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, Circle, Moon, Timer, XCircle, Dumbbell, Droplets, Footprints, Activity, ListChecks, Plus, Check, Bike, Waves, Trophy, Flower2, Zap, Sparkles, PersonStanding, GlassWater, Milk, Coffee, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, Circle, Moon, Timer, XCircle, Dumbbell, Droplets, Footprints, Activity, ListChecks, Plus, Check, Bike, Waves, Trophy, Flower2, Zap, Sparkles, PersonStanding, GlassWater, Milk, Coffee, ChevronDown, Undo2, type LucideIcon } from 'lucide-react'
 import { supabase, must } from '../lib/supabase'
 import { useAuth } from '../context/AuthProvider'
 import { LOG_KEYS, useAction, useToday } from '../lib/queries'
 import type { ActivityKind, MemberDay, MemberStatus, Rules, WaterPreset } from '../lib/types'
 import { fmtLiters, fmtNum, localDateTimeToISO, nowTimeHHMM, toISODate } from '../lib/dates'
-import { Button, Field, Input, Ring, Segmented, Sheet, cx } from './ui'
+import { Button, Field, Input, ProgressBar, Ring, Sheet, cx } from './ui'
 import { Avatar } from './Avatar'
 import { celebrate } from './Celebration'
 
@@ -118,38 +119,90 @@ export function useAddWater() {
   }, { invalidate: [['water'], ['water_history'], ...LOG_KEYS], success: ml => ml > 0 ? `+${ml} ml 💧` : `${ml} ml` })
 }
 
+// ---------------------------------------------------------------------
+// Ventanas de registro rápido: elegir con un toque, guardar con otro.
+// ---------------------------------------------------------------------
+function Chips<T extends string | number>({ options, value, onChange, cols = 3 }: { options: { value: T; label: string; icon?: LucideIcon }[]; value: T | null; onChange: (v: T) => void; cols?: number }) {
+  return (
+    <div className={cx('grid gap-2', cols === 4 ? 'grid-cols-4' : cols === 5 ? 'grid-cols-5' : 'grid-cols-3')}>
+      {options.map(o => (
+        <button key={String(o.value)} type="button" onClick={() => onChange(o.value)}
+          className={cx('flex min-h-12 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[13px] font-semibold transition active:scale-95',
+            value === o.value ? 'bg-ink text-white dark:bg-white dark:text-ink' : 'bg-white text-ink ring-1 ring-black/[.06] dark:bg-noche-800 dark:text-white dark:ring-white/[.06]')}>
+          {o.icon && <o.icon className="size-5" strokeWidth={1.8} />}{o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function MoreOptions({ children, label = 'Más opciones' }: { children: React.ReactNode; label?: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen(o => !o)} className="flex w-full items-center justify-center gap-1 py-2 text-[13px] font-medium text-fuego-800/70 dark:text-white/50">
+        {label} <ChevronDown className={cx('size-4 transition', open && 'rotate-180')} />
+      </button>
+      {open && <div className="mt-1 space-y-3 animate-rise">{children}</div>}
+    </div>
+  )
+}
+
+function WhenFields({ date, setDate, time, setTime }: { date: string; setDate: (v: string) => void; time: string; setTime: (v: string) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <Field label="Fecha"><Input type="date" value={date} max={toISODate(new Date())} onChange={e => setDate(e.target.value)} /></Field>
+      <Field label="Hora"><Input type="time" value={time} onChange={e => setTime(e.target.value)} /></Field>
+    </div>
+  )
+}
+
+const WORKOUT_TYPES = ['Piernas', 'Glúteos', 'Espalda', 'Pecho', 'Brazos', 'Hombros', 'Cuerpo completo', 'Abdomen', 'Cardio'].map(v => ({ value: v, label: v }))
+const MINUTES = [15, 30, 45, 60, 90]
+
 export function QuickWorkoutSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { uid } = useAuth()
-  const [title, setTitle] = useState('Entrenamiento')
-  const [minutes, setMinutes] = useState('45')
+  const nav = useNavigate()
+  const [type, setType] = useState<string | null>(null)
+  const [minutes, setMinutes] = useState<number>(45)
+  const [custom, setCustom] = useState('')
   const [date, setDate] = useState(toISODate(new Date()))
   const [time, setTime] = useState(nowTimeHHMM())
   const [notes, setNotes] = useState('')
+  const mins = custom ? Number(custom) : minutes
   const save = useAction(async () => {
-    await must(supabase.from('workouts').insert({ user_id: uid, title: title.trim() || 'Entrenamiento', duration_min: Number(minutes) || null, notes: notes || null, performed_at: localDateTimeToISO(date, time) }))
+    await must(supabase.from('workouts').insert({ user_id: uid, title: type ?? 'Entrenamiento', duration_min: mins || null, notes: notes || null, performed_at: localDateTimeToISO(date, time) }))
   }, { invalidate: [['workouts'], ...LOG_KEYS], success: '¡Entrenamiento registrado! 💪' })
   return (
-    <Sheet open={open} onClose={onClose} title="Registrar entrenamiento">
-      <form className="space-y-3" onSubmit={e => { e.preventDefault(); save.mutate(undefined, { onSuccess: () => { celebrate(['💪', '🔥']); onClose() } }) }}>
-        <Field label="¿Qué entrenaste?"><Input value={title} onChange={e => setTitle(e.target.value)} maxLength={80} /></Field>
-        <Field label="Duración (minutos)"><Input type="number" inputMode="numeric" min={0} max={1440} value={minutes} onChange={e => setMinutes(e.target.value)} /></Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Fecha"><Input type="date" value={date} max={toISODate(new Date())} onChange={e => setDate(e.target.value)} /></Field>
-          <Field label="Hora"><Input type="time" value={time} onChange={e => setTime(e.target.value)} /></Field>
+    <Sheet open={open} onClose={onClose} title="¿Qué entrenaste hoy?">
+      <div className="space-y-5">
+        <Chips options={WORKOUT_TYPES} value={type} onChange={setType} />
+        <div>
+          <p className="label">¿Cuánto tiempo?</p>
+          <Chips cols={5} options={MINUTES.map(m => ({ value: m, label: `${m}′` }))} value={custom ? null : minutes} onChange={m => { setMinutes(m); setCustom('') }} />
         </div>
-        <Field label="Notas (opcional)"><Input value={notes} onChange={e => setNotes(e.target.value)} maxLength={1000} /></Field>
-        <p className="muted text-xs">Para registrar series, repeticiones y pesos usa la sección Gimnasio. Los registros de días ya cerrados quedan en tu historial pero no cambian la racha.</p>
-        <Button type="submit" className="w-full" loading={save.isPending}>Guardar</Button>
-      </form>
+        <MoreOptions label="Más opciones (otra duración, fecha, notas)">
+          <Field label="Otra duración (minutos)"><Input type="number" inputMode="numeric" min={1} max={1440} value={custom} onChange={e => setCustom(e.target.value)} placeholder="Ej.: 75" /></Field>
+          <WhenFields date={date} setDate={setDate} time={time} setTime={setTime} />
+          <Field label="Notas"><Input value={notes} onChange={e => setNotes(e.target.value)} maxLength={1000} placeholder="¿Cómo te sentiste?" /></Field>
+        </MoreOptions>
+        <Button variant="ember" className="w-full min-h-14 text-[16px]" loading={save.isPending}
+          onClick={() => save.mutate(undefined, { onSuccess: () => { celebrate(['💪', '🔥']); onClose() } })}>
+          Guardar · {type ?? 'Entreno'} {mins ? `${mins} min` : ''}
+        </Button>
+        <button type="button" className="w-full text-center text-[13px] font-medium text-fuego-800/70 dark:text-white/50" onClick={() => { onClose(); nav('/gym') }}>
+          ¿Quieres anotar series y pesos? Ir a Gimnasio →
+        </button>
+      </div>
     </Sheet>
   )
 }
 
 export const ACTIVITY_KINDS: { value: ActivityKind; label: string; icon: LucideIcon }[] = [
-  { value: 'caminata', label: 'Caminata', icon: PersonStanding }, { value: 'correr', label: 'Correr', icon: Zap },
-  { value: 'bicicleta', label: 'Bicicleta', icon: Bike }, { value: 'cardio', label: 'Cardio', icon: Activity },
-  { value: 'natacion', label: 'Natación', icon: Waves }, { value: 'deporte', label: 'Deporte', icon: Trophy },
-  { value: 'yoga', label: 'Yoga', icon: Flower2 }, { value: 'pasos', label: 'Pasos', icon: Footprints },
+  { value: 'caminata', label: 'Caminar', icon: PersonStanding }, { value: 'correr', label: 'Correr', icon: Zap },
+  { value: 'bicicleta', label: 'Bici', icon: Bike }, { value: 'pasos', label: 'Pasos', icon: Footprints },
+  { value: 'cardio', label: 'Cardio', icon: Activity }, { value: 'deporte', label: 'Deporte', icon: Trophy },
+  { value: 'yoga', label: 'Yoga', icon: Flower2 }, { value: 'natacion', label: 'Nadar', icon: Waves },
   { value: 'otro', label: 'Otro', icon: Sparkles },
 ]
 export const presetIcon = (icon: string): LucideIcon => icon === 'bottle' ? Milk : icon === 'cup' ? Coffee : GlassWater
@@ -157,67 +210,100 @@ export const presetIcon = (icon: string): LucideIcon => icon === 'bottle' ? Milk
 export function ActivitySheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { uid } = useAuth()
   const [kind, setKind] = useState<ActivityKind>('caminata')
-  const [minutes, setMinutes] = useState('30')
-  const [steps, setSteps] = useState('')
+  const [minutes, setMinutes] = useState(30)
+  const [steps, setSteps] = useState(5000)
+  const [customMin, setCustomMin] = useState('')
+  const [customSteps, setCustomSteps] = useState('')
   const [km, setKm] = useState('')
   const [date, setDate] = useState(toISODate(new Date()))
   const [time, setTime] = useState(nowTimeHHMM())
   const [notes, setNotes] = useState('')
+  const isSteps = kind === 'pasos'
+  const mins = customMin ? Number(customMin) : isSteps ? 0 : minutes
+  const stp = customSteps ? Number(customSteps) : isSteps ? steps : 0
+  const label = ACTIVITY_KINDS.find(k => k.value === kind)?.label
   const save = useAction(async () => {
     await must(supabase.from('activity_logs').insert({
-      user_id: uid, kind, minutes: Number(minutes) || 0, steps: Number(steps) || 0, distance_km: km ? Number(km) : null,
+      user_id: uid, kind, minutes: mins || 0, steps: stp || 0, distance_km: km ? Number(km) : null,
       notes: notes || null, performed_at: localDateTimeToISO(date, time),
     }))
   }, { invalidate: [['activity'], ...LOG_KEYS], success: 'Actividad registrada 🏃' })
   return (
-    <Sheet open={open} onClose={onClose} title="Registrar actividad">
-      <form className="space-y-3" onSubmit={e => { e.preventDefault(); save.mutate(undefined, { onSuccess: onClose }) }}>
-        <div className="grid grid-cols-3 gap-2">
-          {ACTIVITY_KINDS.map(k => (
-            <button type="button" key={k.value} onClick={() => setKind(k.value)}
-              className={cx('flex min-h-[68px] flex-col items-center justify-center gap-1.5 rounded-2xl text-[12px] font-medium transition', kind === k.value ? 'bg-ink text-white dark:bg-white dark:text-ink' : 'bg-white ring-1 ring-black/[.05] dark:bg-noche-800')}>
-              <k.icon className="size-5" strokeWidth={1.8} />{k.label}
-            </button>
-          ))}
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          <Field label="Minutos"><Input type="number" inputMode="numeric" min={0} value={minutes} onChange={e => setMinutes(e.target.value)} /></Field>
-          <Field label="Pasos"><Input type="number" inputMode="numeric" min={0} value={steps} onChange={e => setSteps(e.target.value)} /></Field>
-          <Field label="Km"><Input type="number" inputMode="decimal" step="0.01" min={0} value={km} onChange={e => setKm(e.target.value)} /></Field>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Fecha"><Input type="date" value={date} max={toISODate(new Date())} onChange={e => setDate(e.target.value)} /></Field>
-          <Field label="Hora"><Input type="time" value={time} onChange={e => setTime(e.target.value)} /></Field>
-        </div>
-        <Field label="Notas"><Input value={notes} onChange={e => setNotes(e.target.value)} maxLength={500} /></Field>
-        <Button type="submit" className="w-full" loading={save.isPending}>Guardar</Button>
-      </form>
+    <Sheet open={open} onClose={onClose} title="¿Qué actividad hiciste?">
+      <div className="space-y-5">
+        <Chips options={ACTIVITY_KINDS} value={kind} onChange={setKind} />
+        {isSteps ? (
+          <div>
+            <p className="label">¿Cuántos pasos?</p>
+            <Chips cols={4} options={[3000, 5000, 8000, 10000].map(v => ({ value: v, label: fmtNum(v) }))} value={customSteps ? null : steps} onChange={v => { setSteps(v); setCustomSteps('') }} />
+          </div>
+        ) : (
+          <div>
+            <p className="label">¿Cuánto tiempo?</p>
+            <Chips cols={5} options={[10, 20, 30, 45, 60].map(m => ({ value: m, label: `${m}′` }))} value={customMin ? null : minutes} onChange={m => { setMinutes(m); setCustomMin('') }} />
+          </div>
+        )}
+        <MoreOptions label="Más opciones (pasos, km, fecha, notas)">
+          <div className="grid grid-cols-3 gap-2">
+            <Field label="Minutos"><Input type="number" inputMode="numeric" min={0} value={customMin} placeholder={String(mins)} onChange={e => setCustomMin(e.target.value)} /></Field>
+            <Field label="Pasos"><Input type="number" inputMode="numeric" min={0} value={customSteps} placeholder={String(stp)} onChange={e => setCustomSteps(e.target.value)} /></Field>
+            <Field label="Km"><Input type="number" inputMode="decimal" step="0.01" min={0} value={km} onChange={e => setKm(e.target.value)} /></Field>
+          </div>
+          <WhenFields date={date} setDate={setDate} time={time} setTime={setTime} />
+          <Field label="Notas"><Input value={notes} onChange={e => setNotes(e.target.value)} maxLength={500} /></Field>
+        </MoreOptions>
+        <Button variant="ember" className="w-full min-h-14 text-[16px]" loading={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: onClose })}>
+          Guardar · {label} {isSteps ? `${fmtNum(stp)} pasos` : `${mins} min`}
+        </Button>
+      </div>
     </Sheet>
   )
 }
 
 export function WaterSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { profile } = useAuth()
+  const today = useToday()
   const presets = useWaterPresets().data ?? []
+  const total = useWaterToday().data ?? 0
   const add = useAddWater()
   const [custom, setCustom] = useState('')
-  const [sign, setSign] = useState<'add' | 'remove'>('add')
+  const [showCustom, setShowCustom] = useState(false)
+  const goal = profile?.water_goal_ml ?? 2500
+  const undo = useAction(async () => {
+    const last = (await must(supabase.from('water_logs').select('id').eq('local_day', today!).order('created_at', { ascending: false }).limit(1))) as { id: string }[]
+    if (!last.length) throw new Error('No hay nada que deshacer hoy')
+    await must(supabase.from('water_logs').delete().eq('id', last[0].id))
+  }, { invalidate: [['water'], ['water_history'], ...LOG_KEYS], success: 'Último registro deshecho' })
   return (
     <Sheet open={open} onClose={onClose} title="Agua">
-      <Segmented value={sign} onChange={setSign} options={[{ value: 'add', label: 'Añadir' }, { value: 'remove', label: 'Quitar' }]} />
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        {presets.map(p => (
-          <button key={p.id} onClick={() => add.mutate({ ml: sign === 'add' ? p.amount_ml : -p.amount_ml, label: p.label })}
-            className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl bg-white text-[13px] font-medium ring-1 ring-black/[.05] active:scale-95 dark:bg-noche-800">
-            {(() => { const I = presetIcon(p.icon); return <I className="size-5 text-sky-500" strokeWidth={1.8} /> })()}
-            {p.label}<span className="muted text-[11px]">{p.amount_ml} ml</span>
-          </button>
-        ))}
+      <div className="space-y-5">
+        <div>
+          <div className="mb-2 flex items-baseline justify-between"><span className="tabular text-[28px] font-bold tracking-tight">{fmtLiters(total)}</span><span className="muted text-[14px]">de {fmtLiters(goal)}</span></div>
+          <ProgressBar size="lg" value={total} max={goal} color="bg-gradient-to-r from-sky-300 to-sky-500" />
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {presets.map(p => {
+            const I = presetIcon(p.icon)
+            return (
+              <button key={p.id} onClick={() => add.mutate({ ml: p.amount_ml, label: p.label }, { onSuccess: () => { if (total < goal && total + p.amount_ml >= goal) celebrate(['💧', '💦', '✨']) } })}
+                className="flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-2xl bg-sky-50 text-[14px] font-semibold text-sky-900 ring-1 ring-sky-100 active:scale-95 dark:bg-sky-950/40 dark:text-sky-100 dark:ring-sky-900">
+                <I className="size-6 text-sky-500" strokeWidth={1.8} />+{p.amount_ml} ml<span className="text-[11px] font-medium opacity-60">{p.label}</span>
+              </button>
+            )
+          })}
+        </div>
+        {showCustom ? (
+          <form className="flex gap-2" onSubmit={e => { e.preventDefault(); const n = Number(custom); if (n > 0) add.mutate({ ml: n, label: 'Personalizado' }, { onSuccess: () => setCustom('') }) }}>
+            <Input autoFocus type="number" inputMode="numeric" min={10} max={5000} placeholder="Mililitros" value={custom} onChange={e => setCustom(e.target.value)} />
+            <Button type="submit" className="shrink-0" loading={add.isPending}>Añadir</Button>
+          </form>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="soft" className="text-[14px]" onClick={() => setShowCustom(true)}><Plus className="size-4" />Otra cantidad</Button>
+            <Button variant="soft" className="text-[14px]" loading={undo.isPending} disabled={total <= 0} onClick={() => undo.mutate()}><Undo2 className="size-4" />Deshacer</Button>
+          </div>
+        )}
       </div>
-      <form className="mt-3 flex gap-2" onSubmit={e => { e.preventDefault(); const n = Number(custom); if (n > 0) { add.mutate({ ml: sign === 'add' ? n : -n, label: 'Personalizado' }); setCustom('') } }}>
-        <Input type="number" inputMode="numeric" min={10} max={5000} placeholder="Cantidad en ml" value={custom} onChange={e => setCustom(e.target.value)} />
-        <Button type="submit" className="shrink-0" loading={add.isPending}><Plus className="size-5" /></Button>
-      </form>
-      <p className="muted mt-3 text-xs">Puedes editar tus cantidades rápidas en Hábitos → Agua.</p>
     </Sheet>
   )
 }
