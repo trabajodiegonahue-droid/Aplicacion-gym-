@@ -1,4 +1,4 @@
-# 🔥 Fuego Juntos — Guía de puesta en marcha (sin programar)
+# 🔥 Gymaiego — Guía de puesta en marcha (sin programar)
 
 Tiempo estimado: **30–40 minutos**. Todo es **gratis** (Supabase Free + Vercel Hobby + GitHub Free).
 Solo necesitas un ordenador con navegador para la configuración; después todo se usa desde el iPhone.
@@ -98,9 +98,9 @@ on conflict (key) do update set value = excluded.value;
 ## Paso 7 · (Recomendado) Correos para recuperar la contraseña con Gmail — gratis
 
 1. En tu cuenta de Google activa la **Verificación en 2 pasos**: https://myaccount.google.com/security
-2. Crea una **contraseña de aplicación**: https://myaccount.google.com/apppasswords → nombre `Fuego Juntos` → **Crear**. Copia las 16 letras (**SECRETA**).
+2. Crea una **contraseña de aplicación**: https://myaccount.google.com/apppasswords → nombre `Gymaiego` → **Crear**. Copia las 16 letras (**SECRETA**).
 3. Supabase → **Authentication** → **Emails** → pestaña **SMTP Settings** → activa **Enable Custom SMTP**:
-   - **Sender email:** tu Gmail · **Sender name:** `Fuego Juntos`
+   - **Sender email:** tu Gmail · **Sender name:** `Gymaiego`
    - **Host:** `smtp.gmail.com` · **Port:** `465`
    - **Username:** tu Gmail · **Password:** la contraseña de aplicación de 16 letras
    - **Save**.
@@ -114,7 +114,7 @@ En **cada** iPhone (iOS 16.4 o posterior para notificaciones):
 1. Abre **Safari** (no Chrome) y entra en tu enlace `https://fuegojuntos.vercel.app`.
 2. Toca **Compartir** (cuadrado con flecha ↑, abajo al centro).
 3. Desliza y toca **Añadir a pantalla de inicio** → **Añadir**.
-4. Abre **Fuego Juntos** desde el nuevo icono 🔥 (se abre a pantalla completa).
+4. Abre **Gymaiego** desde el nuevo icono 🔥 (se abre a pantalla completa).
 5. **Crear cuenta** (cada uno con su correo y contraseña).
 6. Persona A: **Vincular pareja → Generar código → Enviar**. Persona B: **Opción 2 → pegar código → Vincularnos**.
 7. Cada uno: **Perfil (foto arriba a la derecha) → Notificaciones push → activar → Permitir**.

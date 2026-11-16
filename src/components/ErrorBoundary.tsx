@@ -5,7 +5,7 @@ import { Buddy } from './Buddy'
 export class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: string }, { error: Error | null }> {
   state: { error: Error | null } = { error: null }
   static getDerivedStateFromError(error: Error) { return { error } }
-  componentDidCatch(error: Error) { console.error('[Fuego Juntos] Error de pantalla:', error) }
+  componentDidCatch(error: Error) { console.error('[Gymaiego] Error de pantalla:', error) }
   componentDidUpdate(prev: { resetKey?: string }) {
     if (this.state.error && prev.resetKey !== this.props.resetKey) this.setState({ error: null })
   }

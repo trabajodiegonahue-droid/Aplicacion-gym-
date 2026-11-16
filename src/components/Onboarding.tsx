@@ -7,7 +7,7 @@ import { Flame } from './Flame'
 import { cx } from './ui'
 
 const SLIDES = [
-  { title: 'Bienvenidos a Fuego Juntos', text: 'Entrenen, tomen agua y cuiden sus hábitos… aunque estén lejos. Cada uno con su cuenta, los dos en el mismo equipo.', art: 'pair' },
+  { title: 'Bienvenidos a Gymaiego', text: 'Entrenen, tomen agua y cuiden sus hábitos… aunque estén lejos. Cada uno con su cuenta, los dos en el mismo equipo.', art: 'pair' },
   { title: 'La racha es de a dos', text: 'El día suma a la racha solo cuando los DOS cumplen. Si uno se olvida, la llama no crece. ¡Dense ánimo!', art: 'flame' },
   { title: 'Sus personajes suben de nivel', text: 'Todo lo que registran da experiencia. Al subir de nivel desbloquean accesorios: pin de llama, cinta, pesas y la medalla de oro.', art: 'evolve' },
   { title: 'Privado y justo', text: 'Tus datos son tuyos: tu pareja solo ve tu progreso del día. Las reglas compartidas solo cambian si los dos aprueban.', art: 'shield' },

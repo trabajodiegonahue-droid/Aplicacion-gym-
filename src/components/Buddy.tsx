@@ -5,7 +5,7 @@ import { cx } from './ui'
 export type Mood = 'happy' | 'idle' | 'sleep' | 'sad' | 'cheer'
 
 /**
- * Personaje "llamita" (diseño original de Fuego Juntos).
+ * Personaje "llamita" (diseño original de Gymaiego).
  * stage 0 Chispa · 1 Llamita (brazos) · 2 Fueguito (cinta) · 3 Brasa (pesa) · 4 Llamarada (corona + aura)
  */
 export function Buddy({ stage = 0, color = 'rojo', mood = 'idle', size = 120, className }:

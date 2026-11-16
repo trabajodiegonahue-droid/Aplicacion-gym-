@@ -3,7 +3,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
-  Sistema visual "Fuego Juntos"
+  Sistema visual "Gymaiego"
   · Base neutra cálida (piedra) + tinta casi negra.
   · Un único acento: "brasa" (rosa-rojo profundo), usado con moderación.
   · Las clases fuego-* se mantienen por compatibilidad pero ahora son la escala neutra,

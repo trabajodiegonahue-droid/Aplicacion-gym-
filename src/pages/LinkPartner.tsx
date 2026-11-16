@@ -51,7 +51,7 @@ export default function LinkPartner() {
   }
 
   const inv = invQ.data
-  const shareText = inv ? `¡Únete a mi racha en Fuego Juntos! 🔥 Mi código es ${inv.code}. Abre ${window.location.origin}, crea tu cuenta y ve a "Vincular".` : ''
+  const shareText = inv ? `¡Únete a mi racha en Gymaiego! 🔥 Mi código es ${inv.code}. Abre ${window.location.origin}, crea tu cuenta y ve a "Vincular".` : ''
 
   return (
     <div>

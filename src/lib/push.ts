@@ -31,7 +31,7 @@ export async function enablePush(uid: string) {
   const support = pushSupport()
   if (support !== 'ok') throw new Error(
     support === 'needs-install' ? 'En iPhone primero instala la app: Compartir → Añadir a pantalla de inicio, y ábrela desde el icono.'
-      : support === 'denied' ? 'Bloqueaste las notificaciones. Actívalas en Ajustes → Notificaciones → Fuego Juntos.'
+      : support === 'denied' ? 'Bloqueaste las notificaciones. Actívalas en Ajustes → Notificaciones → Gymaiego.'
       : support === 'no-vapid' ? 'Las notificaciones push aún no están configuradas en el servidor (falta la clave VAPID).'
       : 'Este navegador no admite notificaciones push.')
   const perm = await Notification.requestPermission()

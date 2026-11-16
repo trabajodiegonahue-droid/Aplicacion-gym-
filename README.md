@@ -1,4 +1,4 @@
-# 🔥 Fuego Juntos
+# 🔥 Gymaiego
 
 Aplicación web instalable (PWA) de gimnasio, hábitos y **racha compartida** para parejas a distancia.
 Optimizada para iPhone 13 en adelante (Safari / pantalla de inicio), funciona también en Android y escritorio.

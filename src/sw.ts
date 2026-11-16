@@ -14,8 +14,8 @@ registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), { deny
 
 self.addEventListener('push', (event) => {
   let data: { title?: string; body?: string; url?: string; tag?: string } = {}
-  try { data = event.data?.json() ?? {} } catch { data = { title: 'Fuego Juntos', body: event.data?.text() } }
-  event.waitUntil(self.registration.showNotification(data.title ?? 'Fuego Juntos', {
+  try { data = event.data?.json() ?? {} } catch { data = { title: 'Gymaiego', body: event.data?.text() } }
+  event.waitUntil(self.registration.showNotification(data.title ?? 'Gymaiego', {
     body: data.body ?? '',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',

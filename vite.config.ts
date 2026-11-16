@@ -19,8 +19,8 @@ export default defineConfig(({ mode }) => ({
       injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2}'], maximumFileSizeToCacheInBytes: 4 * 1024 * 1024 },
       manifest: {
         id: '/',
-        name: 'Fuego Juntos',
-        short_name: 'Fuego Juntos',
+        name: 'Gymaiego',
+        short_name: 'Gymaiego',
         description: 'Gimnasio, hábitos y racha compartida para parejas a distancia.',
         lang: 'es',
         start_url: '/',

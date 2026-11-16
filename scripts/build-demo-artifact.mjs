@@ -13,7 +13,7 @@ for (const f of readdirSync('dist-artifact/assets').filter(f => f.endsWith('.dat
 }
 const html = readFileSync('dist-artifact/index.html', 'utf8')
 const assets = [...html.matchAll(/<(script|link)[^>]+(?:src|href)="\.\/assets\/[^"]+"[^>]*>(?:<\/script>)?/g)].map(m => m[0])
-const page = `<title>Fuego Juntos Demo</title>
+const page = `<title>Gymaiego Demo</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#fff8f3">
 ${assets.join('\n')}

@@ -137,7 +137,7 @@ export default function Profile() {
               <li>Abre este enlace en <b>Safari</b>.</li>
               <li>Toca <Share className="inline size-4" /> <b>Compartir</b> (abajo en el centro).</li>
               <li>Elige <PlusSquare className="inline size-4" /> <b>Añadir a pantalla de inicio</b> y luego <b>Añadir</b>.</li>
-              <li>Abre Fuego Juntos desde el nuevo icono.</li>
+              <li>Abre Gymaiego desde el nuevo icono.</li>
             </ol>
           </Card>
         )}
@@ -145,7 +145,7 @@ export default function Profile() {
         <DataTools />
 
         <Button variant="soft" className="w-full" onClick={async () => { if (await confirm({ title: '¿Cerrar sesión?' })) { await signOut(); nav('/login') } }}><LogOut className="size-4" />Cerrar sesión</Button>
-        <p className="muted text-center text-xs">Fuego Juntos · hecho con ❤️ para entrenar a la distancia</p>
+        <p className="muted text-center text-xs">Gymaiego · hecho con ❤️ para entrenar a la distancia</p>
       </div>
       <PasswordSheet open={pwd} onClose={() => setPwd(false)} />
     </div>
@@ -177,7 +177,7 @@ function PushCard() {
           En iPhone, las notificaciones web solo funcionan con <b>iOS 16.4 o posterior</b> y con la app <b>instalada en la pantalla de inicio</b>. Instálala (ver “Instalar en iPhone” abajo), ábrela desde el icono y vuelve aquí para activarlas.
         </p>
       )}
-      {support === 'denied' && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Bloqueaste los avisos. Ve a <b>Ajustes → Notificaciones → Fuego Juntos</b> y permítelos.</p>}
+      {support === 'denied' && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Bloqueaste los avisos. Ve a <b>Ajustes → Notificaciones → Gymaiego</b> y permítelos.</p>}
       {support === 'unsupported' && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Este navegador no admite notificaciones push. Recibirás los avisos dentro de la app (campana 🔔).</p>}
       {support === 'no-vapid' && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Las notificaciones push aún no están configuradas en el servidor. Mientras tanto, los avisos aparecen dentro de la app (campana 🔔).</p>}
       <p className="muted mt-2 text-xs">Siempre verás todos los avisos en la campana 🔔 de Inicio, aunque no actives las push.</p>

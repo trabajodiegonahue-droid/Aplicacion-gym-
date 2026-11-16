@@ -171,7 +171,7 @@ begin
   delete from public.notifications;
   insert into public.notifications(user_id, kind, title, body) values
     (b, 'partner_activity', 'Diego completó su día 💪', '¡Ahora te toca a ti para sumar a la racha!'),
-    (a, 'messages', '🔥 Ánimo de Maite', 'Bienvenida a la demo de Fuego Juntos');
+    (a, 'messages', '🔥 Ánimo de Maite', 'Bienvenida a la demo de Gymaiego');
 end
 $seed$;`
 }

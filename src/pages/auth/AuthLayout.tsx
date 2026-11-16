@@ -10,7 +10,7 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
           <Person look={PRESETS.diego} stage={1} mood="love" size={84} />
           <Person look={PRESETS.maite} stage={1} mood="love" size={80} />
         </div>
-        <h1 className="mt-4 text-[28px] font-bold tracking-[-0.035em]">Fuego Juntos</h1>
+        <h1 className="mt-4 text-[28px] font-bold tracking-[-0.035em]">Gymaiego</h1>
         <p className="muted mt-1 text-[15px]">Entrenen juntos, aunque estén lejos.</p>
       </div>
       <div>

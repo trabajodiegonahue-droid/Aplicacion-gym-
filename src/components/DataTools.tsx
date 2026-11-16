@@ -99,7 +99,7 @@ export function DataTools() {
   }
   const exportJson = async () => {
     setBusy('json')
-    try { const d = await fetchAll(); download(`fuego-juntos-mis-datos-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ exportado: new Date().toISOString(), ...d }, null, 2), 'application/json'); toast('Descarga lista 📦') }
+    try { const d = await fetchAll(); download(`gymaiego-mis-datos-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ exportado: new Date().toISOString(), ...d }, null, 2), 'application/json'); toast('Descarga lista 📦') }
     catch { toast('No se pudo exportar', 'error') } finally { setBusy(null) }
   }
   const exportCsv = async () => {
@@ -114,7 +114,7 @@ export function DataTools() {
       toast('Descargas listas (abren en Excel o Numbers) 📊')
     } catch { toast('No se pudo exportar', 'error') } finally { setBusy(null) }
   }
-  const remove = useAction(async () => { await must(supabase.rpc('delete_my_account', { p_confirm: word.trim() })) }, { success: 'Cuenta eliminada. ¡Gracias por haber usado Fuego Juntos! 💛' })
+  const remove = useAction(async () => { await must(supabase.rpc('delete_my_account', { p_confirm: word.trim() })) }, { success: 'Cuenta eliminada. ¡Gracias por haber usado Gymaiego! 💛' })
   return (
     <Card>
       <p className="text-[15px] font-bold">Tus datos</p>

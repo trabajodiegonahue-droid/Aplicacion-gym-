@@ -2324,7 +2324,7 @@ begin
     else
       body := format('Esta semana: %s entrenos, %s min de actividad, +%s XP. ¡Mira tu resumen! 🔥', t.workouts, t.activity_minutes, t.xp);
     end if;
-    perform private.notify(pr.id, 'weekly', '📊 Su semana en Fuego Juntos', body,
+    perform private.notify(pr.id, 'weekly', '📊 Su semana en Gymaiego', body,
       jsonb_build_object('from', d - 6, 'to', d), 'weekly:' || d);
     n := n + 1;
   end loop;
