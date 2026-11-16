@@ -3,6 +3,8 @@ export type CoupleDayStatus = MemberStatus | 'recovered'
 
 export interface Profile {
   id: string
+  onboarded_at?: string | null
+  tour_seen_at?: string | null
   display_name: string
   avatar_path: string | null
   bio: string | null

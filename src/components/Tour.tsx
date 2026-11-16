@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
-import { useAuth } from '../context/AuthProvider'
+
+import { useFirstRun } from '../lib/firstRun'
 
 /** Pasos del tour: cada uno resalta un elemento real de la pantalla de Inicio. */
 const STEPS: { target: string; title: string; text: string }[] = [
@@ -26,7 +27,7 @@ const STEPS: { target: string; title: string; text: string }[] = [
 export const startTour = () => window.dispatchEvent(new CustomEvent('fj-start-tour'))
 
 export function Tour() {
-  const { uid } = useAuth()
+  const first = useFirstRun()
   const nav = useNavigate()
   const loc = useLocation()
   const [active, setActive] = useState(false)
@@ -81,7 +82,7 @@ export function Tour() {
   }, [active, i, steps, measure])
   useLayoutEffect(() => { if (active && cardRef.current) setCardH(cardRef.current.offsetHeight) }, [active, i])
 
-  const close = () => { setActive(false); try { localStorage.setItem(`fj-tour-${uid}`, '1') } catch { /* */ } }
+  const close = () => { setActive(false); first.mark('tour') }
   if (!active || !steps.length) return null
   const s = steps[i]
   const pad = 6, gap = 12
@@ -132,10 +133,10 @@ export function Tour() {
 
 /** Lanza el tour automáticamente la primera vez (después de la bienvenida). */
 export function useFirstTour() {
-  const { uid } = useAuth()
+  const { tourSeen } = useFirstRun()
   useEffect(() => {
-    const h = () => { try { if (localStorage.getItem(`fj-tour-${uid}`) !== '1') startTour() } catch { /* */ } }
+    const h = () => { if (!tourSeen) startTour() }
     window.addEventListener('fj-onboarding-done', h)
     return () => window.removeEventListener('fj-onboarding-done', h)
-  }, [uid])
+  }, [tourSeen])
 }

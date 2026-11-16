@@ -6,7 +6,7 @@ cd "$(dirname "$0")/../.."
 psql -U postgres -v ON_ERROR_STOP=1 -qc "drop database if exists fuego_test" -c "create database fuego_test"
 P="psql -U postgres -d fuego_test -v ON_ERROR_STOP=1 -q"
 $P -f supabase/tests/00_mock_supabase.sql
-for f in supabase/migrations/0001_schema.sql supabase/migrations/0002_functions.sql supabase/migrations/0003_rls.sql supabase/migrations/0006_levels.sql supabase/migrations/0007_body_weight.sql supabase/migrations/0008_character.sql supabase/migrations/0009_body_records.sql supabase/migrations/0010_weekly.sql supabase/migrations/0011_life.sql supabase/migrations/0013_cycle.sql supabase/migrations/0014_more.sql; do
+for f in supabase/migrations/0001_schema.sql supabase/migrations/0002_functions.sql supabase/migrations/0003_rls.sql supabase/migrations/0006_levels.sql supabase/migrations/0007_body_weight.sql supabase/migrations/0008_character.sql supabase/migrations/0009_body_records.sql supabase/migrations/0010_weekly.sql supabase/migrations/0011_life.sql supabase/migrations/0013_cycle.sql supabase/migrations/0014_more.sql supabase/migrations/0015_first_run.sql; do
   $P -f "$f"
 done
 # re-ejecutar para comprobar que las migraciones son idempotentes

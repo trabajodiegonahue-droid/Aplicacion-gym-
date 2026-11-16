@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Scale, ChevronRight } from 'lucide-react'
 import { supabase, must } from '../lib/supabase'
 import { useAuth } from '../context/AuthProvider'
 import { useAction, useToday } from '../lib/queries'
+import { useFirstRun } from '../lib/firstRun'
 import { diffDays, fmtShort, startOfWeek } from '../lib/dates'
 import { Button, Card, Field, Input, Sheet, cx } from './ui'
 
@@ -90,6 +91,9 @@ export function BodyDataSheet({ open, onClose, mode }: { open: boolean; onClose:
 /** Pide los datos al entrar (si faltan) y el pesaje una vez por semana. Va dentro del AppShell. */
 export function BodyCheckPrompt() {
   const { uid, profile } = useAuth()
+  const first = useFirstRun()
+  const firstRef = useRef(first)
+  firstRef.current = first
   const today = useToday()
   const q = useBodyWeights()
   const [mode, setMode] = useState<'inicio' | 'semanal' | null>(null)
@@ -103,7 +107,7 @@ export function BodyCheckPrompt() {
     const ws = startOfWeek(today)
     const key = missing ? `fj-bodydata-asked-${uid}-${today}` : `fj-weighin-asked-${uid}-${ws}`
     try { if (localStorage.getItem(key) === '1' || localStorage.getItem('fj-no-prompts') === '1') return } catch { return }
-    const ready = () => { try { return localStorage.getItem(`fj-onboarded-${uid}`) === '1' && localStorage.getItem(`fj-tour-${uid}`) === '1' } catch { return false } }
+    const ready = () => firstRef.current.onboarded && firstRef.current.tourSeen
     let tries = 0
     const t = setInterval(() => {
       if (++tries > 240) return clearInterval(t)

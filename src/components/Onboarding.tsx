@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
+import { useFirstRun } from '../lib/firstRun'
 import { Person, PRESETS } from './Person'
 import { Flame } from './Flame'
 import { cx } from './ui'
@@ -15,14 +16,16 @@ const SLIDES = [
 
 export function Onboarding() {
   const { uid } = useAuth()
-  const key = `fj-onboarded-${uid}`
+  const first = useFirstRun()
   const [i, setI] = useState(0)
-  const [open, setOpen] = useState(() => { try { return !!uid && localStorage.getItem(key) !== '1' } catch { return false } })
-  if (!open || !uid) return null
+  const [closed, setClosed] = useState(false)
+  // Solo la primera vez de la cuenta (se espera a tener el perfil para no mostrarla de más)
+  if (closed || !uid || !first.loaded || first.onboarded) return null
   const close = (tour = false) => {
-    try { localStorage.setItem(key, '1'); if (!tour) localStorage.setItem(`fj-tour-${uid}`, '1') } catch { /* */ }
-    setOpen(false)
+    setClosed(true)
+    first.mark('onboarded')
     if (tour) window.dispatchEvent(new CustomEvent('fj-onboarding-done'))
+    else first.mark('tour')
   }
   const s = SLIDES[i]
   return createPortal(
