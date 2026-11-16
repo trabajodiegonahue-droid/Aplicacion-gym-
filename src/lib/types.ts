@@ -21,7 +21,7 @@ export interface Profile {
   start_weight_kg?: number | null
 }
 
-export type NotifKind = 'workout' | 'water' | 'habits' | 'streak_risk' | 'partner_activity' | 'streak' | 'goals' | 'challenges' | 'messages' | 'dates' | 'proposals' | 'couple'
+export type NotifKind = 'workout' | 'water' | 'habits' | 'streak_risk' | 'partner_activity' | 'streak' | 'goals' | 'challenges' | 'messages' | 'dates' | 'proposals' | 'couple' | 'weekly'
 export type NotificationPrefs = Partial<Record<NotifKind, { enabled?: boolean; time?: string; every_hours?: number; from?: string; to?: string }>>
 
 export interface Couple {

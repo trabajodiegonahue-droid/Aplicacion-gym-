@@ -9,7 +9,7 @@ import { PageHeader } from '../components/AppShell'
 
 const LINK: Record<string, string> = {
   messages: '/pareja', proposals: '/propuestas', streak: '/racha', streak_risk: '/racha', partner_activity: '/racha', water: '/habitos/agua',
-  workout: '/gym', habits: '/habitos', goals: '/habitos/metas', challenges: '/habitos/retos', dates: '/pareja/calendario', couple: '/pareja',
+  workout: '/gym', habits: '/habitos', goals: '/habitos/metas', challenges: '/habitos/retos', dates: '/pareja/calendario', couple: '/pareja', weekly: '/?semana=1',
 }
 
 export default function Notifications() {

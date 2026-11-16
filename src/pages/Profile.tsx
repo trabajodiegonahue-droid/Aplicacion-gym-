@@ -30,6 +30,7 @@ const NOTIF: { kind: NotifKind; label: string; time?: string; water?: boolean }[
   { kind: 'challenges', label: '🏆 Retos' },
   { kind: 'dates', label: '📅 Fechas importantes', time: '09:00' },
   { kind: 'couple', label: '💞 Pareja y recuerdos' },
+  { kind: 'weekly', label: '📊 Resumen semanal (domingo 19:00)' },
 ]
 
 export default function Profile() {

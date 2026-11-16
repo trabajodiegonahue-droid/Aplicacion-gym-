@@ -304,3 +304,21 @@ select pg_temp.check((select count(*) from public.notifications where title like
 delete from public.records where user_id = :D;
 select pg_temp.check((select count(*) from public.records where user_id = :D) = 2, 'la pareja no puede borrar récords ajenos');
 reset role;
+
+-- 15) RESUMEN SEMANAL --------------------------------------------------
+set role authenticated;
+select pg_temp.login(:D);
+select pg_temp.check((select count(*) from public.week_summary(current_date - 6, current_date)) = 2, 'resumen semanal: los dos miembros');
+select pg_temp.check((select records from public.week_summary(current_date - 6, current_date) where user_id = :D) = 2, 'resumen semanal cuenta récords de la semana');
+select pg_temp.expect_error($q$select * from public.week_summary(current_date - 90, current_date)$q$, 'resumen semanal: rango limitado');
+select pg_temp.login(:C);
+select pg_temp.check((select count(*) from public.week_summary(current_date - 6, current_date)) = 1, 'resumen semanal sin pareja: solo yo');
+reset role;
+-- Domingo 19:05 en la zona de Dani → se encola un aviso por persona, sin duplicar
+delete from public.notifications where kind = 'weekly';
+select private.enqueue_weekly(((date_trunc('week', now() at time zone 'UTC')::date + 6) + time '19:05') at time zone 'UTC');
+select private.enqueue_weekly(((date_trunc('week', now() at time zone 'UTC')::date + 6) + time '19:05') at time zone 'UTC');
+select pg_temp.check((select count(*) from public.notifications where kind = 'weekly' and user_id = :D) <= 1, 'aviso semanal sin duplicados');
+select pg_temp.check((select count(*) from public.notifications where kind = 'weekly') = (select count(*) from public.profiles p where private.user_tz(p.id) = 'UTC'), 'aviso semanal a quien es domingo 19:00');
+select private.enqueue_weekly(((date_trunc('week', now() at time zone 'UTC')::date + 2) + time '19:05') at time zone 'UTC');
+select pg_temp.check((select count(*) from public.notifications where kind = 'weekly') = (select count(*) from public.profiles p where private.user_tz(p.id) = 'UTC'), 'no se manda otro día');

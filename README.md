@@ -40,7 +40,8 @@ src/                   la app (páginas, componentes, service worker)
 | Vinculación por código, aceptación, desvinculación (sin borrar datos personales) | ✅ |
 | Racha compartida, récord, calendario, estados, alertas de peligro, historial, recuperación | ✅ |
 | Reglas configurables con aprobación de ambos y versionado | ✅ |
-| Gimnasio: rutinas, ejercicios por grupo muscular, series/reps/kg/duración/descanso, notas, historial, récords, gráficos, favoritas, temporizador de descanso | ✅ |
+| Gimnasio: rutinas, ejercicios por grupo muscular, series/reps/kg/duración/descanso, notas, historial, récords, gráficos, favoritas, temporizador de descanso (+15/−15 s, sonido y vibración), entrenamiento a medio hacer que se guarda solo, repetir el último, sugerencia de progresión | ✅ |
+| Resumen semanal de la pareja (MVP, racha, XP, récords) + aviso el domingo 19:00 | ✅ |
 | Agua: meta, vasos/botellas/personalizado, añadir/quitar, historial semanal/mensual | ✅ |
 | Actividad física: caminata, pasos, cardio, bici, correr, deportes, estadísticas, objetivos | ✅ (manual; Apple Salud no es accesible desde apps web) |
 | Hábitos con categorías editables, metas individuales/compartidas, retos con insignias y recompensas | ✅ |

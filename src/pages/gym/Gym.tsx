@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Star, Trash2, Pencil, Play, Dumbbell, Timer, Trophy, ChevronDown, ChevronUp, X, Copy, Check, Search, Library, ChevronRight } from 'lucide-react'
+import { Plus, Star, Trash2, Pencil, Play, Dumbbell, Timer, Trophy, TrendingUp, RotateCcw, ChevronDown, ChevronUp, X, Copy, Check, Search, Library, ChevronRight } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { supabase, must } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthProvider'
 import { LOG_KEYS, useAction } from '../../lib/queries'
 import type { Exercise, MuscleGroup, Routine, RoutineExercise, Workout, WorkoutSet } from '../../lib/types'
-import { fmtDay, fmtShort, localDateTimeToISO, nowTimeHHMM, toISODate, WEEKDAYS } from '../../lib/dates'
+import { addDays, fmtDay, fmtShort, localDateTimeToISO, nowTimeHHMM, toISODate, WEEKDAYS } from '../../lib/dates'
 import { Button, Card, Empty, Field, Input, Loading, ProgressBar, Segmented, Sheet, cx, useUi } from '../../components/ui'
 import { PageHeader } from '../../components/AppShell'
 import { WhenRow } from '../../components/TimePicker'
@@ -15,6 +15,8 @@ import RecordsTab from './Records'
 import { ExerciseInfoButton, MuscleStack, VariantChips, muscleSummary } from '../../components/MuscleInfo'
 import { EQUIPMENT, EXERCISE_LIBRARY, exerciseInfo, libraryByName, normalize, type Equipment } from '../../lib/exerciseLibrary'
 import { celebrate } from '../../components/Celebration'
+import { RestTimer, unlockAudio } from '../../components/RestTimer'
+import { clearDraft, describeSet, draftDoneSets, itemsFromSets, lastTimes, loadDraft, saveDraft, suggestNext, useWorkoutDraft, type DraftEx, type DraftSet, type Suggestion, type WorkoutDraft } from './workoutDraft'
 
 export const MUSCLES: { value: MuscleGroup; label: string; emoji: string }[] = [
   { value: 'pecho', label: 'Pecho', emoji: '🫁' }, { value: 'espalda', label: 'Espalda', emoji: '🔙' }, { value: 'hombros', label: 'Hombros', emoji: '🤷' },
@@ -45,15 +47,24 @@ function useRoutines() {
 export default function Gym() {
   const loc = useLocation()
   const nav = useNavigate()
+  const { uid } = useAuth()
   const tab = (TABS.find(t => loc.pathname.endsWith('/' + t.value))?.value ?? 'entrenar') as Tab
-  const [logger, setLogger] = useState<{ routine?: Routine; workout?: Workout } | null>(null)
+  const [logger, setLogger] = useState<LoggerOpen | null>(null)
+  // Desde Inicio: "Continuar entrenamiento"
+  useEffect(() => {
+    if ((loc.state as { resume?: boolean } | null)?.resume) {
+      const d = loadDraft(uid)
+      if (d) setLogger({ draft: d })
+      nav(loc.pathname, { replace: true, state: null })
+    }
+  }, [loc.state, loc.pathname, nav, uid])
   return (
     <div>
       <PageHeader title="Gimnasio" subtitle="Tus rutinas, series y récords" />
       <div className="px-4">
         <Segmented value={tab} onChange={v => nav(v === 'entrenar' ? '/gym' : `/gym/${v}`, { replace: true })} options={TABS} />
         <div className="mt-4">
-          {tab === 'entrenar' && <StartTab onStart={r => setLogger({ routine: r })} />}
+          {tab === 'entrenar' && <StartTab onOpen={setLogger} />}
           {tab === 'rutinas' && <RoutinesTab onStart={r => setLogger({ routine: r })} />}
           {tab === 'ejercicios' && <ExercisesTab />}
           {tab === 'historial' && <HistoryTab onEdit={w => setLogger({ workout: w })} />}
@@ -62,19 +73,59 @@ export default function Gym() {
           {tab === 'peso' && <BodyWeightTab />}
         </div>
       </div>
-      {logger && <WorkoutLogger routine={logger.routine} workout={logger.workout} onClose={() => setLogger(null)} />}
+      {logger && <WorkoutLogger {...logger} onClose={() => setLogger(null)} />}
     </div>
   )
 }
 
 // ---------------------------------------------------------------------
-function StartTab({ onStart }: { onStart: (r?: Routine) => void }) {
+function StartTab({ onOpen }: { onOpen: (o: LoggerOpen) => void }) {
+  const { confirm } = useUi()
+  const { uid } = useAuth()
   const routines = useRoutines().data ?? []
+  const exercises = useExercises().data ?? []
+  const lastW = (useRecentWorkouts().data ?? []).find(w => (w.workout_sets?.length ?? 0) > 0)
+  const draft = useWorkoutDraft()
   const todayWd = new Date().getDay()
   const suggested = routines.filter(r => r.weekdays.includes(todayWd))
+  // Si hay uno a medio hacer, pregunta antes de empezar otro
+  const start = async (o: LoggerOpen) => {
+    if (draft && !(await confirm({ title: 'Tienes un entrenamiento a medio hacer', text: 'Si empiezas uno nuevo, el anterior se descarta.', confirm: 'Empezar nuevo', danger: true }))) return
+    clearDraft(uid)
+    onOpen(o)
+  }
+  const onStart = (r?: Routine) => start({ routine: r })
+  const lastNames = lastW ? [...new Set(lastW.workout_sets!.map(s => exercises.find(e => e.id === s.exercise_id)?.name).filter(Boolean))] : []
   return (
     <div className="stagger space-y-3">
+      {draft && (
+        <Card className="border-2 border-fuego-300 dark:border-fuego-700" data-tour="draft">
+          <div className="flex items-center gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-ember text-white animate-pulse"><Timer className="size-5" /></span>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold">Entrenamiento a medio hacer</p>
+              <p className="muted truncate text-[12.5px]">{draft.title} · {draftDoneSets(draft)} {draftDoneSets(draft) === 1 ? "serie hecha" : "series hechas"} · empezado {new Date(draft.startedAt).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}</p>
+            </div>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <Button variant="ember" className="flex-1" onClick={() => onOpen({ draft })}><Play className="size-4" />Continuar</Button>
+            <Button variant="ghost" className="text-red-600" onClick={async () => { if (await confirm({ title: '¿Descartar el entrenamiento a medio hacer?', text: 'Se borra lo registrado y no se guarda nada.', confirm: 'Descartar', danger: true })) clearDraft(uid) }}>Descartar</Button>
+          </div>
+        </Card>
+      )}
       <Button variant="ember" className="w-full min-h-14 text-[16px]" onClick={() => onStart()}><Play className="size-5" />Empezar entrenamiento libre</Button>
+      {lastW && (
+        <Card onClick={() => start({ repeat: lastW })} data-testid="repeat-last">
+          <div className="flex items-center gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-fuego-100 text-fuego-600 dark:bg-noche-700"><RotateCcw className="size-5" /></span>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold">Repetir el último</p>
+              <p className="muted truncate text-[12.5px]">{lastW.title} · {fmtShort(lastW.local_day)}{lastNames.length ? ` · ${lastNames.slice(0, 3).join(', ')}${lastNames.length > 3 ? '…' : ''}` : ''}</p>
+            </div>
+            <ChevronRight className="size-5 text-fuego-400" />
+          </div>
+        </Card>
+      )}
       {suggested.length > 0 && <p className="px-1 pt-2 font-bold">Para hoy ({WEEKDAYS[todayWd]})</p>}
       {suggested.map(r => <RoutineCard key={r.id} r={r} onStart={onStart} />)}
       <p className="px-1 pt-2 font-bold">Tus rutinas</p>
@@ -385,48 +436,57 @@ function ExercisesTab() {
 
 // ---------------------------------------------------------------------
 // Registro de entrenamiento (series, reps, peso, duración, descanso)
-type DraftSet = { reps: string; weight_kg: string; duration_sec: string; rest_sec: string; done: boolean }
-type DraftEx = { exercise_id: string; sets: DraftSet[]; open: boolean }
+function useRecentWorkouts() {
+  const { uid } = useAuth()
+  return useQuery({
+    queryKey: ['workouts', uid, 'recent'], enabled: !!uid,
+    queryFn: () => must(supabase.from('workouts').select('id, title, local_day, routine_id, workout_sets(*)').eq('user_id', uid!).order('performed_at', { ascending: false }).limit(30)) as Promise<Workout[]>,
+  })
+}
 
-function WorkoutLogger({ routine, workout, onClose }: { routine?: Routine; workout?: Workout; onClose: () => void }) {
+const relDay = (d: string) => { const t = toISODate(new Date()); return d === t ? 'hoy' : d === addDays(t, -1) ? 'ayer' : fmtShort(d) }
+
+type LoggerOpen = { routine?: Routine; workout?: Workout; draft?: WorkoutDraft; repeat?: Workout }
+
+function WorkoutLogger({ routine, workout, draft, repeat, onClose }: LoggerOpen & { onClose: () => void }) {
   const { uid } = useAuth()
   const { confirm } = useUi()
   const exercises = useExercises().data ?? []
+  const recent = useRecentWorkouts().data ?? []
+  const last = useMemo(() => lastTimes(recent, workout?.id), [recent, workout?.id])
   const performed = workout ? new Date(workout.performed_at) : new Date()
-  const [title, setTitle] = useState(workout?.title ?? routine?.name ?? 'Entrenamiento')
+  const [title, setTitle] = useState(draft?.title ?? workout?.title ?? routine?.name ?? repeat?.title ?? 'Entrenamiento')
   const [date, setDate] = useState(toISODate(performed))
   const [time, setTime] = useState(workout ? `${String(performed.getHours()).padStart(2, '0')}:${String(performed.getMinutes()).padStart(2, '0')}` : nowTimeHHMM())
   const [duration, setDuration] = useState(String(workout?.duration_min ?? ''))
   const [notes, setNotes] = useState(workout?.notes ?? '')
   const [items, setItems] = useState<DraftEx[]>(() => {
-    if (workout?.workout_sets?.length) {
-      const by = new Map<string, DraftSet[]>()
-      for (const s of [...workout.workout_sets].sort((a, b) => a.set_number - b.set_number)) {
-        const arr = by.get(s.exercise_id) ?? []
-        arr.push({ reps: String(s.reps ?? ''), weight_kg: String(s.weight_kg ?? ''), duration_sec: String(s.duration_sec ?? ''), rest_sec: String(s.rest_sec ?? ''), done: true })
-        by.set(s.exercise_id, arr)
-      }
-      return [...by.entries()].map(([exercise_id, sets]) => ({ exercise_id, sets, open: false }))
-    }
+    if (draft) return draft.items
+    if (workout?.workout_sets?.length) return itemsFromSets(workout.workout_sets, true)
+    if (repeat?.workout_sets?.length) return itemsFromSets(repeat.workout_sets, false)
     return (routine?.routine_exercises ?? []).sort((a, b) => a.position - b.position).map((re: RoutineExercise) => ({
       exercise_id: re.exercise_id, open: true,
       sets: Array.from({ length: re.target_sets ?? 3 }, () => ({ reps: String(re.target_reps ?? ''), weight_kg: String(re.target_weight_kg ?? ''), duration_sec: '', rest_sec: String(re.rest_seconds ?? ''), done: false })),
     }))
   })
+  const routineId = draft?.routineId ?? routine?.id ?? repeat?.routine_id ?? workout?.routine_id ?? null
   const [picker, setPicker] = useState(false)
-  const [startedAt] = useState(Date.now())
-  const [rest, setRest] = useState<number | null>(null)
+  const [startedAt] = useState(draft?.startedAt ?? Date.now())
+  const [rest, setRest] = useState<{ end: number; total: number } | null>(draft?.restEnd && draft.restEnd > Date.now() ? { end: draft.restEnd, total: draft.restTotal } : null)
+
+  // Guardado automático en el teléfono mientras entrenas (no al editar uno ya guardado)
   useEffect(() => {
-    if (rest === null) return
-    if (rest <= 0) { navigator.vibrate?.([80, 60, 80]); setRest(null); return }
-    const t = setTimeout(() => setRest(r => (r ?? 1) - 1), 1000)
+    if (workout) return
+    const t = setTimeout(() => items.length === 0 && !rest ? clearDraft(uid) : saveDraft(uid, { title, items, startedAt, routineId, restEnd: rest?.end ?? null, restTotal: rest?.total ?? 0 }), 300)
     return () => clearTimeout(t)
-  }, [rest])
+  }, [workout, uid, title, items, startedAt, routineId, rest])
+
+  const startRest = (sec: number) => { unlockAudio(); setRest({ end: Date.now() + sec * 1000, total: sec }) }
 
   const n = (s: string) => (s === '' ? null : Number(s))
   const save = useAction(async () => {
     const dur = duration ? Number(duration) : (workout ? null : Math.max(1, Math.round((Date.now() - startedAt) / 60000)))
-    const row = { title: title.trim() || 'Entrenamiento', performed_at: localDateTimeToISO(date, time), duration_min: dur, notes: notes || null, routine_id: routine?.id ?? workout?.routine_id ?? null }
+    const row = { title: title.trim() || 'Entrenamiento', performed_at: localDateTimeToISO(date, time), duration_min: dur, notes: notes || null, routine_id: routineId }
     let id = workout?.id
     if (id) await must(supabase.from('workouts').update(row).eq('id', id))
     else id = ((await must(supabase.from('workouts').insert({ ...row, user_id: uid }).select('id').single())) as { id: string }).id
@@ -439,22 +499,41 @@ function WorkoutLogger({ routine, workout, onClose }: { routine?: Routine; worko
 
   const del = useAction(async () => must(supabase.from('workouts').delete().eq('id', workout!.id)), { invalidate: [['workouts'], ['records'], ...LOG_KEYS], success: 'Entrenamiento eliminado' })
   const updSet = (i: number, j: number, patch: Partial<DraftSet>) => setItems(a => a.map((x, k) => k === i ? { ...x, sets: x.sets.map((s, l) => l === j ? { ...s, ...patch } : s) } : x))
+  const applySuggestion = (i: number, s: Suggestion) => setItems(a => a.map((x, k) => k === i ? {
+    ...x, sets: x.sets.map(st => st.done ? st : { ...st, reps: s.reps != null ? String(s.reps) : st.reps, weight_kg: s.weight_kg != null ? String(s.weight_kg) : st.weight_kg, duration_sec: s.duration_sec != null ? String(s.duration_sec) : st.duration_sec }),
+  } : x))
+
+  const doneSets = items.reduce((a, it) => a + it.sets.filter(s => s.done).length, 0)
+  const totalSets = items.reduce((a, it) => a + it.sets.length, 0)
+
+  const tryClose = async () => {
+    if (workout) { if (await confirm({ title: '¿Salir sin guardar?', text: 'Perderás los cambios de esta pantalla.', confirm: 'Salir', danger: true })) onClose(); return }
+    // El borrador ya está guardado: cerrar no pierde nada.
+    onClose()
+  }
+  const discard = async () => {
+    if (await confirm({ title: '¿Descartar este entrenamiento?', text: 'Se borra lo que llevas registrado en esta pantalla. No se guarda nada.', confirm: 'Descartar', danger: true })) { clearDraft(uid); onClose() }
+  }
 
   return (
-    <Sheet open onClose={async () => { if (await confirm({ title: '¿Salir sin guardar?', text: 'Perderás lo que registraste en esta pantalla.', confirm: 'Salir', danger: true })) onClose() }} title={workout ? 'Editar entrenamiento' : 'Entrenando 💪'}>
+    <Sheet open onClose={tryClose} title={workout ? 'Editar entrenamiento' : 'Entrenando 💪'}>
       <div className="stagger space-y-3">
+        {!workout && <p className="muted flex items-center gap-1.5 text-[12.5px]"><Check className="size-3.5 text-emerald-500" />Se guarda solo en tu teléfono mientras entrenas: puedes cerrar y seguir después.</p>}
         <Field label="Título"><Input value={title} onChange={e => setTitle(e.target.value)} maxLength={80} /></Field>
         <WhenRow date={date} setDate={setDate} time={time} setTime={setTime} />
-        <Field label="Duración (minutos)" hint="Si lo dejas vacío, se calcula sola desde que abriste esta pantalla."><Input type="number" inputMode="numeric" min={0} placeholder="Automática" value={duration} onChange={e => setDuration(e.target.value)} /></Field>
-        {rest !== null && (
-          <div className="sticky top-0 z-10 flex items-center justify-between rounded-2xl bg-ink px-4 py-3 text-white shadow-lg dark:bg-white dark:text-ink">
-            <span className="flex items-center gap-2 font-bold"><Timer className="size-5" />Descanso</span>
-            <span className="tabular text-2xl font-semibold">{Math.floor(rest / 60)}:{String(rest % 60).padStart(2, '0')}</span>
-            <button onClick={() => setRest(null)} className="rounded-full bg-white/25 px-3 py-1 text-sm font-semibold">Saltar</button>
+        <Field label="Duración (minutos)" hint="Si lo dejas vacío, se calcula sola desde que empezaste."><Input type="number" inputMode="numeric" min={0} placeholder="Automática" value={duration} onChange={e => setDuration(e.target.value)} /></Field>
+        {rest && <RestTimer endAt={rest.end} total={rest.total} onChange={(end, total) => setRest(end === null ? null : { end, total: total ?? rest.total })} />}
+        {!rest && totalSets > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="muted shrink-0 text-[12.5px] font-semibold"><Timer className="mr-1 inline size-3.5" />Descanso</span>
+            <div className="flex flex-1 gap-1.5">{[60, 90, 120, 180].map(s => <button key={s} type="button" className="min-h-9 flex-1 whitespace-nowrap rounded-full bg-fuego-100 text-[13px] font-semibold text-fuego-800 transition active:scale-95 dark:bg-noche-700 dark:text-fuego-100" onClick={() => startRest(s)}>{s < 120 ? `${s}s` : `${s / 60}m`}</button>)}</div>
           </div>
         )}
+        {totalSets > 0 && <ProgressBar value={doneSets} max={totalSets} label={`${doneSets} de ${totalSets} series hechas`} showPct />}
         {items.map((it, i) => {
           const ex = exercises.find(e => e.id === it.exercise_id)
+          const lt = last.get(it.exercise_id)
+          const sug = lt && !workout ? suggestNext(lt, ex?.muscle_group) : null
           return (
             <div key={i} className="rounded-2xl bg-white p-3 dark:bg-noche-800">
               <div className="flex items-center gap-2">
@@ -465,6 +544,13 @@ function WorkoutLogger({ routine, workout, onClose }: { routine?: Routine; worko
                 {ex && <ExerciseInfoButton name={ex.name} />}
                 <button className="p-1.5 text-red-500" onClick={() => setItems(a => a.filter((_, k) => k !== i))} aria-label="Quitar ejercicio"><X className="size-4" /></button>
               </div>
+              {lt && !workout && (
+                <div className="mt-2 flex items-center gap-2 rounded-xl bg-fuego-50 px-2.5 py-2 text-[12.5px] dark:bg-noche-700/60" data-testid="last-time">
+                  <TrendingUp className="size-4 shrink-0 text-fuego-500" />
+                  <p className="min-w-0 flex-1 leading-snug"><span className="muted">La última vez ({relDay(lt.day)}):</span> <b>{describeSet(lt.best)}</b>{sug && <><br /><span className="text-fuego-700 dark:text-fuego-200">Sugerencia: {sug.text}</span></>}</p>
+                  {sug && <button type="button" className="btn-soft min-h-8 px-2.5 text-[12px]" onClick={() => applySuggestion(i, sug)}>Usar</button>}
+                </div>
+              )}
               {it.open && (
                 <div className="mt-2 space-y-1.5">
                   <div className="muted grid grid-cols-[24px_1fr_1fr_1fr_1fr_40px] gap-1 text-[11px] font-bold"><span>#</span><span>Reps</span><span>Kg</span><span>Seg</span><span>Desc.</span><span /></div>
@@ -474,8 +560,8 @@ function WorkoutLogger({ routine, workout, onClose }: { routine?: Routine; worko
                       {(['reps', 'weight_kg', 'duration_sec', 'rest_sec'] as const).map(k => (
                         <input key={k} className="input min-h-10 px-2 py-1 text-center" type="number" inputMode="decimal" min={0} step={k === 'weight_kg' ? 0.5 : 1} value={s[k]} onChange={e => updSet(i, j, { [k]: e.target.value })} />
                       ))}
-                      <button onClick={() => { updSet(i, j, { done: !s.done }); if (!s.done && s.rest_sec) setRest(Number(s.rest_sec)) }}
-                        className={cx('flex size-10 items-center justify-center rounded-xl', s.done ? 'bg-emerald-500 text-white' : 'bg-fuego-100 text-fuego-800/40 dark:bg-noche-700')} aria-label="Serie hecha"><Check className="size-4" strokeWidth={3} /></button>
+                      <button onClick={() => { updSet(i, j, { done: !s.done }); if (!s.done) startRest(Number(s.rest_sec) || 90) }}
+                        className={cx('flex size-10 items-center justify-center rounded-xl transition-transform active:scale-90', s.done ? 'bg-emerald-500 text-white' : 'bg-fuego-100 text-fuego-800/40 dark:bg-noche-700')} aria-label="Serie hecha"><Check className="size-4" strokeWidth={3} /></button>
                     </div>
                   ))}
                   <div className="flex gap-2 pt-1">
@@ -489,7 +575,9 @@ function WorkoutLogger({ routine, workout, onClose }: { routine?: Routine; worko
         })}
         <Button variant="soft" className="w-full" onClick={() => setPicker(true)}><Plus className="size-4" />Añadir ejercicios</Button>
         <Field label="Notas"><textarea className="input min-h-20" maxLength={1000} value={notes} onChange={e => setNotes(e.target.value)} placeholder="¿Cómo te sentiste?" /></Field>
-        <Button variant="ember" className="sticky-save w-full min-h-14 text-lg" loading={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: () => { if (!workout) celebrate(['💪', '🔥', '🏋️']); onClose() } })}>{workout ? 'Guardar cambios' : 'Terminar y guardar'}</Button>
+        {!workout && <p className="muted text-[12px] leading-relaxed">ℹ️ En iPhone, con la pantalla bloqueada el aviso de fin de descanso puede no sonar (límite de Safari). Al volver a la app verás el tiempo correcto.</p>}
+        <Button variant="ember" className="sticky-save w-full min-h-14 text-lg" loading={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: () => { if (!workout) { clearDraft(uid); celebrate(['💪', '🔥', '🏋️']) } onClose() } })}>{workout ? 'Guardar cambios' : 'Terminar y guardar'}</Button>
+        {!workout && <Button variant="ghost" className="w-full text-red-600" onClick={discard}><Trash2 className="size-4" />Descartar entrenamiento</Button>}
         {workout && <Button variant="ghost" className="w-full text-red-600" onClick={async () => { if (await confirm({ title: '¿Eliminar este entrenamiento?', text: 'Si era de hoy, puede afectar tu estado de racha del día.', danger: true, confirm: 'Eliminar' })) del.mutate(undefined, { onSuccess: onClose }) }}><Trash2 className="size-4" />Eliminar entrenamiento</Button>}
       </div>
       <ExercisePicker open={picker} onClose={() => setPicker(false)} title="Añadir al entrenamiento" onPick={exs => setItems(a => [...a, ...exs.map(ex => ({ exercise_id: ex.id, open: true, sets: [1, 2, 3].map(() => ({ reps: '', weight_kg: '', duration_sec: '', rest_sec: '90', done: false })) }))])} />

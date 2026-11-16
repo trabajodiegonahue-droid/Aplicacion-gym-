@@ -14,6 +14,8 @@ import { CoupleScene, LevelUpWatcher } from '../components/Characters'
 import { startTour } from '../components/Tour'
 import { GoalsHome } from '../components/Goals'
 import { CountUp, Embers } from '../components/Motion'
+import { WeeklySummary } from '../components/WeeklySummary'
+import { draftDoneSets, useWorkoutDraft } from './gym/workoutDraft'
 import type { Habit, HabitLog, MemberDay, StreakDay } from '../lib/types'
 
 const QUOTES = [
@@ -68,6 +70,7 @@ export function WeekStrip({ today, days, dark }: { today: string | null; days: S
 export default function Home() {
   const { profile, couple, partner, uid } = useAuth()
   const nav = useNavigate()
+  const draft = useWorkoutDraft()
   const { toast, confirm } = useUi()
   const today = useToday()
   const streak = useStreak().data
@@ -186,6 +189,14 @@ export default function Home() {
           </Card>
         )}
 
+        {draft && (
+          <Card onClick={() => nav('/gym', { state: { resume: true } })} className="flex items-center gap-3 ring-2 ring-ember/40" data-testid="resume-workout">
+            <span className="flex size-10 items-center justify-center rounded-full bg-ember text-white animate-pulse"><Dumbbell className="size-5" /></span>
+            <div className="min-w-0 flex-1"><p className="text-[15px] font-semibold">Entrenamiento a medio hacer</p><p className="muted truncate text-[13px]">{draft.title} · {draftDoneSets(draft)} {draftDoneSets(draft) === 1 ? "serie" : "series"} · toca para continuar</p></div>
+            <ChevronRight className="size-5 text-fuego-800/40" />
+          </Card>
+        )}
+
         <SectionTitle>Registrar</SectionTitle>
         <div className="grid grid-cols-4 gap-2" data-tour="quick">
           {[
@@ -205,6 +216,8 @@ export default function Home() {
         </div>
 
         <GoalsHome />
+
+        <WeeklySummary />
 
         <SectionTitle action={<Link to="/estadisticas" className="text-[13px] font-medium text-ember">Estadísticas</Link>}>Tu día</SectionTitle>
         <Card className="divide-y divide-black/[.05] p-0 dark:divide-white/[.06]" data-tour="day">

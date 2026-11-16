@@ -28,6 +28,7 @@ Solo necesitas un ordenador con navegador para la configuración; después todo 
 4. Debe terminar con **Success. No rows returned**.
    - Si aparece un aviso de “destructive operation”, pulsa **Run this query** (el script solo borra y recrea sus propias políticas).
    - Si algo falla, copia el mensaje de error y envíamelo.
+   - **¿Ya lo habías pegado antes?** Cuando la app se actualiza, vuelve a pegar el `setup.sql` completo y pulsa **Run**: es seguro repetirlo (no borra sus datos, solo añade lo nuevo).
 
 Esto crea: tablas, seguridad por filas (RLS), el motor de la racha, tareas automáticas cada 15 min, el almacenamiento privado de fotos y la sincronización en tiempo real.
 

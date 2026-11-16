@@ -141,9 +141,23 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
   }, [open])
+  // Escape cierra solo la hoja de más arriba
+  const ref = useRef<HTMLDivElement>(null)
+  const closeRef = useRef(onClose)
+  closeRef.current = onClose
+  useEffect(() => {
+    if (!open) return
+    const h = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      const all = document.querySelectorAll('[data-sheet]')
+      if (all[all.length - 1] === ref.current && !document.querySelector('[data-confirm]')) closeRef.current()
+    }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [open])
   if (!open) return null
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div ref={ref} data-sheet className="fixed inset-0 z-50 flex items-end justify-center">
       <div className="absolute inset-0 bg-black/35 backdrop-blur-[3px]" onClick={onClose} />
       <div className="relative flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-[26px] bg-fuego-50 shadow-2xl animate-rise dark:bg-noche-900"
         style={{ paddingBottom: 'max(var(--safe-bottom), 16px)' }}>
@@ -190,7 +204,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
           ))}
         </div>, document.body)}
       {conf && createPortal(
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-6">
+        <div data-confirm role="alertdialog" className="fixed inset-0 z-[80] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-black/50" onClick={() => close(false)} />
           <div className="relative w-full max-w-[320px] rounded-[22px] bg-white p-5 text-center shadow-2xl animate-pop dark:bg-noche-800">
             <h3 className="text-[17px] font-semibold">{conf.title}</h3>
