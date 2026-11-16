@@ -7,9 +7,11 @@ interface Req { method?: string; headers: Record<string, string | string[] | und
 interface Res { status: (n: number) => Res; json: (b: unknown) => void }
 
 const {
-  SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY,
+  SUPABASE_SERVICE_ROLE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY,
   VAPID_SUBJECT = 'mailto:admin@example.com', PUSH_SECRET,
 } = process.env
+// Acepta la URL aunque se haya pegado con /rest/v1/ al final
+const SUPABASE_URL = process.env.SUPABASE_URL?.trim().replace(/\/(rest|auth)\/v1\/?$/, '').replace(/\/+$/, '')
 
 const URLS: Record<string, string> = {
   messages: '/pareja', proposals: '/propuestas', streak: '/racha', streak_risk: '/racha', partner_activity: '/racha',

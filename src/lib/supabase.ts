@@ -1,8 +1,9 @@
 import { loadDemoBackend } from '../demo/lazy'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+// Si se pega la URL con /rest/v1/ al final (copiada del panel), se limpia sola
+const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim().replace(/\/(rest|auth)\/v1\/?$/, '').replace(/\/+$/, '')
+const key = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim()
 
 /** Modo demo: base de datos real (PGlite) dentro del navegador, sin servidor. */
 export const isDemo = import.meta.env.VITE_DEMO === 'true'
