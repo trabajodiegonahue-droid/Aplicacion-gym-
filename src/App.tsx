@@ -20,6 +20,7 @@ const Couple = lazy(() => import('./pages/couple/Couple'))
 const Profile = lazy(() => import('./pages/Profile'))
 const Stats = lazy(() => import('./pages/Stats'))
 const Notifications = lazy(() => import('./pages/Notifications'))
+const CalendarPage = lazy(() => import('./pages/CalendarPage'))
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth()
@@ -52,6 +53,7 @@ export default function App() {
             <Route path="pareja/*" element={<Couple />} />
             <Route path="perfil" element={<Profile />} />
             <Route path="estadisticas" element={<Stats />} />
+            <Route path="calendario" element={<CalendarPage />} />
             <Route path="notificaciones" element={<Notifications />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

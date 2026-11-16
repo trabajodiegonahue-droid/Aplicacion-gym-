@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, Moon, Check } from 'lucide-react'
+import { ChevronLeft, Moon, Check, Snowflake } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts'
 import { supabase, must } from '../lib/supabase'
 import { useAuth } from '../context/AuthProvider'
@@ -13,6 +13,7 @@ import type { Goal } from '../lib/types'
 import { colorFor, levelFromXp, stageForLevel, useLevels } from '../lib/levels'
 import { Character } from '../components/Character'
 import { CountUp } from '../components/Motion'
+import { ENERGY, MOOD, type Checkin } from '../lib/life'
 
 type Range = 'dia' | 'semana' | 'mes'
 interface Row { user_id: string; workouts: number; workout_minutes: number; activity_minutes: number; steps: number; water_ml: number; habit_checks: number; completed_days: number; rest_days: number }
@@ -44,6 +45,7 @@ export default function Stats() {
   const prev = useQuery({ queryKey: ['stats', 'prev', pFrom, pToFair], enabled: !!pFrom, queryFn: () => must(supabase.rpc('couple_stats', { p_from: pFrom, p_to: pToFair })) as Promise<Row[]> })
   const series = useQuery({ queryKey: ['stats', 'series', from, to], enabled: !!from && range !== 'dia', queryFn: () => must(supabase.rpc('daily_series', { p_from: from, p_to: to })) as Promise<Series[]> })
   const sdays = useStreakDays(from, to).data ?? []
+  const checkins = useQuery({ queryKey: ['life', 'checkins-range', from, to], enabled: !!from, queryFn: () => must(supabase.from('checkins').select('*').gte('day', from!).lte('day', to!)) as Promise<Checkin[]> }).data ?? []
   const goalsDone = useQuery({ queryKey: ['goals', 'done'], queryFn: () => must(supabase.from('goals').select('id,status').eq('status', 'completed')) as Promise<Goal[]> }).data?.length ?? 0
   const levels = useLevels().data ?? []
   const myColor = colorFor(uid, partner?.id)
@@ -146,6 +148,30 @@ export default function Stats() {
         )}
         {partner && <p className="muted -mt-1 flex items-center justify-center gap-3 text-[11.5px]"><span className="flex items-center gap-1"><i className="inline-block size-2 rounded-full" style={{ background: COLORS[myColor] }} />{myName}</span><span className="flex items-center gap-1"><i className="inline-block size-2 rounded-full" style={{ background: COLORS[theirColor] }} />{pName}</span><span>· la barra es lo que suman juntos</span></p>}
 
+        {/* Cómo se sintieron */}
+        {checkins.length > 0 && (
+          <Card>
+            <p className="font-bold">💭 Cómo se sintieron</p>
+            <p className="muted mb-2 text-[12.5px]">Promedios del período (de lo que contaron en "¿Cómo te sientes hoy?").</p>
+            <div className="space-y-2">
+              {[{ id: uid, name: myName }, ...(partner ? [{ id: partner.id, name: pName }] : [])].map(p => {
+                const c = checkins.filter(x => x.user_id === p.id)
+                if (!c.length) return <p key={p.id} className="muted text-[13px]">{p.name}: sin registros.</p>
+                const avg = (f: (x: Checkin) => number | null) => { const v = c.map(f).filter((n): n is number => n != null); return v.length ? v.reduce((a, b) => a + Number(b), 0) / v.length : null }
+                const e = avg(x => x.energy), m = avg(x => x.mood), sl = avg(x => (x.sleep_hours == null ? null : Number(x.sleep_hours)))
+                return (
+                  <div key={p.id} className="flex flex-wrap items-center gap-1.5 text-[13px]">
+                    <span className="w-16 shrink-0 font-semibold">{p.name}</span>
+                    {e != null && <span className="chip">{ENERGY[Math.round(e)]} energía {e.toFixed(1)}</span>}
+                    {m != null && <span className="chip">{MOOD[Math.round(m)]} ánimo {m.toFixed(1)}</span>}
+                    {sl != null && <span className="chip">😴 {sl.toFixed(1)} h</span>}
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        )}
+
         {/* Calendario de la racha */}
         {couple && range !== 'dia' && from && to && (
           <Card>
@@ -160,9 +186,9 @@ export default function Stats() {
                 const fut = today ? d > today : false
                 return (
                   <span key={d} style={{ animationDelay: `${i * 18}ms` }} className={cx('stagger-dot flex aspect-square items-center justify-center rounded-xl text-[11px] font-semibold',
-                    st === 'completed' || st === 'recovered' ? 'bg-ember text-white shadow-sm' : st === 'rest' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-200' : fut ? 'text-fuego-800/30 dark:text-white/25' : 'bg-fuego-100 text-fuego-800/60 dark:bg-noche-700 dark:text-white/50',
+                    st === 'completed' || st === 'recovered' ? 'bg-ember text-white shadow-sm' : st === 'rest' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-200' : st === 'paused' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-200' : fut ? 'text-fuego-800/30 dark:text-white/25' : 'bg-fuego-100 text-fuego-800/60 dark:bg-noche-700 dark:text-white/50',
                     d === today && 'ring-2 ring-fuego-400 ring-offset-1 ring-offset-white dark:ring-offset-noche-800')}>
-                    {st === 'completed' || st === 'recovered' ? <Check className="size-3.5" strokeWidth={3} /> : st === 'rest' ? <Moon className="size-3" /> : Number(d.slice(8))}
+                    {st === 'completed' || st === 'recovered' ? <Check className="size-3.5" strokeWidth={3} /> : st === 'rest' ? <Moon className="size-3" /> : st === 'paused' ? <Snowflake className="size-3" /> : Number(d.slice(8))}
                   </span>
                 )
               })}

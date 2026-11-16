@@ -322,3 +322,136 @@ select pg_temp.check((select count(*) from public.notifications where kind = 'we
 select pg_temp.check((select count(*) from public.notifications where kind = 'weekly') = (select count(*) from public.profiles p where private.user_tz(p.id) = 'UTC'), 'aviso semanal a quien es domingo 19:00');
 select private.enqueue_weekly(((date_trunc('week', now() at time zone 'UTC')::date + 2) + time '19:05') at time zone 'UTC');
 select pg_temp.check((select count(*) from public.notifications where kind = 'weekly') = (select count(*) from public.profiles p where private.user_tz(p.id) = 'UTC'), 'no se manda otro día');
+
+-- 16) VIDA REAL: pausas, mínimos, eventos suaves, cómo me siento, lesiones,
+--     privacidad, ciclo, entreno juntos y calendario (pareja nueva en UTC)
+\set F '''ffffffff-0000-0000-0000-000000000007'''
+\set G '''99999999-0000-0000-0000-000000000008'''
+reset role;
+insert into auth.users(id, email, raw_user_meta_data) values
+  (:F, 'f@example.com', '{"display_name":"Fran","timezone":"UTC"}'),
+  (:G, 'g@example.com', '{"display_name":"Gabi","timezone":"UTC"}');
+set role authenticated;
+select pg_temp.login(:F);
+truncate t_code;
+insert into t_code select code from public.create_invitation();
+select pg_temp.login(:G);
+select public.accept_invitation((select code from t_code));
+
+-- Pausa por enfermedad (Fran) y día de mínimos con 10 min (Gabi)
+select pg_temp.login(:F);
+select pg_temp.expect_error($q$insert into public.pauses(kind, start_date) values ('enfermedad', current_date - 1)$q$, 'una pausa no empieza en el pasado');
+insert into public.pauses(kind, start_date, note) values ('enfermedad', current_date, 'gripe');
+select pg_temp.expect_error($q$insert into public.pauses(kind, start_date) values ('viaje', current_date + 1)$q$, 'no se solapan pausas');
+select pg_temp.check((select status from public.member_day_status where user_id = :F and day = current_date) = 'paused', 'Fran queda en pausa hoy');
+select pg_temp.login(:G);
+select pg_temp.check((select count(*) from public.pauses where user_id = :F) = 1, 'la pareja ve la pausa');
+select pg_temp.expect_error(format($q$insert into public.pauses(user_id, kind, start_date) values (%L, 'otro', current_date + 5)$q$, :F), 'nadie activa una pausa por el otro');
+insert into public.activity_logs(user_id, kind, minutes) values (:G, 'caminata', 10);
+select pg_temp.check((select status from public.member_day_status where user_id = :G and day = current_date) = 'in_progress', 'Gabi con 10 min: aún no cumple (pide 30)');
+insert into public.easy_days(day, reason) values (current_date, 'exámenes');
+select pg_temp.check((select status from public.member_day_status where user_id = :G and day = current_date) = 'completed', 'día de mínimos: 10 min cuentan');
+select pg_temp.check((select status from public.streak_days where couple_id = private.my_couple() and day = current_date) = 'paused', 'uno en pausa + otro cumple = día congelado');
+reset role;
+update public.streak_rules set rules = rules || '{"easy_days_per_month": 0}'::jsonb where couple_id = private.active_couple(:G);
+set role authenticated;
+select pg_temp.login(:G);
+select pg_temp.expect_error($q$insert into public.easy_days(day) values (current_date + 1)$q$, 'cupo mensual de días de mínimos');
+reset role;
+-- Al cerrar el día, la pausa NO rompe la racha
+select private.finalize_all(now() + interval '1 day 2 hours');
+select pg_temp.check((select status from public.streak_days where couple_id = private.active_couple(:F) and day = current_date) = 'paused', 'al cerrar, el día en pausa no queda perdido');
+select pg_temp.check((select status from public.member_day_status where user_id = :F and day = current_date) = 'paused', 'Fran sigue en pausa tras el cierre');
+
+-- Evento "día suave" planificado con anticipación
+set role authenticated;
+select pg_temp.login(:F);
+insert into public.calendar_events(couple_id, title, kind, event_date, end_date, lighten, for_user) values (private.my_couple(), 'Exámenes', 'examen', current_date + 1, current_date + 3, true, :F);
+insert into public.calendar_events(couple_id, title, kind, event_date, lighten) values (private.my_couple(), 'Turno largo', 'trabajo', current_date, true);
+reset role;
+select pg_temp.check(((private.compute_member(private.active_couple(:F), :F, current_date + 2, now())).details->>'is_easy')::boolean, 'evento suave planificado = día de mínimos');
+select pg_temp.check(not ((private.compute_member(private.active_couple(:F), :F, current_date, now())).details->>'is_easy')::boolean, 'un evento suave creado el mismo día NO aligera ese día');
+select pg_temp.check(not ((private.compute_member(private.active_couple(:F), :G, current_date + 2, now())).details->>'is_easy')::boolean, 'el evento suave solo aligera a quien lo creó');
+set role authenticated;
+select pg_temp.login(:F);
+
+-- Terminar la pausa: solo hoy o más adelante
+select pg_temp.expect_error($q$update public.pauses set end_date = current_date - 1$q$, 'la pausa no termina en el pasado');
+update public.pauses set end_date = current_date;
+select pg_temp.check((select end_date from public.pauses where user_id = :F) = current_date, 'pausa terminada hoy');
+
+-- Cómo me siento
+select pg_temp.login(:G);
+insert into public.checkins(day, energy, mood, sleep_hours, pain) values (current_date, 2, 3, 5.5, 0);
+select pg_temp.expect_error($q$insert into public.checkins(day, energy) values (current_date - 10, 3)$q$, 'check-in solo de los últimos días');
+select pg_temp.login(:F);
+select pg_temp.check((select energy from public.checkins where user_id = :G) = 2, 'la pareja ve cómo se siente');
+select pg_temp.check((select count(*) from public.notifications where user_id = :F and title like '%poca energía%') = 1, 'aviso cariñoso de poca energía');
+update public.checkins set energy = 5 where user_id = :G;
+select pg_temp.login(:G);
+select pg_temp.check((select energy from public.checkins where user_id = :G) = 2, 'nadie edita el check-in del otro');
+
+-- Lesiones
+select pg_temp.login(:F);
+insert into public.injuries(area, side, severity, note) values ('hombro', 'der', 2, 'press banca');
+select pg_temp.login(:G);
+select pg_temp.check((select count(*) from public.injuries where user_id = :F and resolved_on is null) = 1, 'la pareja ve la lesión');
+select pg_temp.expect_error(format($q$insert into public.injuries(user_id, area) values (%L, 'rodilla')$q$, :F), 'nadie registra lesiones por el otro');
+
+-- Privado: medidas, fotos y ciclo
+select pg_temp.login(:F);
+insert into public.measurements(day, waist_cm, arm_cm) values (current_date, 82, 35);
+select pg_temp.expect_error(format($q$insert into public.progress_photos(path) values ('private/%s/x.jpg')$q$, :G), 'fotos solo en tu carpeta privada');
+insert into public.progress_photos(path) values ('private/' || :F || '/frente.jpg');
+select pg_temp.login(:G);
+select pg_temp.check((select count(*) from public.measurements) = 0 and (select count(*) from public.progress_photos) = 0, 'medidas y fotos son privadas (ni la pareja)');
+insert into public.cycle_settings(enabled, share_phase) values (true, false);
+insert into public.cycle_periods(start_date) values (current_date - 3);
+select pg_temp.check(public.my_cycle()->>'phase' = 'menstrual' and (public.my_cycle()->>'day')::int = 4, 'fase del ciclo calculada');
+select pg_temp.login(:F);
+select pg_temp.check(public.partner_cycle() is null and (select count(*) from public.cycle_periods) = 0, 'el ciclo es privado si no se comparte');
+select pg_temp.login(:G);
+update public.cycle_settings set share_phase = true;
+select pg_temp.login(:F);
+select pg_temp.check(public.partner_cycle()->>'phase' = 'menstrual' and (select count(*) from public.cycle_periods) = 0, 'compartida: la pareja ve SOLO la fase');
+
+-- Entreno juntos: uno registra, el otro confirma
+select pg_temp.expect_error(format($q$insert into public.workouts(user_id, title, joint_with) values (%L, 'x', %L)$q$, :F, :C), 'entreno juntos solo con tu pareja');
+insert into public.workouts(user_id, title, duration_min, joint_with) values (:F, 'Piernas juntos', 45, :G);
+select pg_temp.expect_error(format($q$insert into public.workouts(user_id, title, joint_of) values (%L, 'x', (select id from public.workouts where title = 'Piernas juntos'))$q$, :F), 'joint_of solo desde la confirmación');
+select pg_temp.login(:G);
+select pg_temp.check((select count(*) from public.pending_joint_workouts()) = 1, 'Gabi tiene una invitación de entreno juntos');
+select pg_temp.check(public.confirm_joint_workout((select id from public.pending_joint_workouts() limit 1)) is not null, 'Gabi confirma el entreno juntos');
+select pg_temp.check((select count(*) from public.workouts where user_id = :G and joint_of is not null) = 1, 'se crea el entreno de Gabi (hecho por ella)');
+select pg_temp.check((select count(*) from public.pending_joint_workouts()) = 0, 'sin invitaciones pendientes');
+reset role;
+select pg_temp.check((select xp from private.xp_parts(:G, current_date, current_date)) >= 60, 'entreno juntos da XP extra');
+
+-- Planes y calendario de la pareja
+set role authenticated;
+select pg_temp.login(:F);
+insert into public.plans(day, kind, title) values (current_date + 1, 'gym', 'Espalda');
+select pg_temp.login(:G);
+select pg_temp.check((select count(*) from public.couple_calendar(current_date - 1, current_date + 3) where kind = 'plan' and user_id = :F) = 1, 'calendario: plan de la pareja');
+select pg_temp.check((select count(*) from public.couple_calendar(current_date - 1, current_date + 3) where kind = 'pause') >= 1, 'calendario: pausa');
+select pg_temp.check((select count(*) from public.couple_calendar(current_date - 1, current_date + 3) where kind = 'event' and title = 'Exámenes') = 3, 'calendario: evento de varios días');
+select pg_temp.check((select count(*) from public.couple_calendar(current_date - 1, current_date + 3) where kind = 'workout') = 2, 'calendario: entrenos de los dos');
+select pg_temp.check((select count(*) from public.couple_calendar(current_date - 1, current_date + 3) where kind = 'cycle') >= 1, 'calendario: mi ciclo (propio)');
+select pg_temp.login(:F);
+select pg_temp.check((select count(*) from public.couple_calendar(current_date - 1, current_date + 3) where kind = 'cycle') = 0, 'calendario: nunca muestra el ciclo de la pareja');
+select pg_temp.expect_error($q$select * from public.couple_calendar(current_date - 100, current_date)$q$, 'calendario: rango limitado');
+select pg_temp.login(:C);
+select pg_temp.check((select count(*) from public.couple_calendar(current_date - 1, current_date + 3) where user_id in (:F, :G)) = 0, 'un tercero no ve nada de la pareja');
+reset role;
+
+-- 17) PESAJE SEMANAL (peso + estatura) ---------------------------------
+set role authenticated;
+select pg_temp.login(:G);
+insert into public.body_weights(day, weight_kg, height_cm) values (current_date - 7, 60.5, 165);
+insert into public.body_weights(day, weight_kg, height_cm) values (current_date, 60.1, 165.5);
+update public.profiles set fitness_goal = 'ganar_musculo' where id = :G;
+select pg_temp.check((select height_cm from public.profiles where id = :G) = 165.5, 'la estatura más reciente queda en el perfil');
+select pg_temp.check((select start_weight_kg from public.profiles where id = :G) = 60.5, 'peso inicial se fija con el primer pesaje');
+select pg_temp.login(:F);
+select pg_temp.check((select count(*) from public.body_weights where user_id = :G) = 0, 'el peso sigue siendo privado');
+reset role;

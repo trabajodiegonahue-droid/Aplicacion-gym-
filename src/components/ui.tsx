@@ -93,9 +93,9 @@ export function Ring({ value, max, size = 96, stroke = 8, children, color = '#e1
   )
 }
 
-export function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label?: ReactNode; disabled?: boolean }) {
+export function Toggle({ checked, onChange, label, disabled, ariaLabel }: { checked: boolean; onChange: (v: boolean) => void; label?: ReactNode; disabled?: boolean; ariaLabel?: string }) {
   return (
-    <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)}
+    <button type="button" role="switch" aria-checked={checked} aria-label={ariaLabel} disabled={disabled} onClick={() => onChange(!checked)}
       className="flex min-h-12 w-full items-center justify-between gap-3 text-left disabled:opacity-50">
       {label && <span className="flex-1">{label}</span>}
       <span className={cx('relative inline-flex h-[30px] w-[50px] shrink-0 rounded-full transition-colors', checked ? 'bg-emerald-500' : 'bg-fuego-200 dark:bg-noche-700')}>

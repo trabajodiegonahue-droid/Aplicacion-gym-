@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle2, Circle, Moon, Timer, XCircle, Dumbbell, Droplets, Footprints, Activity, ListChecks, Plus, Check, Bike, Waves, Trophy, Flower2, Zap, Sparkles, PersonStanding, GlassWater, Milk, Coffee, ChevronDown, Undo2, type LucideIcon } from 'lucide-react'
+import { CheckCircle2, Circle, Moon, Timer, XCircle, Dumbbell, Droplets, Footprints, Activity, ListChecks, Plus, Check, Bike, Waves, Trophy, Flower2, Zap, Sparkles, PersonStanding, GlassWater, Milk, Coffee, ChevronDown, Undo2, Snowflake, type LucideIcon } from 'lucide-react'
 import { supabase, must } from '../lib/supabase'
 import { useAuth } from '../context/AuthProvider'
 import { LOG_KEYS, useAction, useToday } from '../lib/queries'
@@ -19,6 +19,7 @@ export const STATUS: Record<MemberStatus | 'recovered', { label: string; dot: st
   rest: { label: 'Descanso', dot: 'bg-sky-400', icon: Moon },
   missed: { label: 'No cumplido', dot: 'bg-fuego-800/40', icon: XCircle },
   recovered: { label: 'Recuperado', dot: 'bg-violet-400', icon: CheckCircle2 },
+  paused: { label: 'En pausa', dot: 'bg-indigo-400', icon: Snowflake },
 }
 
 export function StatusChip({ status }: { status: MemberStatus | 'recovered' }) {
@@ -44,9 +45,11 @@ export function conditionText(r: Rules) {
 /** Progreso del día (0..1) hacia lo que piden las reglas. */
 export function dayProgress(row?: MemberDay, rules?: Rules | null) {
   if (!row) return 0
-  if (row.status === 'completed' || row.status === 'rest') return 1
+  if (row.status === 'completed' || row.status === 'rest' || row.status === 'paused') return 1
   if (!rules) return 0
   const d = row.details
+  // Día de mínimos: basta con X minutos de algo (o un entreno)
+  if (d.is_easy) return d.workouts >= 1 ? 1 : Math.min(1, d.activity_minutes / Math.max(1, d.easy_min ?? 10))
   const f: Record<string, number> = {
     workout: d.workouts >= 1 ? 1 : 0,
     activity: Math.min(1, d.activity_minutes / Math.max(1, rules.min_activity_minutes)),
@@ -63,7 +66,7 @@ export function dayProgress(row?: MemberDay, rules?: Rules | null) {
 export function PartnerRing({ row, rules, name, avatar, me, size = 112 }: { row?: MemberDay; rules?: Rules | null; name: string; avatar?: string | null; me?: boolean; size?: number }) {
   const st = row?.status ?? 'pending'
   const p = dayProgress(row, rules)
-  const color = st === 'completed' ? '#10b981' : st === 'rest' ? '#38bdf8' : '#e11d48'
+  const color = st === 'completed' ? '#10b981' : st === 'rest' ? '#38bdf8' : st === 'paused' ? '#818cf8' : '#e11d48'
   const icons: Record<string, typeof Dumbbell> = { workout: Dumbbell, activity: Activity, steps: Footprints, water: Droplets, habits: ListChecks }
   return (
     <div className="flex flex-1 flex-col items-center text-center">

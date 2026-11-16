@@ -93,8 +93,19 @@ begin
 
   insert into public.body_weights(user_id, day, weight_kg) values (a, t - 28, 76.2), (a, t - 21, 75.4), (a, t - 14, 74.8), (a, t - 7, 74.1), (a, t, 73.6),
     (b, t - 21, 58.4), (b, t - 14, 58.0), (b, t - 7, 57.5), (b, t, 57.2);
-  update public.profiles set height_cm = 176, goal_weight_kg = 72, start_weight_kg = 76.2 where id = a;
-  update public.profiles set height_cm = 162, goal_weight_kg = 55, start_weight_kg = 58.4 where id = b;
+  update public.profiles set height_cm = 176, goal_weight_kg = 72, start_weight_kg = 76.2, fitness_goal = 'ganar_musculo' where id = a;
+  update public.profiles set height_cm = 162, goal_weight_kg = 55, start_weight_kg = 58.4, fitness_goal = 'salud' where id = b;
+  update public.body_weights set height_cm = 176 where user_id = a;
+  update public.body_weights set height_cm = 162 where user_id = b;
+  delete from public.body_weights where user_id = b and day = t;  -- a Maite le toca el pesaje semanal
+  insert into public.measurements(user_id, day, waist_cm, hip_cm, arm_cm) values (a, t - 21, 86, 98, 34), (a, t - 7, 84.5, 97.5, 34.5), (a, t, 83, 97, 35);
+  insert into public.checkins(user_id, day, energy, mood, sleep_hours, pain, created_at) values
+    (a, t - 3, 4, 4, 7, 0, now()), (a, t - 2, 3, 4, 6.5, 1, now()), (a, t - 1, 4, 5, 7.5, 0, now()),
+    (b, t - 3, 2, 3, 5, 0, now()), (b, t - 2, 2, 2, 5.5, 0, now()), (b, t - 1, 1, 3, 4.5, 0, now());
+  insert into public.injuries(user_id, area, side, severity, note, started_on) values (a, 'hombro', 'der', 1, 'Molestia en press banca', t - 5);
+  insert into public.injuries(user_id, area, side, severity, note, started_on, resolved_on) values (b, 'tobillo', 'izq', 2, 'Torcedura corriendo', t - 40, t - 25);
+  insert into public.cycle_settings(user_id, enabled, share_phase) values (b, true, true);
+  insert into public.cycle_periods(user_id, start_date) values (b, t - 48), (b, t - 20);
 
   alter table public.workouts enable trigger tg_before; alter table public.workouts enable trigger tg_after;
   alter table public.activity_logs enable trigger tg_before; alter table public.activity_logs enable trigger tg_after;
@@ -112,6 +123,11 @@ begin
     (c, a, 'motivation', '¡No apaguemos la racha! 🔥', now() - interval '2 hours');
   insert into public.notes(couple_id, created_by, body, pinned) values (c, b, 'Faltan pocos días para vernos ✈️ ¡A entrenar para esa caminata juntos!', true), (c, a, 'Orgulloso de vos por correr toda la semana 💪', false);
   insert into public.calendar_events(couple_id, created_by, title, kind, event_date, notes) values (c, b, 'Visita a Diego', 'visita', t + 12, 'Llego a las 10:00');
+  insert into public.calendar_events(couple_id, created_by, title, kind, event_date, end_date, for_user, lighten, created_at) values
+    (c, b, 'Exámenes finales', 'examen', t + 2, t + 4, b, true, now() - interval '2 days'),
+    (c, a, 'Turno largo en el trabajo', 'trabajo', t + 1, null, a, true, now() - interval '1 day');
+  insert into public.plans(user_id, day, kind, title) values (a, t + 1, 'gym', 'Espalda y core'), (b, t + 1, 'cardio', 'Correr 5 km'), (a, t + 3, 'gym', 'Piernas'), (b, t + 5, 'juntos', 'Videollamada + entreno');
+  insert into public.workouts(user_id, title, performed_at, duration_min, joint_with) values (b, 'Entreno en pareja por videollamada', least(((t - 1) + time '20:00') at time zone tz, now() - interval '5 minutes'), 25, a);
   insert into public.goals(user_id, created_by, name, metric, target, frequency, category_label) values (a, a, 'Entrenar 4 veces por semana', 'workouts', 4, 'weekly', 'Gimnasio'), (b, b, 'Caminar 50.000 pasos', 'steps', 50000, 'weekly', 'Salud');
   insert into public.goals(couple_id, created_by, name, metric, target, frequency, category_label) values (c, a, 'Tomar 2 L de agua', 'water_goal_days', 5, 'weekly', 'Salud');
   insert into public.challenges(couple_id, created_by, name, metric, target, mode, start_date, end_date, badge, reward)

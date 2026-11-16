@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, Dumbbell, Droplets, Activity, Moon, ChevronRight, Vote, CircleCheckBig, Hand, ArrowUpRight, Link2, Check, CircleHelp } from 'lucide-react'
+import { Bell, Dumbbell, Droplets, Activity, Moon, ChevronRight, Vote, CircleCheckBig, Hand, ArrowUpRight, Link2, Check, CircleHelp, Snowflake, CalendarDays } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { supabase, must } from '../lib/supabase'
 import { LOG_KEYS, rulesFor, useAction, useMemberDays, useNotifications, useProposals, useRules, useStreak, useStreakDays, useToday, useTodayWindow } from '../lib/queries'
 import { addDays, fmtLiters, fmtLongDay, startOfWeek, WEEKDAYS_MON } from '../lib/dates'
-import { Card, ProgressBar, SectionTitle, cx, useUi } from '../components/ui'
+import { Card, ProgressBar, SectionTitle, cx } from '../components/ui'
 import { Flame } from '../components/Flame'
 import { Avatar } from '../components/Avatar'
 import { ActivitySheet, QuickWorkoutSheet, WaterSheet, conditionText, useAddWater, useWaterToday } from '../components/Today'
@@ -15,6 +15,11 @@ import { startTour } from '../components/Tour'
 import { GoalsHome } from '../components/Goals'
 import { CountUp, Embers } from '../components/Motion'
 import { WeeklySummary } from '../components/WeeklySummary'
+import { DayOptionsSheet, PauseBanners } from '../components/DayOptions'
+import { CheckInCard } from '../components/CheckIn'
+import { WeighInCard } from '../components/BodyCheck'
+import { JointInvites } from '../components/JointInvites'
+import { useCoupleCalendar } from '../lib/life'
 import { draftDoneSets, useWorkoutDraft } from './gym/workoutDraft'
 import type { Habit, HabitLog, MemberDay, StreakDay } from '../lib/types'
 
@@ -54,11 +59,12 @@ export function WeekStrip({ today, days, dark }: { today: string | null; days: S
             <span className={cx('flex size-8 items-center justify-center rounded-full text-[12px] font-semibold tabular transition',
               st === 'completed' ? (dark ? 'bg-white text-fuego-600 shadow-sm' : 'bg-ember text-white')
                 : st === 'rest' || st === 'recovered' ? (dark ? 'bg-white/15 text-white' : 'bg-sky-100 text-sky-700')
+                : st === 'paused' ? (dark ? 'bg-white/15 text-white' : 'bg-indigo-100 text-indigo-700')
                 : st === 'missed' ? (dark ? 'text-white/40' : 'text-fuego-800/30')
                 : future ? (dark ? 'text-white/45' : 'text-fuego-800/30')
                 : (dark ? 'bg-white/20 text-white' : 'bg-fuego-100 text-ink'),
               d === today && st !== 'completed' && (dark ? 'ring-1 ring-white/60' : 'ring-1 ring-ink/40'))}>
-              {st === 'completed' ? <Check className="size-4" strokeWidth={3} /> : st === 'rest' ? <Moon className="size-3.5" /> : Number(d.slice(8))}
+              {st === 'completed' ? <Check className="size-4" strokeWidth={3} /> : st === 'rest' ? <Moon className="size-3.5" /> : st === 'paused' ? <Snowflake className="size-3.5" /> : Number(d.slice(8))}
             </span>
           </div>
         )
@@ -77,7 +83,6 @@ export default function Home() {
     else await must(supabase.from('habit_logs').insert({ habit_id: v.id, user_id: uid }))
     return !v.on
   }, { invalidate: [['habit_logs'], ['week_summary'], ...LOG_KEYS], success: done => (done ? '¡Hábito cumplido! ✅' : 'Hábito desmarcado') })
-  const { toast, confirm } = useUi()
   const today = useToday()
   const streak = useStreak().data
   const rulesAll = useRules().data
@@ -107,14 +112,15 @@ export default function Home() {
   const dailyHabits = (week.data?.habits ?? []).filter(h => h.frequency === 'daily' && h.start_date <= (today ?? '') && (!h.end_date || h.end_date >= (today ?? '')))
   const habitsDone = dailyHabits.filter(h => week.data?.logs.some(l => l.habit_id === h.id)).length
 
-  const rest = useAction(async () => { await must(supabase.from('rest_days').insert({ user_id: uid, day: today })) }, { invalidate: LOG_KEYS, success: 'Día de descanso marcado' })
+  const [dayOpts, setDayOpts] = useState(false)
+  const todayPlans = (useCoupleCalendar(today, today).data ?? []).filter(x => x.kind === 'plan')
   const nudgeKey = `fj-nudge-${today}`
   const [nudged, setNudged] = useState(() => { try { return localStorage.getItem(nudgeKey) === '1' } catch { return false } })
   const nudge = useAction(async () => must(supabase.from('messages').insert({ couple_id: couple!.id, sender_id: uid, kind: 'motivation', body: `👋 ${profile?.display_name ?? 'Tu pareja'} te da un toque: ¡vamos por la racha de hoy!` })),
     { invalidate: [['messages']], success: `Toque enviado a ${partner?.display_name ?? 'tu pareja'}` })
 
   const goal = profile?.water_goal_ml ?? 2500
-  const done = (s?: string) => s === 'completed' || s === 'rest'
+  const done = (s?: string) => s === 'completed' || s === 'rest' || s === 'paused'
   const bothDone = done(mine?.status) && done(theirs?.status)
   const count = streak?.current_count ?? 0
   const hour = new Date().getHours()
@@ -126,11 +132,12 @@ export default function Home() {
 
   return (
     <div>
-      <header className="safe-top flex items-end gap-3 px-5 pb-4 pt-3">
+      <header className="safe-top flex items-end gap-2 px-5 pb-4 pt-3">
         <div className="min-w-0 flex-1">
           <p className="eyebrow first-letter:uppercase">{today ? fmtLongDay(today) : ' '}</p>
           <h1 className="mt-1 leading-tight"><span className="block text-[17px] font-medium text-fuego-800/80 dark:text-white/60">{greet},</span><span className="font-display text-gradient truncate text-[34px] font-semibold">{profile?.display_name?.split(' ')[0] ?? ''}</span> <span className="inline-block origin-[70%_70%] animate-[wave_2.4s_ease-in-out_1] text-[26px]">👋</span></h1>
         </div>
+        <Link to="/calendario" data-tour="calendar" className="icon-btn mb-1" aria-label="Calendario de los dos"><CalendarDays className="size-[18px]" strokeWidth={1.9} /></Link>
         <button onClick={startTour} className="icon-btn mb-1" aria-label="Cómo funciona la app"><CircleHelp className="size-[18px]" strokeWidth={1.9} /></button>
         <Link to="/notificaciones" data-tour="bell" className="icon-btn relative mb-1" aria-label="Notificaciones">
           <Bell className="size-[18px]" strokeWidth={1.9} />
@@ -187,6 +194,9 @@ export default function Home() {
           </>
         )}
 
+        <PauseBanners />
+        <JointInvites />
+
         {toApprove.length > 0 && (
           <Card onClick={() => nav('/propuestas')} className="flex items-center gap-3">
             <span className="flex size-10 items-center justify-center rounded-full bg-blush text-ember dark:bg-noche-700"><Vote className="size-5" /></span>
@@ -209,10 +219,7 @@ export default function Home() {
             { k: 'workout', label: 'Entreno', icon: Dumbbell, onClick: () => setSheet('workout') },
             { k: 'water', label: 'Agua', icon: Droplets, onClick: () => setSheet('water') },
             { k: 'activity', label: 'Actividad', icon: Activity, onClick: () => setSheet('activity') },
-            { k: 'rest', label: 'Descanso', icon: Moon, onClick: async () => {
-              if (!couple) return toast('El descanso se usa en la racha compartida: vincula a tu pareja primero.', 'error')
-              if (await confirm({ title: '¿Usar día de descanso hoy?', text: `Las reglas permiten ${rulesFor(rulesAll, today)?.rules.rest_days_per_week ?? 1} por semana. Si igual entrenas, cuenta como completado.`, confirm: 'Descansar' })) rest.mutate()
-            } },
+            { k: 'cant', label: 'No puedo', icon: Moon, onClick: () => setDayOpts(true) },
           ].map(a => (
             <button key={a.k} onClick={a.onClick} className="card flex flex-col items-center gap-2 px-1 py-3.5 text-[12px] font-medium transition active:scale-95">
               <a.icon className="size-[22px]" strokeWidth={1.7} />
@@ -220,6 +227,18 @@ export default function Home() {
             </button>
           ))}
         </div>
+
+        {todayPlans.length > 0 && (
+          <Card onClick={() => nav('/calendario')} className="flex items-center gap-3 py-3" data-testid="today-plans">
+            <span className="text-[22px]">📝</span>
+            <p className="min-w-0 flex-1 text-[13.5px]"><b>Plan de hoy:</b> {todayPlans.map(p => `${p.user_id === uid ? 'tú' : partner?.display_name}: ${p.title}`).join(' · ')}</p>
+            <ChevronRight className="size-5 text-fuego-800/40" />
+          </Card>
+        )}
+
+        <CheckInCard />
+
+        <WeighInCard />
 
         <GoalsHome />
 
@@ -269,6 +288,7 @@ export default function Home() {
       <QuickWorkoutSheet open={sheet === 'workout'} onClose={() => setSheet(null)} />
       <WaterSheet open={sheet === 'water'} onClose={() => setSheet(null)} />
       <ActivitySheet open={sheet === 'activity'} onClose={() => setSheet(null)} />
+      <DayOptionsSheet open={dayOpts} onClose={() => setDayOpts(false)} />
     </div>
   )
 }

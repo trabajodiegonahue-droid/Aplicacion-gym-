@@ -1,21 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Star, Trash2, Pencil, Play, Dumbbell, Timer, Trophy, TrendingUp, RotateCcw, ChevronDown, ChevronUp, X, Copy, Check, Search, Library, ChevronRight } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { Plus, Star, Trash2, Pencil, Play, Dumbbell, Timer, Trophy, TrendingUp, RotateCcw, ChevronDown, ChevronUp, X, Copy, Check, Search, Library, ChevronRight, Scale } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, ReferenceArea } from 'recharts'
 import { supabase, must } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthProvider'
 import { LOG_KEYS, useAction } from '../../lib/queries'
 import type { Exercise, MuscleGroup, Routine, RoutineExercise, Workout, WorkoutSet } from '../../lib/types'
-import { addDays, fmtDay, fmtShort, localDateTimeToISO, nowTimeHHMM, toISODate, WEEKDAYS } from '../../lib/dates'
+import { addDays, fmtDay, fmtShort, startOfWeek, localDateTimeToISO, nowTimeHHMM, toISODate, WEEKDAYS } from '../../lib/dates'
 import { Button, Card, Empty, Field, Input, Loading, ProgressBar, Segmented, Sheet, cx, useUi } from '../../components/ui'
 import { PageHeader } from '../../components/AppShell'
 import { WhenRow } from '../../components/TimePicker'
 import RecordsTab from './Records'
+import { BodyDataSheet, bmi,  useBodyWeights } from '../../components/BodyCheck'
+import { ROUTINE_TEMPLATES, type RoutineTemplate } from './templates'
+import { CycleCard, InjuriesCard, MeasurementsCard, ProgressPhotosCard } from './BodyExtras'
 import { ExerciseInfoButton, MuscleStack, VariantChips, muscleSummary } from '../../components/MuscleInfo'
 import { EQUIPMENT, EXERCISE_LIBRARY, exerciseInfo, libraryByName, normalize, type Equipment } from '../../lib/exerciseLibrary'
 import { celebrate } from '../../components/Celebration'
 import { RestTimer, unlockAudio } from '../../components/RestTimer'
+import { injuryRisk, INJURY_AREAS, useCheckins, useMyActiveInjuries } from '../../lib/life'
 import { clearDraft, describeSet, draftDoneSets, itemsFromSets, lastTimes, loadDraft, saveDraft, suggestNext, useWorkoutDraft, type DraftEx, type DraftSet, type Suggestion, type WorkoutDraft } from './workoutDraft'
 
 export const MUSCLES: { value: MuscleGroup; label: string; emoji: string }[] = [
@@ -126,6 +130,7 @@ function StartTab({ onOpen }: { onOpen: (o: LoggerOpen) => void }) {
           </div>
         </Card>
       )}
+      {routines.length < 3 && <TemplatesRow onStart={onStart} />}
       {suggested.length > 0 && <p className="px-1 pt-2 font-bold">Para hoy ({WEEKDAYS[todayWd]})</p>}
       {suggested.map(r => <RoutineCard key={r.id} r={r} onStart={onStart} />)}
       <p className="px-1 pt-2 font-bold">Tus rutinas</p>
@@ -167,8 +172,56 @@ function RoutinesTab({ onStart }: { onStart: (r: Routine) => void }) {
   return (
     <div className="stagger space-y-3">
       <Button variant="soft" className="w-full" onClick={() => setEdit('new')}><Plus className="size-5" />Nueva rutina</Button>
+      <TemplatesRow onStart={onStart} />
+      {(routines.data ?? []).length > 0 && <p className="px-1 pt-1 font-bold">Tus rutinas</p>}
       {(routines.data ?? []).map(r => <RoutineCard key={r.id} r={r} onStart={onStart} onEdit={setEdit} />)}
       {edit && <RoutineEditor routine={edit === 'new' ? undefined : edit} onClose={() => setEdit(null)} />}
+    </div>
+  )
+}
+
+/** Rutinas listas: casa, hotel, express, core, día suave, cuidando lesiones, en pareja. */
+function TemplatesRow({ onStart }: { onStart: (r: Routine) => void }) {
+  const { uid } = useAuth()
+  const ensure = useEnsureExercises()
+  const [open, setOpen] = useState<RoutineTemplate | null>(null)
+  const create = useAction(async (t: RoutineTemplate) => {
+    const exs = await ensure.mutateAsync(t.items.map(i => ({ name: i.name, group: libraryByName.get(i.name.toLowerCase())!.group })))
+    const r = (await must(supabase.from('routines').insert({ user_id: uid, name: `${t.emoji} ${t.name}`, description: t.text, weekdays: [] }).select('*').single())) as Routine
+    const byName = new Map(exs.map(e => [e.name.toLowerCase(), e.id]))
+    await must(supabase.from('routine_exercises').insert(t.items.map((i, k) => ({ routine_id: r.id, exercise_id: byName.get(i.name.toLowerCase()), position: k, target_sets: i.sets, target_reps: i.reps, rest_seconds: i.rest || null }))))
+    return (await must(supabase.from('routines').select('*, routine_exercises(*, exercises(*))').eq('id', r.id).single())) as Routine
+  }, { invalidate: [['routines']], success: 'Rutina añadida a las tuyas ✨' })
+  return (
+    <div>
+      <p className="px-1 pb-2 font-bold">Rutinas listas <span className="muted text-[12.5px] font-medium">· para días reales</span></p>
+      <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1" data-testid="templates">
+        {ROUTINE_TEMPLATES.map(t => (
+          <button key={t.id} type="button" onClick={() => setOpen(t)} className="card w-40 shrink-0 p-3 text-left transition active:scale-95">
+            <span className="text-[26px]">{t.emoji}</span>
+            <p className="mt-1 text-[14px] font-bold leading-tight">{t.name}</p>
+            <p className="muted mt-0.5 text-[11.5px]">{t.minutes} min · {t.items.length} ejercicios</p>
+          </button>
+        ))}
+      </div>
+      <Sheet open={!!open} onClose={() => setOpen(null)} title={open ? `${open.emoji} ${open.name}` : ''}>
+        {open && (
+          <div className="space-y-3">
+            <p className="muted text-[14px]">{open.text} · ~{open.minutes} min</p>
+            <div className="card divide-y divide-black/[.05] p-0 dark:divide-white/[.06]">
+              {open.items.map(i => (
+                <div key={i.name} className="flex items-center gap-2 px-3 py-2.5">
+                  <div className="min-w-0 flex-1"><p className="text-[14px] font-semibold">{i.name}</p><p className="muted truncate text-[11.5px]">{muscleSummary(i.name)}</p></div>
+                  <span className="tabular shrink-0 text-[13px] font-bold">{i.sets} × {i.reps ?? i.note ?? '⏱'}</span>
+                  <ExerciseInfoButton name={i.name} />
+                </div>
+              ))}
+            </div>
+            <Button variant="ember" className="w-full min-h-14" loading={create.isPending} onClick={() => create.mutate(open, { onSuccess: r => { setOpen(null); onStart(r) } })}><Play className="size-5" />Empezar ahora</Button>
+            <Button variant="soft" className="w-full" loading={create.isPending} onClick={() => create.mutate(open, { onSuccess: () => setOpen(null) })}><Plus className="size-4" />Guardar en mis rutinas</Button>
+          </div>
+        )}
+      </Sheet>
     </div>
   )
 }
@@ -270,6 +323,7 @@ function ExercisePicker({ open, onClose, onPick, title = 'Añadir ejercicios', c
   { open: boolean; onClose: () => void; onPick: (e: Exercise[]) => void; title?: string; cta?: string }) {
   const mine = (useExercises().data ?? []).filter(e => !e.archived)
   const ensure = useEnsureExercises()
+  const injuries = useMyActiveInjuries()
   const [q, setQ] = useState('')
   const [group, setGroup] = useState<MuscleGroup | 'all'>('all')
   const [equip, setEquip] = useState<Equipment | 'all'>('all')
@@ -321,6 +375,7 @@ function ExercisePicker({ open, onClose, onPick, title = 'Añadir ejercicios', c
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-semibold">{r.name}{r.mine && <span className="chip ml-1.5 px-2 py-0.5 align-middle text-[10.5px]">Mío</span>}</p>
                   <p className="muted truncate text-[12.5px]">{muscleSummary(r.name) ?? muscleLabel(r.group)}{r.equipment ? ` · ${EQUIPMENT[r.equipment]}` : ''}</p>
+                  {injuryRisk(r.name, injuries) && <p className="text-[11.5px] font-semibold text-amber-600 dark:text-amber-400">⚠️ Carga tu {INJURY_AREAS[injuryRisk(r.name, injuries)!.injury.area].label.toLowerCase()}</p>}
                   {exerciseInfo(r.name) && <MuscleStack muscles={exerciseInfo(r.name)!.muscles} className="mt-1.5 h-1.5 max-w-[220px]" />}
                 </div>
               </button>
@@ -454,6 +509,12 @@ function WorkoutLogger({ routine, workout, draft, repeat, onClose }: LoggerOpen 
   const exercises = useExercises().data ?? []
   const recent = useRecentWorkouts().data ?? []
   const last = useMemo(() => lastTimes(recent, workout?.id), [recent, workout?.id])
+  const { partner } = useAuth()
+  const injuries = useMyActiveInjuries()
+  const todayCheck = (useCheckins(1).data ?? []).find(c => c.user_id === uid && c.day === toISODate(new Date()))
+  const lowEnergy = (todayCheck?.energy ?? 5) <= 2
+  const [joint, setJoint] = useState(!!workout?.joint_with)
+  const isCopy = !!workout?.joint_of
   const performed = workout ? new Date(workout.performed_at) : new Date()
   const [title, setTitle] = useState(draft?.title ?? workout?.title ?? routine?.name ?? repeat?.title ?? 'Entrenamiento')
   const [date, setDate] = useState(toISODate(performed))
@@ -486,7 +547,7 @@ function WorkoutLogger({ routine, workout, draft, repeat, onClose }: LoggerOpen 
   const n = (s: string) => (s === '' ? null : Number(s))
   const save = useAction(async () => {
     const dur = duration ? Number(duration) : (workout ? null : Math.max(1, Math.round((Date.now() - startedAt) / 60000)))
-    const row = { title: title.trim() || 'Entrenamiento', performed_at: localDateTimeToISO(date, time), duration_min: dur, notes: notes || null, routine_id: routineId }
+    const row = { title: title.trim() || 'Entrenamiento', performed_at: localDateTimeToISO(date, time), duration_min: dur, notes: notes || null, routine_id: routineId, ...(isCopy ? {} : { joint_with: joint && partner ? partner.id : null }) }
     let id = workout?.id
     if (id) await must(supabase.from('workouts').update(row).eq('id', id))
     else id = ((await must(supabase.from('workouts').insert({ ...row, user_id: uid }).select('id').single())) as { id: string }).id
@@ -520,6 +581,14 @@ function WorkoutLogger({ routine, workout, draft, repeat, onClose }: LoggerOpen 
       <div className="stagger space-y-3">
         {!workout && <p className="muted flex items-center gap-1.5 text-[12.5px]"><Check className="size-3.5 text-emerald-500" />Se guarda solo en tu teléfono mientras entrenas: puedes cerrar y seguir después.</p>}
         <Field label="Título"><Input value={title} onChange={e => setTitle(e.target.value)} maxLength={80} /></Field>
+        {partner && !isCopy && (
+          <label className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 p-3 dark:from-fuego-500/15 dark:to-transparent">
+            <input type="checkbox" className="size-5 accent-fuego-500" checked={joint} onChange={e => setJoint(e.target.checked)} data-testid="joint-toggle" />
+            <span className="text-[14px]"><b>Entrenamos juntos 💞</b><span className="muted block text-[12px]">{partner.display_name} lo confirma y cuenta para los dos (+20 XP cada uno).</span></span>
+          </label>
+        )}
+        {isCopy && <p className="rounded-xl bg-rose-50 p-2.5 text-[13px] dark:bg-fuego-500/10">💞 Entreno juntos confirmado</p>}
+        {!workout && lowEnergy && <p className="rounded-xl bg-amber-50 p-2.5 text-[12.5px] text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">🪫 Hoy contaste poca energía: las sugerencias mantienen el peso. Un entreno suave también suma.</p>}
         <WhenRow date={date} setDate={setDate} time={time} setTime={setTime} />
         <Field label="Duración (minutos)" hint="Si lo dejas vacío, se calcula sola desde que empezaste."><Input type="number" inputMode="numeric" min={0} placeholder="Automática" value={duration} onChange={e => setDuration(e.target.value)} /></Field>
         {rest && <RestTimer endAt={rest.end} total={rest.total} onChange={(end, total) => setRest(end === null ? null : { end, total: total ?? rest.total })} />}
@@ -533,7 +602,8 @@ function WorkoutLogger({ routine, workout, draft, repeat, onClose }: LoggerOpen 
         {items.map((it, i) => {
           const ex = exercises.find(e => e.id === it.exercise_id)
           const lt = last.get(it.exercise_id)
-          const sug = lt && !workout ? suggestNext(lt, ex?.muscle_group) : null
+          const risk = ex ? injuryRisk(ex.name, injuries) : null
+          const sug = lt && !workout && !risk && !lowEnergy ? suggestNext(lt, ex?.muscle_group) : null
           return (
             <div key={i} className="rounded-2xl bg-white p-3 dark:bg-noche-800">
               <div className="flex items-center gap-2">
@@ -544,10 +614,15 @@ function WorkoutLogger({ routine, workout, draft, repeat, onClose }: LoggerOpen 
                 {ex && <ExerciseInfoButton name={ex.name} />}
                 <button className="p-1.5 text-red-500" onClick={() => setItems(a => a.filter((_, k) => k !== i))} aria-label="Quitar ejercicio"><X className="size-4" /></button>
               </div>
+              {risk && (
+                <p className="mt-2 rounded-xl bg-amber-50 px-2.5 py-2 text-[12.5px] leading-snug text-amber-900 dark:bg-amber-950/40 dark:text-amber-200" data-testid="injury-warning">
+                  ⚠️ <b>Cuida tu {INJURY_AREAS[risk.injury.area].label.toLowerCase()}</b>: este ejercicio lo carga ~{risk.load}%. Baja el peso, acorta el rango o cámbialo por otro. Si duele, para.
+                </p>
+              )}
               {lt && !workout && (
                 <div className="mt-2 flex items-center gap-2 rounded-xl bg-fuego-50 px-2.5 py-2 text-[12.5px] dark:bg-noche-700/60" data-testid="last-time">
                   <TrendingUp className="size-4 shrink-0 text-fuego-500" />
-                  <p className="min-w-0 flex-1 leading-snug"><span className="muted">La última vez ({relDay(lt.day)}):</span> <b>{describeSet(lt.best)}</b>{sug && <><br /><span className="text-fuego-700 dark:text-fuego-200">Sugerencia: {sug.text}</span></>}</p>
+                  <p className="min-w-0 flex-1 leading-snug"><span className="muted">La última vez ({relDay(lt.day)}):</span> <b>{describeSet(lt.best)}</b>{sug && <><br /><span className="text-fuego-700 dark:text-fuego-200">Sugerencia: {sug.text}</span></>}{!sug && (risk || lowEnergy) && <><br /><span className="text-amber-700 dark:text-amber-300">Hoy: mantén o baja el peso</span></>}</p>
                   {sug && <button type="button" className="btn-soft min-h-8 px-2.5 text-[12px]" onClick={() => applySuggestion(i, sug)}>Usar</button>}
                 </div>
               )}
@@ -685,58 +760,93 @@ function ProgressTab() {
 
 // ---------------------------------------------------------------------
 // Peso corporal (privado)
-interface BodyWeight { id: string; day: string; weight_kg: number; note: string | null }
 function BodyWeightTab() {
-  const { uid } = useAuth()
+  const { profile } = useAuth()
   const { confirm } = useUi()
-  const [day, setDay] = useState(toISODate(new Date()))
-  const [kg, setKg] = useState('')
-  const q = useQuery({ queryKey: ['body_weights', uid], enabled: !!uid, queryFn: () => must(supabase.from('body_weights').select('*').order('day', { ascending: true }).limit(400)) as Promise<BodyWeight[]> })
-  const save = useAction(async () => must(supabase.from('body_weights').upsert({ user_id: uid, day, weight_kg: Number(kg.replace(',', '.')) }, { onConflict: 'user_id,day' })),
-    { invalidate: [['body_weights']], success: 'Peso guardado' })
+  const p = profile as unknown as { height_cm?: number | null; goal_weight_kg?: number | null } | null
+  const [open, setOpen] = useState(false)
+  const list = useBodyWeights().data ?? []
   const del = useAction(async (id: string) => must(supabase.from('body_weights').delete().eq('id', id)), { invalidate: [['body_weights']] })
-  const list = (q.data ?? []).map(x => ({ ...x, weight_kg: Number(x.weight_kg) }))
   const last = list[list.length - 1], first = list[0]
-  const diff = last && first ? last.weight_kg - first.weight_kg : 0
-  const min = list.length ? Math.min(...list.map(x => x.weight_kg)) : 0
-  const chart = list.slice(-14).map(x => ({ day: fmtShort(x.day), kg: x.weight_kg }))
+  const goal = p?.goal_weight_kg ? Number(p.goal_weight_kg) : null
+  // Promedio por semana (lunes a domingo): suaviza las subidas y bajadas del día a día
+  const weekly = useMemo(() => {
+    const m = new Map<string, { sum: number; n: number; cm: number | null }>()
+    for (const x of list) {
+      const w = startOfWeek(x.day)
+      const e = m.get(w) ?? { sum: 0, n: 0, cm: null }
+      e.sum += x.weight_kg; e.n += 1; if (x.height_cm) e.cm = x.height_cm
+      m.set(w, e)
+    }
+    let cm: number | null = null
+    return [...m.entries()].sort(([a], [b]) => a.localeCompare(b)).slice(-16).map(([w, e]) => {
+      cm = e.cm ?? cm ?? (p?.height_cm ? Number(p.height_cm) : null)
+      const kg = Math.round((e.sum / e.n) * 10) / 10
+      return { week: fmtShort(w), kg, cm, bmi: cm ? Math.round(bmi(kg, cm)! * 10) / 10 : null }
+    })
+  }, [list, p?.height_cm])
+  const heights = weekly.filter(w => w.cm)
+  const tip = { contentStyle: { borderRadius: 14, border: 'none', boxShadow: '0 10px 30px -10px rgba(0,0,0,.25)', fontSize: 12 } }
   return (
     <div className="stagger space-y-3">
       <BodyGoalCard current={last?.weight_kg ?? null} first={first?.weight_kg ?? null} />
-      <Card>
-        <p className="mb-3 text-[15px] font-semibold">Registrar peso</p>
-        <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (Number(kg.replace(',', '.')) >= 20) save.mutate(undefined, { onSuccess: () => setKg('') }) }}>
-          <Input type="date" value={day} max={toISODate(new Date())} onChange={e => setDay(e.target.value)} className="w-[46%]" />
-          <Input type="number" inputMode="decimal" step="0.1" min={20} max={400} placeholder="kg" value={kg} onChange={e => setKg(e.target.value)} />
-          <Button type="submit" className="shrink-0 px-4" loading={save.isPending}>OK</Button>
-        </form>
-        <p className="muted mt-2 text-[12px]">Solo tú ves tu peso. Tu pareja nunca tiene acceso a este dato.</p>
-      </Card>
-      {list.length === 0 ? <Empty icon="⚖️" title="Sin registros todavía" text="Pésate una vez por semana, a la misma hora, para ver tu evolución." /> : (
+      <Button variant="ember" className="w-full min-h-14" onClick={() => setOpen(true)} data-testid="weighin-btn"><Scale className="size-5" />Registrar pesaje (peso y estatura)</Button>
+      {list.length === 0 ? <Empty icon="⚖️" title="Sin registros todavía" text="Pésate una vez por semana, a la misma hora, para ver tu evolución en gráficas." /> : (
         <>
-          <div className="grid grid-cols-3 gap-2">
-            <Card className="px-2 text-center"><p className="tabular text-[22px] font-bold">{last.weight_kg.toFixed(1)}</p><p className="muted text-[11px]">kg actual</p></Card>
-            <Card className="px-2 text-center"><p className={cx('tabular text-[22px] font-bold', diff < 0 ? 'text-emerald-600' : diff > 0 ? 'text-orange-500' : '')}>{diff > 0 ? '+' : ''}{diff.toFixed(1)}</p><p className="muted text-[11px]">kg desde el inicio</p></Card>
-            <Card className="px-2 text-center"><p className="tabular text-[22px] font-bold">{min.toFixed(1)}</p><p className="muted text-[11px]">kg mínimo</p></Card>
-          </div>
           <Card>
-            <p className="mb-2 font-bold">Evolución</p>
-            <div className="h-52">
+            <div className="flex items-baseline justify-between"><p className="font-bold">Peso por semana</p><span className="muted text-[11.5px]">promedio semanal{goal ? ' · línea = objetivo' : ''}</span></div>
+            <div className="mt-2 h-52" data-testid="weekly-weight-chart">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chart} margin={{ left: -18, right: 6, top: 8 }}>
-                  <CartesianGrid vertical={false} stroke="#f2dfd3" />
-                  <XAxis dataKey="day" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} domain={[(dataMin: number) => Math.floor(dataMin - 2), (dataMax: number) => Math.ceil(dataMax + 1)]} />
-                  <Tooltip formatter={v => `${v} kg`} />
-                  <Bar dataKey="kg" fill="#f97316" radius={[6, 6, 0, 0]} minPointSize={4} />
+                <BarChart data={weekly} margin={{ left: -18, right: 6, top: 8 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 4" stroke="rgba(120,80,60,.18)" />
+                  <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} domain={[(dataMin: number) => Math.floor(Math.min(dataMin, goal ?? dataMin) - 2), (dataMax: number) => Math.ceil(Math.max(dataMax, goal ?? dataMax) + 1)]} />
+                  <Tooltip {...tip} formatter={v => [`${v} kg`, 'Peso']} labelFormatter={l => `Semana del ${l}`} />
+                  {goal && <ReferenceLine y={goal} stroke="#10b981" strokeDasharray="5 4" label={{ value: `🎯 ${goal}`, fontSize: 10, fill: '#059669', position: 'insideTopRight' }} />}
+                  <Bar dataKey="kg" fill="url(#gw)" radius={[8, 8, 0, 0]} minPointSize={4} animationDuration={900} />
+                  <defs><linearGradient id="gw" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#fb923c" /><stop offset="100%" stopColor="#f43f5e" /></linearGradient></defs>
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </Card>
+          {weekly.some(w => w.bmi) && (
+            <Card>
+              <div className="flex items-baseline justify-between"><p className="font-bold">IMC por semana</p><span className="muted text-[11.5px]">zona verde = 18,5–25</span></div>
+              <div className="mt-2 h-44">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={weekly} margin={{ left: -22, right: 6, top: 8 }}>
+                    <ReferenceArea y1={18.5} y2={25} fill="#10b981" fillOpacity={0.08} />
+                    <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} domain={[(dataMin: number) => Math.floor(Math.min(dataMin, 18) - 1), (dataMax: number) => Math.ceil(Math.max(dataMax, 26) + 1)]} />
+                    <Tooltip {...tip} formatter={v => [v as number, 'IMC']} />
+                    <Bar dataKey="bmi" fill="#a78bfa" radius={[8, 8, 0, 0]} minPointSize={4} animationDuration={900} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="muted mt-1 text-[11.5px]">El IMC es orientativo: no distingue músculo de grasa. Si ganas músculo puede subir y estar todo bien 💪</p>
+            </Card>
+          )}
+          {heights.length > 0 && (
+            <Card>
+              <div className="flex items-baseline justify-between"><p className="font-bold">Estatura por semana</p><span className="tabular text-[13px] font-semibold">{heights[heights.length - 1].cm} cm</span></div>
+              <div className="mt-2 h-36">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={heights} margin={{ left: -22, right: 6, top: 8 }}>
+                    <XAxis dataKey="week" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} domain={[(dataMin: number) => Math.floor(dataMin - 2), (dataMax: number) => Math.ceil(dataMax + 1)]} />
+                    <Tooltip {...tip} formatter={v => [`${v} cm`, 'Estatura']} />
+                    <Bar dataKey="cm" fill="#38bdf8" radius={[8, 8, 0, 0]} minPointSize={4} animationDuration={900} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          )}
           <Card className="divide-y divide-black/[.05] p-0 dark:divide-white/[.06]">
+            <p className="px-4 pb-1 pt-3 text-[13px] font-bold">Historial</p>
             {[...list].reverse().slice(0, 20).map(x => (
               <div key={x.id} className="flex items-center gap-3 px-4 py-3">
                 <span className="flex-1 text-[14px] first-letter:uppercase">{fmtDay(x.day)}</span>
+                {x.height_cm && <span className="muted tabular text-[12.5px]">{x.height_cm} cm</span>}
                 <span className="tabular font-semibold">{x.weight_kg.toFixed(1)} kg</span>
                 <button className="p-1.5 text-red-500" aria-label="Eliminar" onClick={async () => { if (await confirm({ title: '¿Eliminar este registro?', danger: true, confirm: 'Eliminar' })) del.mutate(x.id) }}><Trash2 className="size-4" /></button>
               </div>
@@ -744,6 +854,12 @@ function BodyWeightTab() {
           </Card>
         </>
       )}
+      <p className="muted px-1 text-[12px]">🔒 Solo tú ves tu peso y estatura. Tu pareja nunca tiene acceso a estos datos.</p>
+      <InjuriesCard />
+      <MeasurementsCard />
+      <ProgressPhotosCard />
+      <CycleCard />
+      <BodyDataSheet open={open} mode={!last || !p?.height_cm ? 'inicio' : 'semanal'} onClose={() => setOpen(false)} />
     </div>
   )
 }

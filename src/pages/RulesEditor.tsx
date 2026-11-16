@@ -78,6 +78,8 @@ export default function RulesEditor() {
           <p className="muted -mt-2 text-xs">Actual: {String(cutH).padStart(2, '0')}:{String(cutM).padStart(2, '0')}</p>
           <Field label="Entrenamientos semanales objetivo (cada uno)"><Input type="number" inputMode="numeric" min={0} max={14} value={r.weekly_workouts_target} onChange={num('weekly_workouts_target')} /></Field>
           <Field label="Recuperaciones de racha permitidas por mes (0–5)"><Input type="number" inputMode="numeric" min={0} max={5} value={r.recovery_per_month} onChange={num('recovery_per_month')} /></Field>
+          <Field label="Días de mínimos por persona al mes (0–10)" hint="Días difíciles (exámenes, trabajo): con pocos minutos de algo, el día cuenta."><Input type="number" inputMode="numeric" min={0} max={10} value={r.easy_days_per_month ?? 4} onChange={num('easy_days_per_month')} /></Field>
+          <Field label="Minutos que alcanzan en un día de mínimos (1–60)"><Input type="number" inputMode="numeric" min={1} max={60} value={r.easy_min_minutes ?? 10} onChange={num('easy_min_minutes')} /></Field>
           <Field label="Reglas especiales (texto libre)"><textarea className="input min-h-24" maxLength={500} value={r.special_rules} onChange={e => set('special_rules', e.target.value)} placeholder="Ej.: si uno está enfermo, avisamos y usamos un descanso." /></Field>
         </Card>
 

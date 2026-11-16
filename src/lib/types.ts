@@ -1,4 +1,4 @@
-export type MemberStatus = 'pending' | 'in_progress' | 'completed' | 'rest' | 'missed'
+export type MemberStatus = 'pending' | 'in_progress' | 'completed' | 'rest' | 'missed' | 'paused'
 export type CoupleDayStatus = MemberStatus | 'recovered'
 
 export interface Profile {
@@ -47,6 +47,8 @@ export interface Rules {
   rest_days_per_week: number
   day_cutoff_minutes: number
   recovery_per_month: number
+  easy_days_per_month?: number
+  easy_min_minutes?: number
   special_rules: string
 }
 
@@ -60,6 +62,7 @@ export interface MemberDay {
   details: {
     workouts: number; activity_minutes: number; steps: number; water_ml: number; habit_checks: number
     is_rest: boolean; required: string[]; met: string[]; require: 'any' | 'all'; day_end: string
+    is_easy?: boolean; is_paused?: boolean; easy_min?: number
   }
   rules_version: number | null
   updated_at: string
@@ -72,7 +75,7 @@ export type MuscleGroup = 'pecho' | 'espalda' | 'hombros' | 'biceps' | 'triceps'
 export interface Exercise { id: string; user_id: string; name: string; muscle_group: MuscleGroup; notes: string | null; archived: boolean }
 export interface Routine { id: string; user_id: string; name: string; description: string | null; is_favorite: boolean; weekdays: number[]; routine_exercises?: RoutineExercise[] }
 export interface RoutineExercise { id: string; routine_id: string; exercise_id: string; position: number; target_sets: number | null; target_reps: number | null; target_weight_kg: number | null; rest_seconds: number | null; notes: string | null; exercises?: Exercise }
-export interface Workout { id: string; user_id: string; routine_id: string | null; title: string; performed_at: string; duration_min: number | null; notes: string | null; local_day: string; workout_sets?: WorkoutSet[] }
+export interface Workout { id: string; user_id: string; routine_id: string | null; title: string; performed_at: string; duration_min: number | null; notes: string | null; local_day: string; joint_with?: string | null; joint_of?: string | null; workout_sets?: WorkoutSet[] }
 export interface WorkoutSet { id: string; workout_id: string; exercise_id: string; set_number: number; reps: number | null; weight_kg: number | null; duration_sec: number | null; rest_sec: number | null; notes: string | null; exercises?: Exercise }
 
 export interface WaterLog { id: string; amount_ml: number; label: string | null; performed_at: string; local_day: string }

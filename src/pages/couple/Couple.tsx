@@ -1,18 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send, Heart, Camera, Plus, Trash2, Pin, ChevronLeft, ChevronRight, CalendarHeart, ImagePlus, Unlink, Sparkles } from 'lucide-react'
+import { Send, Heart, Camera, Trash2, Pin, ChevronRight, ImagePlus, Unlink, Sparkles } from 'lucide-react'
 import { supabase, must } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthProvider'
-import { useAction, useMemberDays, useStreakDays, useToday } from '../../lib/queries'
+import { useAction, useToday } from '../../lib/queries'
 import { uploadPhoto, deletePhoto, useSignedUrl } from '../../lib/media'
-import type { CalendarEvent, Challenge, Goal, Memory, Message, Note } from '../../lib/types'
-import { addDays, diffDays, endOfMonth, fmtLongDay, fmtMonth, fmtShort, fmtTime, parseISODate, startOfMonth, toISODate, WEEKDAYS_MON } from '../../lib/dates'
+import type { Memory, Message, Note } from '../../lib/types'
+import { diffDays, fmtLongDay, fmtShort, fmtTime, toISODate } from '../../lib/dates'
 import { Button, Card, Empty, Field, Input, Loading, Segmented, Sheet, cx, useUi } from '../../components/ui'
 import { PageHeader } from '../../components/AppShell'
-import { TimeField } from '../../components/TimePicker'
 import { Avatar } from '../../components/Avatar'
 import { celebrate } from '../../components/Celebration'
+import { JointCalendar } from '../../components/JointCalendar'
 
 type Tab = 'chat' | 'recuerdos' | 'calendario' | 'notas' | 'juntos'
 const TABS: { value: Tab; label: string }[] = [
@@ -37,7 +37,7 @@ export default function Couple() {
         <div className="mt-4 pb-4">
           {tab === 'chat' && <Chat />}
           {tab === 'recuerdos' && <Album />}
-          {tab === 'calendario' && <SharedCalendar />}
+          {tab === 'calendario' && <JointCalendar />}
           {tab === 'notas' && <Notes />}
           {tab === 'juntos' && <Together />}
         </div>
@@ -192,116 +192,6 @@ function Album() {
 // =====================================================================
 // CALENDARIO COMPARTIDO
 // =====================================================================
-const EVENT_KINDS: Record<string, string> = { evento: '📌 Evento', visita: '✈️ Visita', aniversario: '💞 Aniversario', cumpleanos: '🎂 Cumpleaños', entrenamiento: '🏋️ Entrenamiento', reto: '🏆 Reto', meta: '🎯 Meta', fecha: '⭐ Fecha importante' }
-
-function SharedCalendar() {
-  const { couple, uid, partner, profile } = useAuth()
-  const { confirm } = useUi()
-  const today = useToday()
-  const [month, setMonth] = useState<string | null>(null)
-  const [sel, setSel] = useState<string | null>(null)
-  const [add, setAdd] = useState(false)
-  const m = month ?? (today ? startOfMonth(today) : null)
-  const end = m ? endOfMonth(m) : null
-  const events = useQuery({ queryKey: ['events', couple?.id], enabled: !!couple, queryFn: () => must(supabase.from('calendar_events').select('*').eq('couple_id', couple!.id)) as Promise<CalendarEvent[]> }).data ?? []
-  const days = useStreakDays(m, end).data ?? []
-  const member = useMemberDays(m, end).data ?? []
-  const rests = useQuery({ queryKey: ['member_days', 'rest', m], enabled: !!m, queryFn: () => must(supabase.from('rest_days').select('user_id, day').gte('day', m!).lte('day', end!)) as Promise<{ user_id: string; day: string }[]> }).data ?? []
-  const goals = useQuery({ queryKey: ['goals', 'cal'], queryFn: () => must(supabase.from('goals').select('id,name,end_date,couple_id').not('end_date', 'is', null)) as Promise<Goal[]> }).data ?? []
-  const challenges = useQuery({ queryKey: ['challenges', 'cal'], queryFn: () => must(supabase.from('challenges').select('id,name,end_date,badge,status')) as Promise<Challenge[]> }).data ?? []
-  const del = useAction(async (id: string) => must(supabase.from('calendar_events').delete().eq('id', id)), { invalidate: [['events']], success: 'Evento eliminado' })
-
-  const itemsFor = (d: string) => {
-    const md = d.slice(5)
-    const out: { key: string; text: string; ev?: CalendarEvent }[] = []
-    events.filter(e => e.event_date === d || (e.yearly && e.event_date.slice(5) === md && e.event_date <= d)).forEach(e => out.push({ key: e.id, text: `${EVENT_KINDS[e.kind]?.split(' ')[0] ?? '📌'} ${e.title}${e.event_time ? ` · ${e.event_time.slice(0, 5)}` : ''}`, ev: e }))
-    if (couple?.anniversary_date?.slice(5) === md) out.push({ key: 'anniv', text: '💞 Aniversario' })
-    if (profile?.birthday?.slice(5) === md) out.push({ key: 'bme', text: '🎂 Tu cumpleaños' })
-    if (partner?.birthday?.slice(5) === md) out.push({ key: 'bp', text: `🎂 Cumpleaños de ${partner.display_name}` })
-    const sd = days.find(x => x.day === d)
-    if (sd?.status === 'completed') out.push({ key: 'sd', text: '🔥 Racha cumplida por los dos' })
-    if (sd?.status === 'recovered') out.push({ key: 'sd', text: '🛟 Día recuperado' })
-    member.filter(x => x.day === d && x.details.workouts > 0).forEach(x => out.push({ key: 'w' + x.user_id, text: `🏋️ ${x.user_id === uid ? 'Entrenaste' : `${partner?.display_name} entrenó`}` }))
-    rests.filter(x => x.day === d).forEach(x => out.push({ key: 'r' + x.user_id, text: `😴 Descanso de ${x.user_id === uid ? 'ti' : partner?.display_name}` }))
-    goals.filter(g => g.end_date === d).forEach(g => out.push({ key: 'g' + g.id, text: `🎯 Fin de meta: ${g.name}` }))
-    challenges.filter(c => c.end_date === d).forEach(c => out.push({ key: 'c' + c.id, text: `${c.badge} Fecha límite: ${c.name}` }))
-    return out
-  }
-
-  const grid = useMemo(() => {
-    if (!m) return []
-    const cells: (string | null)[] = Array((parseISODate(m).getDay() + 6) % 7).fill(null)
-    for (let d = m; d <= end!; d = addDays(d, 1)) cells.push(d)
-    return cells
-  }, [m, end])
-
-  const selItems = sel ? itemsFor(sel) : []
-  return (
-    <div className="stagger space-y-3">
-      <Card>
-        <div className="mb-3 flex items-center justify-between">
-          <button className="flex size-10 items-center justify-center rounded-full bg-fuego-100 dark:bg-noche-700" onClick={() => m && setMonth(startOfMonth(addDays(m, -1)))} aria-label="Mes anterior"><ChevronLeft className="size-5" /></button>
-          <p className="font-bold first-letter:uppercase">{m ? fmtMonth(m) : ''}</p>
-          <button className="flex size-10 items-center justify-center rounded-full bg-fuego-100 dark:bg-noche-700" onClick={() => m && setMonth(addDays(end!, 1))} aria-label="Mes siguiente"><ChevronRight className="size-5" /></button>
-        </div>
-        <div className="grid grid-cols-7 gap-1 text-center">
-          {WEEKDAYS_MON.map(d => <span key={d} className="muted text-xs font-bold">{d}</span>)}
-          {grid.map((d, i) => {
-            if (!d) return <span key={i} />
-            const its = itemsFor(d)
-            const fire = days.find(x => x.day === d)?.status === 'completed'
-            return (
-              <button key={d} onClick={() => setSel(d)} className={cx('flex aspect-square flex-col items-center justify-center rounded-xl text-sm font-semibold',
-                sel === d ? 'bg-ink text-white dark:bg-white dark:text-ink' : fire ? 'text-ember' : '', d === today && sel !== d && 'ring-1 ring-ink dark:ring-white')}>
-                {Number(d.slice(8))}
-                <span className="flex h-1.5 gap-0.5">{its.slice(0, 3).map((_, k) => <span key={k} className={cx('size-1 rounded-full', sel === d ? 'bg-white dark:bg-ink' : 'bg-ember')} />)}</span>
-              </button>
-            )
-          })}
-        </div>
-      </Card>
-      {sel && (
-        <Card>
-          <div className="flex items-center justify-between"><p className="font-bold first-letter:uppercase">{fmtLongDay(sel)}</p><Button variant="soft" className="min-h-9 px-3 text-sm" onClick={() => setAdd(true)}><Plus className="size-4" />Evento</Button></div>
-          {selItems.length === 0 ? <p className="muted mt-2 text-sm">Nada este día.</p> : (
-            <ul className="mt-2 space-y-1.5">
-              {selItems.map(it => (
-                <li key={it.key} className="flex items-center gap-2 text-sm">
-                  <span className="flex-1">{it.text}{it.ev?.notes ? <span className="muted block text-xs">{it.ev.notes}</span> : null}</span>
-                  {it.ev && it.ev.created_by === uid && <button className="p-1.5 text-red-500" aria-label="Eliminar" onClick={async () => { if (await confirm({ title: '¿Eliminar evento?', danger: true, confirm: 'Eliminar' })) del.mutate(it.ev!.id) }}><Trash2 className="size-4" /></button>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      )}
-      {!sel && <Button variant="soft" className="w-full" onClick={() => { setSel(today); setAdd(true) }}><CalendarHeart className="size-5" />Añadir fecha importante</Button>}
-      <EventForm open={add} day={sel ?? today ?? toISODate(new Date())} onClose={() => setAdd(false)} />
-    </div>
-  )
-}
-
-function EventForm({ open, day, onClose }: { open: boolean; day: string; onClose: () => void }) {
-  const { couple, uid } = useAuth()
-  const [f, setF] = useState({ title: '', kind: 'evento', event_date: day, event_time: '', yearly: false, notes: '' })
-  useEffect(() => { if (open) setF(x => ({ ...x, event_date: day })) }, [open, day])
-  const save = useAction(async () => must(supabase.from('calendar_events').insert({ ...f, event_time: f.event_time || null, notes: f.notes || null, couple_id: couple!.id, created_by: uid })),
-    { invalidate: [['events']], success: 'Evento guardado' })
-  return (
-    <Sheet open={open} onClose={onClose} title="Nuevo evento">
-      <form className="space-y-3" onSubmit={e => { e.preventDefault(); if (f.title.trim()) save.mutate(undefined, { onSuccess: () => { onClose(); setF({ ...f, title: '', notes: '' }) } }) }}>
-        <Field label="Título"><Input required maxLength={80} value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder="Ej.: ¡Nos vemos! ✈️" /></Field>
-        <Field label="Tipo"><select className="input" value={f.kind} onChange={e => setF({ ...f, kind: e.target.value, yearly: ['aniversario', 'cumpleanos'].includes(e.target.value) || f.yearly })}>{Object.entries(EVENT_KINDS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-        <Field label="Fecha"><Input type="date" value={f.event_date} onChange={e => setF({ ...f, event_date: e.target.value })} /></Field>
-        <TimeField label="Hora (opcional)" optional value={f.event_time} onChange={v => setF({ ...f, event_time: v })} />
-        <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" className="size-5 accent-fuego-500" checked={f.yearly} onChange={e => setF({ ...f, yearly: e.target.checked })} />Se repite cada año</label>
-        <Field label="Notas"><Input maxLength={500} value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></Field>
-        <Button type="submit" className="w-full" loading={save.isPending}>Guardar</Button>
-      </form>
-    </Sheet>
-  )
-}
-
 // =====================================================================
 // NOTAS MOTIVACIONALES
 // =====================================================================

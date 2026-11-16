@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthProvider'
 import { useToday } from '../lib/queries'
 import { addDays, fmtLiters, fmtNum, fmtShort, startOfWeek } from '../lib/dates'
 import { colorFor, levelFromXp, stageForLevel } from '../lib/levels'
-import { Card, Segmented, Sheet, cx } from './ui'
+import { Button, Card, Segmented, Sheet, cx } from './ui'
 import { Character } from './Character'
 import { CountUp } from './Motion'
 
@@ -63,7 +63,7 @@ export function WeeklySummary() {
   const lastXp = (lastQ.data ?? []).reduce((a, r) => a + r.xp, 0)
   useEffect(() => {
     if (!isMonday || !ws || lastXp <= 0) return
-    try { if (localStorage.getItem(seenKey(uid, ws)) === '1') return } catch { return }
+    try { if (localStorage.getItem(seenKey(uid, ws)) === '1' || localStorage.getItem('fj-no-prompts') === '1') return } catch { return }
     const t = setTimeout(() => {
       if (document.querySelector('[data-sheet], [role="dialog"], [data-confirm]')) return
       try { localStorage.setItem(seenKey(uid, ws), '1') } catch { /* */ }
@@ -95,6 +95,7 @@ export function WeeklySummary() {
 
 function WeekSheet({ which, setWhich, today, ws, onClose }: { which: 'this' | 'last'; setWhich: (w: 'this' | 'last') => void; today: string; ws: string; onClose: () => void }) {
   const { uid, partner, profile } = useAuth()
+  const nav = useNavigate()
   const from = which === 'this' ? ws : addDays(ws, -7)
   const to = which === 'this' ? today : addDays(ws, -1)
   const q = useWeek(from, to)
@@ -203,6 +204,7 @@ function WeekSheet({ which, setWhich, today, ws, onClose }: { which: 'this' | 'l
             <p className="muted mt-2 text-[12px]">Cada uno a su ritmo: lo que importa es que suman juntos.</p>
           </div>
         )}
+        <Button variant="soft" className="w-full" onClick={() => { onClose(); nav('/calendario') }}>🗓️ Planear la próxima semana juntos</Button>
         <p className="muted text-center text-[12px]">Cada domingo a las 19:00 les llega este resumen (puedes apagarlo en Perfil → Notificaciones).</p>
       </div>
     </Sheet>

@@ -13,12 +13,14 @@ import { CONDITION_LABEL, dayProgress } from './Today'
 import { celebrate } from './Celebration'
 
 const moodFor = (row?: MemberDay): Mood =>
-  row?.status === 'completed' ? 'happy' : row?.status === 'rest' ? 'sleep' : row?.status === 'missed' ? 'sad' : 'idle'
+  row?.status === 'completed' ? 'happy' : row?.status === 'rest' || row?.status === 'paused' ? 'sleep' : row?.status === 'missed' ? 'sad' : 'idle'
 
 function bubbleText(row: MemberDay | undefined, p: number, me: boolean) {
   if (!row) return me ? '¡Vamos por hoy!' : 'Esperando…'
   if (row.status === 'completed') return '¡Listo por hoy! 🔥'
   if (row.status === 'rest') return 'Descansando…'
+  if (row.status === 'paused') return me ? 'En pausa: cuídate 💙' : 'En pausa, recuperándose 💙'
+  if (row.details?.is_easy) return me ? 'Día de mínimos: ¡10 min y listo!' : 'Hoy va con mínimos 🌱'
   if (row.status === 'missed') return 'Mañana vuelvo con todo'
   if (p >= 0.75) return '¡Me falta poquito!'
   if (p > 0) return '¡Voy en camino!'
@@ -66,7 +68,7 @@ export function CoupleScene({ mine, theirs, rules, children }: { mine?: MemberDa
   const { uid, partner, profile } = useAuth()
   const levels = useLevels().data ?? []
   const lm = levels.find(l => l.user_id === uid), lp = levels.find(l => l.user_id === partner?.id)
-  const bothDone = ['completed', 'rest'].includes(mine?.status ?? '') && ['completed', 'rest'].includes(theirs?.status ?? '')
+  const bothDone = ['completed', 'rest', 'paused'].includes(mine?.status ?? '') && ['completed', 'rest', 'paused'].includes(theirs?.status ?? '') && (mine?.status === 'completed' || theirs?.status === 'completed')
   return (
     <div className="card relative overflow-hidden p-0" data-tour="scene">
       <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-orange-100 via-rose-50 to-transparent dark:from-noche-700 dark:via-noche-800" />

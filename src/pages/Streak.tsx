@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, TriangleAlert, SlidersHorizontal, LifeBuoy, Lock, Check, Moon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, TriangleAlert, SlidersHorizontal, LifeBuoy, Lock, Check, Moon, Snowflake } from 'lucide-react'
 import { useAuth } from '../context/AuthProvider'
 import { supabase, must } from '../lib/supabase'
 import { rulesFor, useAction, useMemberDays, useProposals, useRules, useStreak, useStreakDays, useToday } from '../lib/queries'
@@ -65,8 +65,8 @@ export default function Streak() {
   const best = streak?.best_count ?? 0
   const myEnd = mine?.details.day_end ? new Date(mine.details.day_end) : null
   const hoursLeft = myEnd ? (myEnd.getTime() - Date.now()) / 3600000 : 99
-  const danger = mine && !['completed', 'rest'].includes(mine.status) && hoursLeft < 4 && hoursLeft > 0
-  const partnerPending = theirs && !['completed', 'rest'].includes(theirs.status) && (mine?.status === 'completed' || mine?.status === 'rest')
+  const danger = mine && !['completed', 'rest', 'paused'].includes(mine.status) && hoursLeft < 4 && hoursLeft > 0
+  const partnerPending = theirs && !['completed', 'rest', 'paused'].includes(theirs.status) && (mine?.status === 'completed' || mine?.status === 'rest')
   const sum = (u?: string) => weekDays.filter(d => d.user_id === u).reduce((s, d) => s + (d.details.workouts ?? 0), 0)
   const target = rules?.weekly_workouts_target ?? 0
   const daysLeftWeek = ws && today ? 6 - diffDays(today, ws) : 0
@@ -177,12 +177,13 @@ export default function Streak() {
                   <span className={cx('flex size-9 items-center justify-center rounded-full text-[13px] font-medium tabular',
                     st === 'completed' ? 'bg-ember text-white'
                       : st === 'rest' ? 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
+                      : st === 'paused' ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
                       : st === 'recovered' ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
                       : st === 'missed' ? 'text-fuego-800/35 line-through dark:text-white/25'
                       : st === 'in_progress' ? 'ring-1 ring-amber-400'
                       : 'text-fuego-800/60 dark:text-white/50',
                     d === today && st !== 'completed' && 'ring-1 ring-ink dark:ring-white')}>
-                    {st === 'rest' ? <Moon className="size-3.5" /> : Number(d.slice(8))}
+                    {st === 'rest' ? <Moon className="size-3.5" /> : st === 'paused' ? <Snowflake className="size-3.5" /> : Number(d.slice(8))}
                   </span>
                 </div>
               )

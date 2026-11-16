@@ -2,6 +2,7 @@ import { Suspense, useCallback, useEffect, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { House, Flame as FlameIcon, Dumbbell, CircleCheckBig, Heart } from 'lucide-react'
 import { cx, Loading } from './ui'
+import { BodyCheckPrompt } from './BodyCheck'
 import { useEnsureToday, useMidnightRollover, useRealtimeSync } from '../lib/queries'
 import { useUi } from './ui'
 import { celebrate } from './Celebration'
@@ -36,6 +37,7 @@ export function AppShell() {
       {!isDemo && <OfflineBanner />}
       <Onboarding />
       <Tour />
+      <BodyCheckPrompt />
       <main className="pb-nav" style={{ paddingLeft: 'var(--safe-left)', paddingRight: 'var(--safe-right)' }}>
         {isDemo ? <DemoBar /> : <InstallBanner />}
         <Suspense fallback={<div className="px-4 pt-24"><Loading /></div>}>

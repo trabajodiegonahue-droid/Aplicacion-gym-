@@ -8,7 +8,8 @@ import { useAction } from '../lib/queries'
 import { uploadPhoto, deletePhoto } from '../lib/media'
 import { currentSubscription, disablePush, enablePush, pushSupport } from '../lib/push'
 import type { NotifKind, NotificationPrefs, Profile as P } from '../lib/types'
-import { deviceTimezone } from '../lib/dates'
+import { deviceTimezone, fmtShort } from '../lib/dates'
+import { BodyDataSheet, FITNESS_GOALS, bmi, bmiLabel, useBodyWeights } from '../components/BodyCheck'
 import { Button, Card, Field, Input, SectionTitle, Segmented, Sheet, Toggle, useUi } from '../components/ui'
 import { PageHeader } from '../components/AppShell'
 import { Avatar } from '../components/Avatar'
@@ -93,6 +94,9 @@ export default function Profile() {
           <Button className="w-full" disabled={!dirty || !f.display_name?.trim()} loading={save.isPending}
             onClick={() => save.mutate({ display_name: f.display_name!.trim(), bio: f.bio || null, birthday: f.birthday || null, timezone: f.timezone })}>Guardar cambios</Button>
         </Card>
+
+        <SectionTitle>Mis datos corporales</SectionTitle>
+        <MyBodyData />
 
         <SectionTitle>Mi personaje</SectionTitle>
         <CharacterEditor />
@@ -237,3 +241,30 @@ function PasswordSheet({ open, onClose }: { open: boolean; onClose: () => void }
   )
 }
 
+
+/** Peso, estatura, IMC y objetivo: siempre visibles y editables. */
+function MyBodyData() {
+  const { profile } = useAuth()
+  const nav = useNavigate()
+  const p = profile as unknown as { height_cm?: number | null; goal_weight_kg?: number | null; fitness_goal?: keyof typeof FITNESS_GOALS | null } | null
+  const list = useBodyWeights().data ?? []
+  const last = list[list.length - 1]
+  const [open, setOpen] = useState(false)
+  const h = last?.height_cm ?? p?.height_cm ?? null
+  const b = last ? bmi(last.weight_kg, h) : null
+  return (
+    <Card data-testid="my-body-data">
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div><p className="tabular font-display text-[22px] font-bold">{last ? last.weight_kg.toFixed(1) : '—'}</p><p className="muted text-[11px]">kg</p></div>
+        <div><p className="tabular font-display text-[22px] font-bold">{h ?? '—'}</p><p className="muted text-[11px]">cm</p></div>
+        <div><p className="tabular font-display text-[22px] font-bold">{b ? b.toFixed(1) : '—'}</p><p className="muted text-[11px]">IMC{b ? ` · ${bmiLabel(b)}` : ''}</p></div>
+      </div>
+      <p className="muted mt-2 text-center text-[12.5px]">{p?.fitness_goal ? FITNESS_GOALS[p.fitness_goal] : 'Sin objetivo'}{p?.goal_weight_kg ? ` · objetivo ${Number(p.goal_weight_kg)} kg` : ''}{last ? ` · último pesaje ${fmtShort(last.day)}` : ''}</p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Button variant="soft" onClick={() => setOpen(true)}>Actualizar</Button>
+        <Button variant="ghost" onClick={() => nav('/gym/peso')}>Ver gráficas</Button>
+      </div>
+      <BodyDataSheet open={open} mode="inicio" onClose={() => setOpen(false)} />
+    </Card>
+  )
+}
