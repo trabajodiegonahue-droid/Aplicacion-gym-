@@ -10,7 +10,8 @@
     salvo 400–600 que son el acento.
 */
 @theme {
-  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-display: "Fraunces Variable", "Iowan Old Style", Georgia, serif;
 
   --color-fuego-50: #fff8f3;
   --color-fuego-100: #fbeee6;
@@ -55,8 +56,9 @@
 }
 @keyframes glow { 0%,100% { opacity: .45 } 50% { opacity: .8 } }
 
-@utility bg-ember { background-image: linear-gradient(140deg, #f43f5e 0%, #e11d48 55%, #be123c 100%); }
+@utility bg-ember { background-image: linear-gradient(135deg, #ff7a59 0%, #f43f5e 45%, #e11d48 75%, #c0265d 100%); }
 @utility text-ember { color: #e11d48; }
+@utility text-gradient { background-image: linear-gradient(120deg, #ff7a59, #f43f5e 55%, #c0265d); -webkit-background-clip: text; background-clip: text; color: transparent; }
 @utility tabular { font-variant-numeric: tabular-nums; }
 @utility hairline { box-shadow: inset 0 0 0 1px rgb(23 19 15 / .07); }
 
@@ -72,18 +74,22 @@
 html, body, #root { min-height: 100%; }
 body {
   margin: 0;
-  background: var(--color-fuego-50);
+  background:
+    radial-gradient(120% 60% at 100% 0%, rgb(255 214 196 / .45) 0%, transparent 55%),
+    radial-gradient(90% 50% at 0% 100%, rgb(255 228 236 / .55) 0%, transparent 60%),
+    var(--color-fuego-50);
+  background-attachment: fixed;
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-feature-settings: "cv11", "ss01", "ss03";
-  letter-spacing: -0.006em;
+  letter-spacing: -0.005em;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
   -webkit-text-size-adjust: 100%;
 }
-.dark body, body.dark { background: var(--color-noche-900); color: #f3f2f0; }
-h1, h2, h3 { letter-spacing: -0.025em; }
+.dark body, body.dark { background: radial-gradient(120% 60% at 100% 0%, rgb(225 29 72 / .10) 0%, transparent 55%), var(--color-noche-900); background-attachment: fixed; color: #f3f2f0; }
+h1, h2, h3 { letter-spacing: -0.02em; }
+.font-display { font-optical-sizing: auto; letter-spacing: -0.01em; }
 
 /* Inputs ≥16px: evita el zoom automático de Safari en iPhone */
 input, select, textarea, button { font: inherit; font-size: 16px; }
@@ -94,7 +100,7 @@ input[type="date"], input[type="time"] { min-height: 48px; }
 .pb-nav { padding-bottom: calc(96px + var(--safe-bottom)); }
 
 @layer components {
-  .card { @apply rounded-[22px] bg-white p-4 shadow-[0_1px_2px_rgba(23,19,15,.04),0_8px_24px_-16px_rgba(23,19,15,.12)] ring-1 ring-black/[.05]; }
+  .card { @apply rounded-[24px] bg-white/90 p-4 shadow-[0_1px_2px_rgba(120,40,20,.04),0_12px_32px_-18px_rgba(160,50,30,.22)] ring-1 ring-[#f3dcd2]/70 backdrop-blur-sm; }
   .dark .card { @apply bg-noche-800 ring-white/[.06] shadow-none; }
 
   .btn-primary { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-ink px-5 text-[15px] font-semibold text-white transition active:scale-[.98] active:opacity-90 disabled:opacity-40 disabled:active:scale-100; }
@@ -104,7 +110,7 @@ input[type="date"], input[type="time"] { min-height: 48px; }
   .btn-ghost { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-4 text-[15px] font-semibold text-fuego-800 transition active:opacity-60 disabled:opacity-40; }
   .dark .btn-ghost { @apply text-white/70; }
   .btn-danger { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 text-[15px] font-semibold text-white transition active:scale-[.98]; }
-  .btn-ember { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-ember px-5 text-[15px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(225,29,72,.55)] transition active:scale-[.98] disabled:opacity-40; }
+  .btn-ember { @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-ember px-5 text-[15px] font-semibold text-white shadow-[0_10px_24px_-10px_rgba(244,63,94,.7)] transition active:scale-[.98] disabled:opacity-40; }
 
   .input { @apply w-full min-h-12 rounded-2xl border-0 bg-fuego-100 px-4 py-3 text-[16px] text-ink outline-none ring-1 ring-transparent transition placeholder:text-fuego-800/45 focus:bg-white focus:ring-ink/15; }
   .dark .input { @apply bg-noche-700 text-white placeholder:text-white/35 focus:bg-noche-700 focus:ring-white/20; }
@@ -208,3 +214,34 @@ input[type="date"], input[type="time"] { min-height: 48px; }
 @media (prefers-reduced-motion: reduce) {
   .stagger > *, .ember, .nav-pop, .heartbeat { animation: none !important; }
 }
+
+/* ---------------- Pulido visual v2 ---------------- */
+/* Entrada de cada pantalla: sube y se enfoca suavemente */
+@keyframes page-in { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.page-in { animation: page-in .45s cubic-bezier(.2,.8,.2,1) both; }
+
+/* Esqueletos de carga con brillo */
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+.skeleton { border-radius: 20px; background: linear-gradient(90deg, rgb(251 238 230) 25%, rgb(255 248 243) 50%, rgb(251 238 230) 75%); background-size: 200% 100%; animation: shimmer 1.4s ease-in-out infinite; }
+.dark .skeleton { background: linear-gradient(90deg, #1c1c1f 25%, #26262a 50%, #1c1c1f 75%); background-size: 200% 100%; }
+
+/* Puntos que aparecen uno a uno */
+@keyframes dot-in { from { transform: scaleX(0); opacity: 0; } to { transform: none; opacity: 1; } }
+.stagger-dot { transform-origin: left; animation: dot-in .5s cubic-bezier(.2,.8,.2,1) both; }
+
+/* Brillo suave que recorre los botones principales */
+.btn-ember { position: relative; overflow: hidden; }
+.btn-ember::after { content: ""; position: absolute; inset: 0; width: 35%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent); transform: translateX(-120%); animation: btn-sheen 4.5s ease-in-out infinite; pointer-events: none; }
+@keyframes btn-sheen { 0%, 70% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
+
+/* Pestaña activa de la barra inferior */
+.nav-pill { transition: background-color .25s, transform .25s cubic-bezier(.2,1.4,.4,1); }
+
+/* Corazones que flotan */
+@keyframes heart-float { 0% { transform: translateY(0) scale(.6); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-46px) scale(1.1); opacity: 0; } }
+.heart-float { position: absolute; animation: heart-float 2.6s ease-out infinite; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .page-in, .skeleton, .stagger-dot, .btn-ember::after, .heart-float { animation: none !important; }
+}
+@keyframes wave { 0%,100% { transform: rotate(0); } 15% { transform: rotate(16deg); } 30% { transform: rotate(-8deg); } 45% { transform: rotate(14deg); } 60% { transform: rotate(-4deg); } 75% { transform: rotate(10deg); } }

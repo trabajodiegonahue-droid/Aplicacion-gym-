@@ -2305,6 +2305,7 @@ declare
   d date;
   c uuid;
   t record;
+  pt record;
   n int := 0;
   body text;
 begin
@@ -2315,9 +2316,13 @@ begin
     d := lt::date;
     c := private.active_couple(pr.id);
     select * into t from private.xp_parts(pr.id, d - 6, d);
-    body := format('Tú: %s entrenos, %s min de actividad, +%s XP.', t.workouts, t.activity_minutes, t.xp);
     if c is not null and private.partner_of(pr.id) is not null then
-      body := body || format(' Juntos: %s días de racha esta semana. ¡Mira el resumen! 🔥', t.couple_days);
+      -- En pareja: siempre en equipo, nunca comparando
+      select * into pt from private.xp_parts(private.partner_of(pr.id), d - 6, d);
+      body := format('Juntos sumaron %s entrenos, %s min de actividad y +%s XP. Días que cumplieron los dos: %s. ¡Miren su semana! 💞',
+                     t.workouts + pt.workouts, t.activity_minutes + pt.activity_minutes, t.xp + pt.xp, t.couple_days);
+    else
+      body := format('Esta semana: %s entrenos, %s min de actividad, +%s XP. ¡Mira tu resumen! 🔥', t.workouts, t.activity_minutes, t.xp);
     end if;
     perform private.notify(pr.id, 'weekly', '📊 Su semana en Fuego Juntos', body,
       jsonb_build_object('from', d - 6, 'to', d), 'weekly:' || d);

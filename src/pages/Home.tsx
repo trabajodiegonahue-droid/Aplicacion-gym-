@@ -9,7 +9,7 @@ import { addDays, fmtLiters, fmtLongDay, startOfWeek, WEEKDAYS_MON } from '../li
 import { Card, ProgressBar, SectionTitle, cx, useUi } from '../components/ui'
 import { Flame } from '../components/Flame'
 import { Avatar } from '../components/Avatar'
-import { ActivitySheet, QuickWorkoutSheet, WaterSheet, conditionText, useWaterToday } from '../components/Today'
+import { ActivitySheet, QuickWorkoutSheet, WaterSheet, conditionText, useAddWater, useWaterToday } from '../components/Today'
 import { CoupleScene, LevelUpWatcher } from '../components/Characters'
 import { startTour } from '../components/Tour'
 import { GoalsHome } from '../components/Goals'
@@ -71,6 +71,12 @@ export default function Home() {
   const { profile, couple, partner, uid } = useAuth()
   const nav = useNavigate()
   const draft = useWorkoutDraft()
+  const addWater = useAddWater()
+  const toggleHabit = useAction(async (v: { id: string; on: boolean }) => {
+    if (v.on) await must(supabase.from('habit_logs').delete().eq('habit_id', v.id).eq('user_id', uid!).eq('local_day', today!))
+    else await must(supabase.from('habit_logs').insert({ habit_id: v.id, user_id: uid }))
+    return !v.on
+  }, { invalidate: [['habit_logs'], ['week_summary'], ...LOG_KEYS], success: done => (done ? '¡Hábito cumplido! ✅' : 'Hábito desmarcado') })
   const { toast, confirm } = useUi()
   const today = useToday()
   const streak = useStreak().data
@@ -91,9 +97,9 @@ export default function Home() {
     queryFn: async () => {
       const s = startOfWeek(today!)
       const [w, habits, logs] = await Promise.all([
-        must(supabase.from('workouts').select('local_day').gte('local_day', s).lte('local_day', addDays(s, 6))),
-        must(supabase.from('habits').select('*').eq('archived', false)),
-        must(supabase.from('habit_logs').select('habit_id, local_day').eq('local_day', today!)),
+        must(supabase.from('workouts').select('local_day').gte('local_day', s).lte('local_day', addDays(s, 6)).eq('user_id', uid!)),
+        must(supabase.from('habits').select('*').eq('archived', false).eq('user_id', uid!)),
+        must(supabase.from('habit_logs').select('habit_id, local_day').eq('local_day', today!).eq('user_id', uid!)),
       ])
       return { workouts: (w as { local_day: string }[]).length, habits: habits as Habit[], logs: logs as HabitLog[] }
     },
@@ -123,7 +129,7 @@ export default function Home() {
       <header className="safe-top flex items-end gap-3 px-5 pb-4 pt-3">
         <div className="min-w-0 flex-1">
           <p className="eyebrow first-letter:uppercase">{today ? fmtLongDay(today) : ' '}</p>
-          <h1 className="mt-0.5 truncate text-[30px] font-bold leading-tight tracking-[-0.03em]">{greet}, {profile?.display_name?.split(' ')[0] ?? ''}</h1>
+          <h1 className="mt-1 leading-tight"><span className="block text-[17px] font-medium text-fuego-800/80 dark:text-white/60">{greet},</span><span className="font-display text-gradient truncate text-[34px] font-semibold">{profile?.display_name?.split(' ')[0] ?? ''}</span> <span className="inline-block origin-[70%_70%] animate-[wave_2.4s_ease-in-out_1] text-[26px]">👋</span></h1>
         </div>
         <button onClick={startTour} className="icon-btn mb-1" aria-label="Cómo funciona la app"><CircleHelp className="size-[18px]" strokeWidth={1.9} /></button>
         <Link to="/notificaciones" data-tour="bell" className="icon-btn relative mb-1" aria-label="Notificaciones">
@@ -156,7 +162,7 @@ export default function Home() {
                 <div className="flex-1">
                   <p className="text-[12px] font-medium uppercase tracking-[.08em] text-white/80">Racha compartida</p>
                   <p className="mt-1 flex items-baseline gap-2">
-                    <CountUp value={count} className="tabular text-[64px] font-bold leading-none tracking-[-0.05em]" /><span data-testid="streak-count" className="sr-only">{count}</span>
+                    <CountUp value={count} className="tabular font-display text-[68px] font-bold leading-none" /><span data-testid="streak-count" className="sr-only">{count}</span>
                     <span className="text-[15px] font-medium text-white/70">{count === 1 ? 'día' : 'días'}</span>
                   </p>
                   <p className="mt-1.5 text-[13px] text-white/80">Récord {streak?.best_count ?? 0} · {couple.name ?? `Tú y ${partner?.display_name ?? ''}`}</p>
@@ -222,19 +228,38 @@ export default function Home() {
         <SectionTitle action={<Link to="/estadisticas" className="text-[13px] font-medium text-ember">Estadísticas</Link>}>Tu día</SectionTitle>
         <Card className="divide-y divide-black/[.05] p-0 dark:divide-white/[.06]" data-tour="day">
           {[
-            { icon: Droplets, tint: 'text-sky-500', label: 'Agua', value: `${fmtLiters(water)} / ${fmtLiters(goal)}`, v: water, max: goal, to: '/habitos/agua' },
-            { icon: Activity, tint: 'text-ember', label: 'Actividad', value: `${mine?.details.activity_minutes ?? 0} / ${profile?.activity_goal_min ?? 30} min`, v: mine?.details.activity_minutes ?? 0, max: profile?.activity_goal_min || 30, to: '/habitos/actividad' },
+            { icon: Droplets, tint: 'text-sky-500', label: 'Agua', value: `${fmtLiters(water)} / ${fmtLiters(goal)}`, v: water, max: goal, to: '/habitos/agua', quick: { label: '+ Vaso', onClick: () => addWater.mutate({ ml: 250, label: 'Vaso' }) } },
+            { icon: Activity, tint: 'text-ember', label: 'Actividad', value: `${mine?.details.activity_minutes ?? 0} / ${profile?.activity_goal_min ?? 30} min`, v: mine?.details.activity_minutes ?? 0, max: profile?.activity_goal_min || 30, to: '/habitos/actividad', quick: { label: '+ Registrar', onClick: () => setSheet('activity') } },
             { icon: CircleCheckBig, tint: 'text-emerald-500', label: 'Hábitos', value: dailyHabits.length ? `${habitsDone} / ${dailyHabits.length}` : 'Sin hábitos', v: habitsDone, max: dailyHabits.length || 1, to: '/habitos' },
             { icon: Dumbbell, tint: 'text-ink dark:text-white', label: 'Entrenos esta semana', value: `${week.data?.workouts ?? 0} / ${profile?.weekly_workouts_goal ?? 4}`, v: week.data?.workouts ?? 0, max: profile?.weekly_workouts_goal || 4, to: '/gym/historial' },
           ].map(r => (
-            <button key={r.label} onClick={() => nav(r.to)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
-              <r.icon className={cx('size-5 shrink-0', r.tint)} strokeWidth={1.8} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-baseline justify-between gap-2"><span className="text-[15px] font-medium">{r.label}</span><span className="tabular muted text-[13px]">{r.value}</span></div>
-                <ProgressBar className="mt-2" value={r.v} max={r.max} />
-              </div>
-            </button>
+            <div key={r.label} className="flex w-full items-center gap-3 px-4 py-3.5">
+              <button type="button" onClick={() => nav(r.to)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                <r.icon className={cx('size-5 shrink-0', r.tint)} strokeWidth={1.8} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-2"><span className="text-[15px] font-medium">{r.label}</span><span className="tabular muted text-[13px]">{r.value}</span></div>
+                  <ProgressBar className="mt-2" value={r.v} max={r.max} />
+                </div>
+              </button>
+              {'quick' in r && r.quick && <button type="button" onClick={r.quick.onClick} className="shrink-0 rounded-full bg-fuego-100 px-3 py-2 text-[12.5px] font-bold text-fuego-700 transition active:scale-90 dark:bg-noche-700 dark:text-fuego-100">{r.quick.label}</button>}
+            </div>
           ))}
+          {dailyHabits.length > 0 && (
+            <div className="px-4 py-3.5">
+              <p className="muted mb-2 text-[12.5px] font-semibold">Hábitos de hoy · toca para marcar</p>
+              <div className="flex flex-wrap gap-1.5">
+                {dailyHabits.map(h => {
+                  const on = !!week.data?.logs.some(l => l.habit_id === h.id)
+                  return (
+                    <button key={h.id} type="button" onClick={() => toggleHabit.mutate({ id: h.id, on })} aria-pressed={on}
+                      className={cx('flex items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-semibold transition active:scale-90', on ? 'bg-emerald-500 text-white shadow-sm' : 'bg-fuego-100 text-fuego-800 dark:bg-noche-700 dark:text-white/80')}>
+                      {on ? <Check className="size-3.5" strokeWidth={3} /> : <span>{h.emoji ?? '•'}</span>}{h.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </Card>
 
         <p className="px-6 pb-2 pt-6 text-center text-[13px] italic leading-relaxed text-fuego-800/60 dark:text-white/40">“{quote}”</p>

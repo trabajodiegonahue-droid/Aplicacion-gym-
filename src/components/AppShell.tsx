@@ -38,9 +38,9 @@ export function AppShell() {
       <Tour />
       <main className="pb-nav" style={{ paddingLeft: 'var(--safe-left)', paddingRight: 'var(--safe-right)' }}>
         {isDemo ? <DemoBar /> : <InstallBanner />}
-        <Suspense fallback={<Loading />}>
+        <Suspense fallback={<div className="px-4 pt-24"><Loading /></div>}>
           <ErrorBoundary resetKey={loc.pathname}>
-            <div key={loc.pathname.split('/')[1]} className="animate-rise"><Outlet /></div>
+            <div key={loc.pathname.split('/')[1]} className="page-in"><Outlet /></div>
           </ErrorBoundary>
         </Suspense>
       </main>
@@ -52,9 +52,10 @@ export function AppShell() {
               className={({ isActive }) => cx('relative flex min-h-[58px] flex-col items-center justify-center gap-1 text-[10.5px] font-medium tracking-tight transition-colors',
                 isActive ? 'text-ink dark:text-white' : 'text-fuego-800/55 dark:text-white/40')}>
               {({ isActive }) => (<>
-                <t.icon key={isActive ? 'on' : 'off'} className={cx('size-[23px]', isActive && 'nav-pop')} strokeWidth={isActive ? 2.1 : 1.7} />
-                {t.label}
-                <span className={cx('absolute top-1.5 size-1 rounded-full bg-ember transition-opacity', isActive ? 'opacity-100' : 'opacity-0')} />
+                <span className={cx('nav-pill flex h-8 w-14 items-center justify-center rounded-full', isActive ? 'bg-gradient-to-br from-orange-100 to-rose-100 dark:from-fuego-500/20 dark:to-fuego-500/10' : 'scale-90')}>
+                  <t.icon key={isActive ? 'on' : 'off'} className={cx('size-[22px]', isActive && 'nav-pop text-fuego-500')} strokeWidth={isActive ? 2.2 : 1.7} />
+                </span>
+                <span className={cx(isActive && 'font-semibold')}>{t.label}</span>
               </>)}
             </NavLink>
           ))}
@@ -67,12 +68,12 @@ export function AppShell() {
 /** Cabecera de página estilo iOS (título grande), respeta Dynamic Island / notch. */
 export function PageHeader({ title, subtitle, right, back }: { title: string; subtitle?: string; right?: ReactNode; back?: ReactNode }) {
   return (
-    <header className="safe-top sticky top-0 z-30 bg-fuego-50/80 px-5 pb-3 backdrop-blur-2xl backdrop-saturate-150 dark:bg-noche-900/80">
+    <header className="safe-top sticky top-0 z-30 bg-fuego-50/90 px-5 pb-3 backdrop-blur-2xl backdrop-saturate-150 dark:bg-noche-900/90">
       <div className="flex min-h-12 items-end gap-3 pt-3">
         {back}
         <div className="min-w-0 flex-1">
           {subtitle && <p className="eyebrow mb-0.5 truncate">{subtitle}</p>}
-          <h1 className="truncate text-[30px] font-bold leading-tight tracking-[-0.03em]">{title}</h1>
+          <h1 className="font-display truncate text-[32px] font-semibold leading-tight">{title}</h1>
         </div>
         {right}
       </div>

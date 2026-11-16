@@ -1,21 +1,32 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, Dumbbell, Droplets, Activity, Footprints, ListChecks, Flame as FlameIcon, Trophy } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { ChevronLeft, Moon, Check } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts'
 import { supabase, must } from '../lib/supabase'
 import { useAuth } from '../context/AuthProvider'
-import { useStreak, useToday } from '../lib/queries'
-import { addDays, endOfMonth, fmtLiters, fmtNum, fmtShort, startOfMonth, startOfWeek } from '../lib/dates'
+import { useStreak, useStreakDays, useToday } from '../lib/queries'
+import { addDays, endOfMonth, fmtLiters, fmtNum, fmtShort, parseISODate, startOfMonth, startOfWeek, WEEKDAYS_MON } from '../lib/dates'
 import { Card, Loading, ProgressBar, Segmented, cx } from '../components/ui'
 import { PageHeader } from '../components/AppShell'
 import type { Goal } from '../lib/types'
 import { colorFor, levelFromXp, stageForLevel, useLevels } from '../lib/levels'
 import { Character } from '../components/Character'
+import { CountUp } from '../components/Motion'
 
 type Range = 'dia' | 'semana' | 'mes'
 interface Row { user_id: string; workouts: number; workout_minutes: number; activity_minutes: number; steps: number; water_ml: number; habit_checks: number; completed_days: number; rest_days: number }
 interface Series { user_id: string; day: string; workouts: number; activity_minutes: number; steps: number; water_ml: number; habit_checks: number }
+
+const COLORS = { rojo: '#f43f5e', naranja: '#fb923c' }
+
+function rangeFor(today: string, r: Range, back = 0): [string, string] {
+  if (r === 'dia') { const d = addDays(today, -back); return [d, d] }
+  if (r === 'semana') { const s = addDays(startOfWeek(today), -7 * back); return [s, addDays(s, 6)] }
+  const base = parseISODate(startOfMonth(today)); base.setMonth(base.getMonth() - back)
+  const s = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-01`
+  return [s, endOfMonth(s)]
+}
 
 export default function Stats() {
   const nav = useNavigate()
@@ -23,37 +34,57 @@ export default function Stats() {
   const today = useToday()
   const streak = useStreak().data
   const [range, setRange] = useState<Range>('semana')
-  const [from, to] = useMemo(() => {
-    if (!today) return [null, null]
-    if (range === 'dia') return [today, today]
-    if (range === 'semana') { const s = startOfWeek(today); return [s, addDays(s, 6)] }
-    return [startOfMonth(today), endOfMonth(today)]
-  }, [today, range])
+  const [from, to] = today ? rangeFor(today, range) : [null, null]
+  const [pFrom] = today ? rangeFor(today, range, 1) : [null]
+  // En el período actual solo cuentan los días ya vividos (para comparar justo con el anterior)
+  const elapsed = from && today ? Math.min(Math.round((parseISODate(today).getTime() - parseISODate(from).getTime()) / 86400000), Math.round((parseISODate(to!).getTime() - parseISODate(from).getTime()) / 86400000)) : 0
+  const pToFair = pFrom ? addDays(pFrom, elapsed) : null
+
   const stats = useQuery({ queryKey: ['stats', from, to], enabled: !!from, queryFn: () => must(supabase.rpc('couple_stats', { p_from: from, p_to: to })) as Promise<Row[]> })
+  const prev = useQuery({ queryKey: ['stats', 'prev', pFrom, pToFair], enabled: !!pFrom, queryFn: () => must(supabase.rpc('couple_stats', { p_from: pFrom, p_to: pToFair })) as Promise<Row[]> })
   const series = useQuery({ queryKey: ['stats', 'series', from, to], enabled: !!from && range !== 'dia', queryFn: () => must(supabase.rpc('daily_series', { p_from: from, p_to: to })) as Promise<Series[]> })
+  const sdays = useStreakDays(from, to).data ?? []
   const goalsDone = useQuery({ queryKey: ['goals', 'done'], queryFn: () => must(supabase.from('goals').select('id,status').eq('status', 'completed')) as Promise<Goal[]> }).data?.length ?? 0
-  const me = stats.data?.find(r => r.user_id === uid)
-  const pa = stats.data?.find(r => r.user_id !== uid)
+  const levels = useLevels().data ?? []
+  const myColor = colorFor(uid, partner?.id)
+  const theirColor = colorFor(partner?.id, uid)
+  const pName = partner?.display_name ?? 'Pareja'
+  const myName = profile?.display_name ?? 'Tú'
+
+  const team = (rows: Row[] | undefined, f: (r: Row) => number) => (rows ?? []).reduce((a, r) => a + f(r), 0)
+  const metrics: { icon: string; label: string; f: (r: Row) => number; fmt: (n: number) => string }[] = [
+    { icon: '🏋️', label: 'Entrenamientos', f: r => r.workouts, fmt: n => String(n) },
+    { icon: '⏱️', label: 'Minutos en movimiento', f: r => r.activity_minutes + r.workout_minutes, fmt: n => fmtNum(n) },
+    { icon: '👣', label: 'Pasos', f: r => r.steps, fmt: n => fmtNum(n) },
+    { icon: '💧', label: 'Agua', f: r => r.water_ml, fmt: n => fmtLiters(n) },
+    { icon: '✅', label: 'Hábitos', f: r => r.habit_checks, fmt: n => String(n) },
+    { icon: '🌙', label: 'Días de descanso', f: r => r.rest_days, fmt: n => String(n) },
+  ]
+
   const chart = useMemo(() => {
-    const days = [...new Set((series.data ?? []).map(s => s.day))]
+    const days = [...new Set((series.data ?? []).map(s => s.day))].sort()
     return days.map(d => {
       const a = series.data!.find(s => s.day === d && s.user_id === uid)
       const b = series.data!.find(s => s.day === d && s.user_id !== uid)
-      return { day: fmtShort(d), Tú: a?.activity_minutes ?? 0, [partner?.display_name ?? 'Pareja']: b?.activity_minutes ?? 0, aguaTú: (a?.water_ml ?? 0) / 1000, [`agua${partner?.display_name ?? 'Pareja'}`]: (b?.water_ml ?? 0) / 1000 }
+      return {
+        day: range === 'semana' ? WEEKDAYS_MON[(parseISODate(d).getDay() + 6) % 7] : String(Number(d.slice(8))), full: fmtShort(d), future: today ? d > today : false,
+        mov_me: a?.activity_minutes ?? 0, mov_them: b?.activity_minutes ?? 0,
+        w_me: (a?.water_ml ?? 0) / 1000, w_them: (b?.water_ml ?? 0) / 1000,
+      }
     })
-  }, [series.data, uid, partner])
-  const pName = partner?.display_name ?? 'Pareja'
-  const levels = useLevels().data ?? []
-  const myColor = colorFor(uid, partner?.id)
+  }, [series.data, uid, range, today])
+  const lived = chart.filter(c => !c.future)
+  const avgMov = lived.length ? Math.round(lived.reduce((a, c) => a + c.mov_me + c.mov_them, 0) / lived.length) : 0
+  const best = lived.reduce<(typeof lived)[number] | null>((m, c) => (!m || c.mov_me + c.mov_them > m.mov_me + m.mov_them ? c : m), null)
 
-  const metrics: { icon: typeof Dumbbell; label: string; val: (r?: Row) => string; num: (r?: Row) => number }[] = [
-    { icon: Dumbbell, label: 'Entrenamientos', val: r => String(r?.workouts ?? 0), num: r => r?.workouts ?? 0 },
-    { icon: Activity, label: 'Min. de actividad', val: r => fmtNum((r?.activity_minutes ?? 0) + (r?.workout_minutes ?? 0)), num: r => (r?.activity_minutes ?? 0) + (r?.workout_minutes ?? 0) },
-    { icon: Footprints, label: 'Pasos', val: r => fmtNum(r?.steps ?? 0), num: r => r?.steps ?? 0 },
-    { icon: Droplets, label: 'Agua', val: r => fmtLiters(r?.water_ml ?? 0), num: r => r?.water_ml ?? 0 },
-    { icon: ListChecks, label: 'Hábitos', val: r => String(r?.habit_checks ?? 0), num: r => r?.habit_checks ?? 0 },
-    { icon: FlameIcon, label: 'Días cumplidos', val: r => String(r?.completed_days ?? 0), num: r => r?.completed_days ?? 0 },
-  ]
+  const totalMinutes = team(stats.data, r => r.activity_minutes + r.workout_minutes)
+  const prevMinutes = team(prev.data, r => r.activity_minutes + r.workout_minutes)
+  const trend = prevMinutes > 0 ? Math.round(((totalMinutes - prevMinutes) / prevMinutes) * 100) : null
+  const coupleDone = sdays.filter(d => d.status === 'completed' || d.status === 'recovered').length
+  const daysInRange = from && to ? Math.round((parseISODate(to).getTime() - parseISODate(from).getTime()) / 86400000) + 1 : 1
+  const livedDays = Math.min(daysInRange, elapsed + 1)
+
+  const tooltip = { contentStyle: { borderRadius: 14, border: 'none', boxShadow: '0 10px 30px -10px rgba(0,0,0,.25)', fontSize: 12 }, cursor: { fill: 'rgba(244,63,94,.06)', radius: 8 } as object }
 
   return (
     <div>
@@ -61,16 +92,122 @@ export default function Stats() {
         back={<button onClick={() => nav(-1)} className="flex size-10 items-center justify-center rounded-full bg-white dark:bg-noche-800" aria-label="Volver"><ChevronLeft /></button>} />
       <div className="stagger space-y-3 px-4 pb-6">
         <Segmented value={range} onChange={setRange} options={[{ value: 'dia', label: 'Hoy' }, { value: 'semana', label: 'Semana' }, { value: 'mes', label: 'Mes' }]} />
-        {couple && (
-          <div className="grid grid-cols-3 gap-2">
-            <Card className="text-center"><p className="tabular text-3xl font-semibold">{streak?.current_count ?? 0}</p><p className="muted text-xs">racha actual</p></Card>
-            <Card className="text-center"><p className="tabular text-3xl font-semibold">{streak?.best_count ?? 0}</p><p className="muted text-xs">récord</p></Card>
-            <Card className="text-center"><p className="tabular text-3xl font-semibold">{goalsDone}</p><p className="muted text-xs">metas cumplidas</p></Card>
+
+        {/* Héroe: el equipo */}
+        <div className="relative overflow-hidden rounded-[26px] bg-gradient-to-br from-orange-400 via-rose-500 to-fuego-600 p-5 text-white shadow-[0_20px_40px_-18px_rgba(225,29,72,.55)]">
+          <div className="absolute -right-10 -top-10 size-40 rounded-full bg-white/10" />
+          <div className="absolute -bottom-12 -left-8 size-36 rounded-full bg-white/10" />
+          <p className="relative text-[12px] font-semibold uppercase tracking-[.1em] text-white/80">{couple ? 'Juntos en movimiento' : 'En movimiento'}</p>
+          <div className="relative mt-1 flex items-end gap-2">
+            <CountUp value={totalMinutes} className="tabular font-display text-[52px] font-bold leading-none" />
+            <span className="pb-1.5 text-[15px] font-medium text-white/85">minutos</span>
+          </div>
+          <p className="relative mt-1 text-[13.5px] text-white/90">
+            {trend === null ? 'Sigan sumando: este es su punto de partida ✨' : trend > 0 ? `▲ ${trend}% más que el período anterior. ¡Vamos equipo! 🔥` : trend === 0 ? 'Igual que el período anterior: constancia pura 💪' : 'Un período más tranquilo. Descansar también es parte 🌙'}
+          </p>
+          {couple && (
+            <div className="relative mt-4 grid grid-cols-3 gap-2 text-center">
+              {[{ v: streak?.current_count ?? 0, l: 'racha actual' }, { v: `${coupleDone}/${livedDays}`, l: livedDays === 1 ? 'día juntos' : 'días juntos' }, { v: goalsDone, l: 'metas logradas' }].map(x => (
+                <div key={x.l} className="rounded-2xl bg-white/15 px-1 py-2 backdrop-blur-sm">
+                  <p className="tabular font-display text-[24px] font-bold leading-none">{x.v}</p>
+                  <p className="mt-1 text-[11px] text-white/85">{x.l}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Totales del equipo */}
+        {stats.isLoading ? <Loading /> : (
+          <div className="grid grid-cols-2 gap-2">
+            {metrics.map(m => {
+              const now = team(stats.data, m.f), before = team(prev.data, m.f)
+              const me = stats.data?.find(r => r.user_id === uid), pa = stats.data?.find(r => r.user_id !== uid)
+              const a = me ? m.f(me) : 0, b = pa ? m.f(pa) : 0
+              return (
+                <Card key={m.label} className="p-3.5">
+                  <p className="text-[12px] font-medium text-fuego-800/80 dark:text-white/60">{m.icon} {m.label}</p>
+                  <p className="tabular font-display mt-1 text-[24px] font-bold leading-none">{m.fmt(now)}</p>
+                  {partner && now > 0 && (
+                    <div className="mt-2 flex h-1.5 overflow-hidden rounded-full bg-fuego-100 dark:bg-noche-700" title="Aportes de cada uno al total del equipo">
+                      <div className="bar-grow h-full" style={{ width: `${(a / now) * 100}%`, background: COLORS[myColor] }} />
+                      <div className="bar-grow h-full" style={{ width: `${(b / now) * 100}%`, background: COLORS[theirColor] }} />
+                    </div>
+                  )}
+                  {prev.data && (before > 0 || now > 0) && (
+                    <p className={cx('mt-1.5 text-[11px] font-semibold', now > before ? 'text-emerald-600 dark:text-emerald-400' : 'muted')}>
+                      {now > before ? `▲ +${m.fmt(now - before)} vs. anterior` : now === before ? '= que el anterior' : 'Más tranquilo que el anterior'}
+                    </p>
+                  )}
+                </Card>
+              )
+            })}
           </div>
         )}
+        {partner && <p className="muted -mt-1 flex items-center justify-center gap-3 text-[11.5px]"><span className="flex items-center gap-1"><i className="inline-block size-2 rounded-full" style={{ background: COLORS[myColor] }} />{myName}</span><span className="flex items-center gap-1"><i className="inline-block size-2 rounded-full" style={{ background: COLORS[theirColor] }} />{pName}</span><span>· la barra es lo que suman juntos</span></p>}
+
+        {/* Calendario de la racha */}
+        {couple && range !== 'dia' && from && to && (
+          <Card>
+            <p className="font-bold">🔥 Calendario de la racha</p>
+            <p className="muted text-[12.5px]">Cada día que cumplieron los dos se enciende.</p>
+            <div className="mt-3 grid grid-cols-7 gap-1.5">
+              {WEEKDAYS_MON.map(w => <span key={w} className="muted text-center text-[10.5px] font-semibold">{w}</span>)}
+              {Array.from({ length: (parseISODate(from).getDay() + 6) % 7 }, (_, i) => <span key={'e' + i} />)}
+              {Array.from({ length: daysInRange }, (_, i) => {
+                const d = addDays(from, i)
+                const st = sdays.find(x => x.day === d)?.status
+                const fut = today ? d > today : false
+                return (
+                  <span key={d} style={{ animationDelay: `${i * 18}ms` }} className={cx('stagger-dot flex aspect-square items-center justify-center rounded-xl text-[11px] font-semibold',
+                    st === 'completed' || st === 'recovered' ? 'bg-ember text-white shadow-sm' : st === 'rest' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-200' : fut ? 'text-fuego-800/30 dark:text-white/25' : 'bg-fuego-100 text-fuego-800/60 dark:bg-noche-700 dark:text-white/50',
+                    d === today && 'ring-2 ring-fuego-400 ring-offset-1 ring-offset-white dark:ring-offset-noche-800')}>
+                    {st === 'completed' || st === 'recovered' ? <Check className="size-3.5" strokeWidth={3} /> : st === 'rest' ? <Moon className="size-3" /> : Number(d.slice(8))}
+                  </span>
+                )
+              })}
+            </div>
+          </Card>
+        )}
+
+        {/* Gráficos en equipo (barras apiladas = lo que suman juntos) */}
+        {range !== 'dia' && chart.length > 0 && (
+          <>
+            <Card>
+              <div className="flex items-baseline justify-between"><p className="font-bold">Actividad juntos (min)</p>{avgMov > 0 && <span className="muted text-[12px]">promedio {avgMov}/día</span>}</div>
+              {best && best.mov_me + best.mov_them > 0 && <p className="muted mb-2 text-[12.5px]">⭐ Su mejor día: {best.full} con {best.mov_me + best.mov_them} min</p>}
+              <div className="h-52"><ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chart} margin={{ left: -26, right: 4, top: 8 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 4" stroke="rgba(120,80,60,.15)" />
+                  <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} interval={range === 'mes' ? 3 : 0} />
+                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip {...tooltip} labelFormatter={(_, p) => p?.[0]?.payload?.full ?? ''} />
+                  {avgMov > 0 && <ReferenceLine y={avgMov} stroke="#f43f5e" strokeDasharray="4 4" strokeOpacity={.6} />}
+                  <Bar dataKey="mov_me" name={myName} stackId="a" fill={COLORS[myColor]} minPointSize={2} animationDuration={900} />
+                  {partner && <Bar dataKey="mov_them" name={pName} stackId="a" fill={COLORS[theirColor]} radius={[8, 8, 0, 0]} animationDuration={900} />}
+                </BarChart>
+              </ResponsiveContainer></div>
+            </Card>
+            <Card>
+              <p className="mb-2 font-bold">Agua juntos (L)</p>
+              <div className="h-48"><ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chart} margin={{ left: -26, right: 4, top: 8 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 4" stroke="rgba(60,120,160,.15)" />
+                  <XAxis dataKey="day" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} interval={range === 'mes' ? 3 : 0} />
+                  <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip {...tooltip} labelFormatter={(_, p) => p?.[0]?.payload?.full ?? ''} />
+                  <Bar dataKey="w_me" name={myName} stackId="w" fill="#0ea5e9" minPointSize={2} animationDuration={900} />
+                  {partner && <Bar dataKey="w_them" name={pName} stackId="w" fill="#7dd3fc" radius={[8, 8, 0, 0]} animationDuration={900} />}
+                </BarChart>
+              </ResponsiveContainer></div>
+            </Card>
+          </>
+        )}
+
+        {/* Personajes */}
         {levels.length > 0 && (
           <Card>
-            <p className="eyebrow mb-3">Niveles</p>
+            <p className="eyebrow mb-3">Sus personajes crecen con lo que hacen</p>
             <div className="space-y-3">
               {levels.map(l => {
                 const lv = levelFromXp(l.xp)
@@ -79,7 +216,7 @@ export default function Stats() {
                   <div key={l.user_id} className="flex items-center gap-3">
                     <Character profile={l.user_id === uid ? profile : partner} stage={stageForLevel(lv.level)} color={col} mood="idle" size={52} />
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between"><span className="text-[14px] font-semibold">{l.user_id === uid ? 'Tú' : pName} · Nivel {lv.level}</span><span className="tabular muted text-[12px]">{l.xp} XP</span></div>
+                      <div className="flex items-baseline justify-between"><span className="text-[14px] font-semibold">{l.user_id === uid ? 'Tú' : pName} · Nivel {lv.level}</span><span className="tabular muted text-[12px]">{lv.need - lv.into} XP para subir</span></div>
                       <ProgressBar className="mt-1.5" value={lv.into} max={lv.need} color={col === 'rojo' ? 'bg-gradient-to-r from-rose-300 to-fuego-500' : 'bg-gradient-to-r from-amber-300 to-orange-500'} />
                     </div>
                   </div>
@@ -88,61 +225,7 @@ export default function Stats() {
             </div>
           </Card>
         )}
-        {stats.isLoading ? <Loading /> : (
-          <Card>
-                        {metrics.map(m => {
-              const a = m.num(me), b = m.num(pa)
-              const top = Math.max(a, b, 1)
-              const row = (name: string, v: number, txt: string, cls: string) => (
-                <div className="flex items-center gap-2">
-                  <span className="w-12 shrink-0 truncate text-[12px] font-medium">{name}</span>
-                  <div className="relative h-4 flex-1 overflow-hidden rounded-full bg-fuego-100 dark:bg-noche-700">
-                    {v > 0 && <div className={cx('bar-grow bar-shine relative h-full overflow-hidden rounded-full', cls)} style={{ width: `${Math.max(6, (v / top) * 100)}%` }} />}
-                  </div>
-                  <span className="tabular w-14 shrink-0 text-right text-[13px] font-bold">{txt}</span>
-                </div>
-              )
-              return (
-                <div key={m.label} className="space-y-1.5 border-t border-black/[.05] py-3 first:border-0 dark:border-white/[.06]">
-                  <span className="flex items-center gap-2 text-[14px] font-semibold"><m.icon className="size-4 text-ember" />{m.label}</span>
-                  {row('Tú', a, m.val(me), myColor === 'rojo' ? 'bg-gradient-to-r from-rose-300 to-fuego-500' : 'bg-gradient-to-r from-amber-300 to-orange-500')}
-                  {partner && row(pName, b, m.val(pa), myColor === 'rojo' ? 'bg-gradient-to-r from-amber-300 to-orange-500' : 'bg-gradient-to-r from-rose-300 to-fuego-500')}
-                </div>
-              )
-            })}
-            {partner && me && pa && (
-              <p className="mt-3 rounded-xl bg-fuego-50 p-3 text-center text-sm font-semibold dark:bg-noche-900">
-                <Trophy className="mr-1 inline size-4 text-amber-500" />
-                Juntos: {me.workouts + pa.workouts} entrenamientos, {fmtLiters(me.water_ml + pa.water_ml)} de agua y {fmtNum(me.steps + pa.steps)} pasos. ¡Equipazo! 🔥
-              </p>
-            )}
-          </Card>
-        )}
-        {range !== 'dia' && chart.length > 0 && (
-          <>
-            <Card>
-              <p className="mb-2 font-bold">Minutos de actividad por día</p>
-              <div className="h-52"><ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chart} margin={{ left: -24, right: 4 }}>
-                  <XAxis dataKey="day" tick={{ fontSize: 10 }} interval={range === 'mes' ? 4 : 0} /><YAxis tick={{ fontSize: 10 }} /><Tooltip /><Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="Tú" fill={myColor === 'rojo' ? '#e11d48' : '#f97316'} radius={[6, 6, 0, 0]} minPointSize={3} />
-                  {partner && <Bar dataKey={pName} fill={myColor === 'rojo' ? '#f97316' : '#e11d48'} radius={[6, 6, 0, 0]} minPointSize={3} />}
-                </BarChart>
-              </ResponsiveContainer></div>
-            </Card>
-            <Card>
-              <p className="mb-2 font-bold">Agua por día (L)</p>
-              <div className="h-52"><ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chart} margin={{ left: -24, right: 4 }}>
-                  <XAxis dataKey="day" tick={{ fontSize: 10 }} interval={range === 'mes' ? 4 : 0} /><YAxis tick={{ fontSize: 10 }} /><Tooltip />
-                  <Bar dataKey="aguaTú" name="Tú" fill="#0ea5e9" radius={[6, 6, 0, 0]} minPointSize={3} />
-                  {partner && <Bar dataKey={`agua${pName}`} name={pName} fill="#7dd3fc" radius={[6, 6, 0, 0]} minPointSize={3} />}
-                </BarChart>
-              </ResponsiveContainer></div>
-            </Card>
-          </>
-        )}
-        <p className="muted text-center text-xs">Cada uno a su ritmo: lo importante es sumar juntos. 💞 Tu pareja solo ve estos totales, nunca tus registros detallados.</p>
+        <p className="muted text-center text-xs">Cada uno a su ritmo: lo importante es sumar juntos. 💞 Tu pareja solo ve totales, nunca tus registros detallados.</p>
       </div>
     </div>
   )

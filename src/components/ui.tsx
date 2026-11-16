@@ -38,7 +38,14 @@ export function Spinner({ className }: { className?: string }) {
 }
 
 export function Loading({ label = 'Cargando…' }: { label?: string }) {
-  return <div className="flex flex-col items-center justify-center gap-3 py-16"><Spinner /><span className="muted text-sm">{label}</span></div>
+  return (
+    <div className="space-y-3 py-2" role="status" aria-label={label}>
+      <div className="skeleton h-24" />
+      <div className="skeleton h-16 opacity-80" />
+      <div className="skeleton h-16 opacity-60" />
+      <span className="sr-only">{label}</span>
+    </div>
+  )
 }
 
 /**

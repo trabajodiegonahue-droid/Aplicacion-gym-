@@ -115,7 +115,7 @@ begin
   insert into public.goals(user_id, created_by, name, metric, target, frequency, category_label) values (a, a, 'Entrenar 4 veces por semana', 'workouts', 4, 'weekly', 'Gimnasio'), (b, b, 'Caminar 50.000 pasos', 'steps', 50000, 'weekly', 'Salud');
   insert into public.goals(couple_id, created_by, name, metric, target, frequency, category_label) values (c, a, 'Tomar 2 L de agua', 'water_goal_days', 5, 'weekly', 'Salud');
   insert into public.challenges(couple_id, created_by, name, metric, target, mode, start_date, end_date, badge, reward)
-    values (c, b, '10 entrenamientos entre los dos', 'workouts', 10, 'together', t - 6, t + 7, '🏆', 'Quien entrene menos cocina en la visita');
+    values (c, b, '10 entrenamientos entre los dos', 'workouts', 10, 'together', t - 6, t + 7, '🏆', 'Cena juntos en la visita 🍝');
   insert into public.records(user_id, kind, label, value, unit, better, achieved_on) values
     (a, 'run_3k', '3 km', 958, 's', 'lower', t - 20), (a, 'run_3k', '3 km', 905, 's', 'lower', t - 6),
     (a, 'run_5k', '5 km', 1625, 's', 'lower', t - 9), (a, 'pushups', 'Flexiones seguidas', 35, 'reps', 'higher', t - 4),

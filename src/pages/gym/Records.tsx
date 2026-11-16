@@ -90,8 +90,11 @@ function AddRecordSheet({ k, onClose }: { k: Kind | 'custom'; onClose: () => voi
   )
 }
 
-function RecordTile({ k, mine, theirs, partnerName, onAdd, onOpen }: { k: Kind; mine: Rec[]; theirs: Rec[]; partnerName?: string; onAdd: () => void; onOpen: () => void }) {
-  const b = best(mine, k.better), pb = best(theirs, k.better)
+function RecordTile({ k, mine, onAdd, onOpen }: { k: Kind; mine: Rec[]; onAdd: () => void; onOpen: () => void }) {
+  const b = best(mine, k.better)
+  // Progreso propio: desde tu primera marca hasta la mejor (sin comparar con nadie)
+  const first = [...mine].sort((x, y) => x.achieved_on.localeCompare(y.achieved_on))[0]
+  const gain = b && first ? Math.abs(Number(b.value) - Number(first.value)) : 0
   return (
     <div className="card flex flex-col gap-1.5 p-3.5">
       <button type="button" onClick={b ? onOpen : onAdd} className="text-left">
@@ -101,14 +104,14 @@ function RecordTile({ k, mine, theirs, partnerName, onAdd, onOpen }: { k: Kind; 
           <p className="muted text-[11.5px]">{k.km ? pace(b.value, k.km) + ' · ' : ''}{fmtShort(b.achieved_on)}</p>
         </> : <p className="mt-1 text-[14px] font-semibold text-fuego-600">+ Añadir marca</p>}
       </button>
-      {pb && <p className="truncate rounded-lg bg-orange-50 px-2 py-1 text-[11.5px] font-medium text-orange-700 dark:bg-orange-950/50 dark:text-orange-300">{partnerName}: {fmtValue(pb.value, k.unit)}</p>}
+      {gain > 0 && <p className="truncate rounded-lg bg-emerald-50 px-2 py-1 text-[11.5px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">▲ Mejoraste {fmtValue(gain, k.unit)}</p>}
       {b && <button type="button" onClick={onAdd} className="mt-auto self-start text-[12.5px] font-semibold text-fuego-600">+ Nueva marca</button>}
     </div>
   )
 }
 
 export default function RecordsTab() {
-  const { uid, partner } = useAuth()
+  const { uid } = useAuth()
   const { confirm } = useUi()
   const [add, setAdd] = useState<Kind | 'custom' | null>(null)
   const [hist, setHist] = useState<Kind | null>(null)
@@ -119,10 +122,9 @@ export default function RecordsTab() {
   }).data ?? []
   const del = useAction(async (id: string) => must(supabase.from('records').delete().eq('id', id)), { invalidate: [['records_manual']] })
   const mine = (kind: string) => recs.filter(r => r.user_id === uid && r.kind === kind)
-  const theirs = (kind: string) => recs.filter(r => r.user_id !== uid && r.kind === kind)
   const customKinds: Kind[] = useMemo(() => {
     const m = new Map<string, Kind>()
-    for (const r of recs.filter(r => r.kind.startsWith('custom:'))) if (!m.has(r.kind)) m.set(r.kind, { kind: r.kind, label: r.label, unit: r.unit, better: r.better })
+    for (const r of recs.filter(r => r.user_id === uid && r.kind.startsWith('custom:'))) if (!m.has(r.kind)) m.set(r.kind, { kind: r.kind, label: r.label, unit: r.unit, better: r.better })
     return [...m.values()]
   }, [recs])
   const auto = useMemo(() => {
@@ -142,7 +144,7 @@ export default function RecordsTab() {
     <>
       <SectionTitle>{(() => { const I = icon; return <span className="inline-flex items-center gap-1.5"><I className="size-3.5" />{title}</span> })()}</SectionTitle>
       <div className="grid grid-cols-2 gap-2.5">
-        {kinds.map(k => <RecordTile key={k.kind} k={k} mine={mine(k.kind)} theirs={theirs(k.kind)} partnerName={partner?.display_name} onAdd={() => setAdd(k)} onOpen={() => setHist(k)} />)}
+        {kinds.map(k => <RecordTile key={k.kind} k={k} mine={mine(k.kind)} onAdd={() => setAdd(k)} onOpen={() => setHist(k)} />)}
       </div>
     </>
   )
@@ -151,7 +153,7 @@ export default function RecordsTab() {
     <div className="stagger space-y-3">
       <Card className="flex items-center gap-3 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-noche-800 dark:to-noche-800">
         <span className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-orange-500 text-white shadow"><Trophy className="size-6" /></span>
-        <div className="flex-1"><p className="text-[15px] font-bold">Tus récords</p><p className="muted text-[12.5px]">Marcas de carrera, peso corporal y fuerza. Tu pareja también las ve 🔥</p></div>
+        <div className="flex-1"><p className="text-[15px] font-bold">Tus récords</p><p className="muted text-[12.5px]">Marcas de carrera, peso corporal y fuerza. Tu pareja las ve y te festeja cada récord 🎉</p></div>
       </Card>
       {grid('Carrera', Timer, RUN)}
       {grid('Peso corporal', PersonStanding, BODY)}
