@@ -153,13 +153,17 @@ http.createServer(async (req, res) => {
         rows = await withRole(claims, async c => (await c.query(`select coalesce(json_agg(t), '[]') j from (select ${select} from ${table}${where}${ob}${lim}) t`, vals)).rows[0].j)
       } else if (req.method === 'POST') {
         const items = Array.isArray(body) ? body : [body]
+        const prefer = req.headers.prefer ?? ''
+        const upsert = prefer.includes('resolution=') ? url.searchParams.get('on_conflict') : null
+        const ignore = prefer.includes('resolution=ignore-duplicates')
         rows = await withRole(claims, async c => {
           const out = []
           for (const it of items) {
             const ks = Object.keys(it)
             const v = ks.map(k => (it[k] !== null && typeof it[k] === 'object' && !Array.isArray(it[k]) ? JSON.stringify(it[k]) : it[k]))
-            const r = await c.query(`insert into ${table} (${ks.map(q).join(',')}) values (${ks.map((_, i) => `$${i + 1}`).join(',')}) returning to_json(${table.split('.')[1]}.*) j`, v)
-            out.push(r.rows[0].j)
+            const conflict = !upsert ? '' : ` on conflict (${upsert.split(',').map(q).join(',')}) ` + (ignore ? 'do nothing' : 'do update set ' + ks.map(k => `${q(k)} = excluded.${q(k)}`).join(','))
+            const r = await c.query(`insert into ${table} (${ks.map(q).join(',')}) values (${ks.map((_, i) => `$${i + 1}`).join(',')})${conflict} returning to_json(${table.split('.')[1]}.*) j`, v)
+            if (r.rows[0]) out.push(r.rows[0].j)
           }
           return out
         })

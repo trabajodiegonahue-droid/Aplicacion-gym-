@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLiveShare, useIncomingReactions, getLiveShare, setLiveShare, checkRecords, RecordsCelebration, type WorkoutRecord } from '../../components/Live'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Star, Trash2, Pencil, Play, Dumbbell, Timer, Trophy, TrendingUp, RotateCcw, ChevronDown, ChevronUp, X, Copy, Check, Search, Library, ChevronRight, Scale } from 'lucide-react'
@@ -559,6 +560,7 @@ function WorkoutLogger({ routine, workout, draft, repeat, onClose }: LoggerOpen 
       workout_id: id, exercise_id: it.exercise_id, set_number: i + 1, reps: n(s.reps), weight_kg: n(s.weight_kg), duration_sec: n(s.duration_sec), rest_sec: n(s.rest_sec),
     })))
     if (sets.length) await must(supabase.from('workout_sets').insert(sets))
+    return id!
   }, { invalidate: [['workouts'], ['records'], ...LOG_KEYS], success: workout ? 'Entrenamiento actualizado' : '¡Entrenamiento guardado! 💪' })
 
   const del = useAction(async () => must(supabase.from('workouts').delete().eq('id', workout!.id)), { invalidate: [['workouts'], ['records'], ...LOG_KEYS], success: 'Entrenamiento eliminado' })
@@ -569,6 +571,14 @@ function WorkoutLogger({ routine, workout, draft, repeat, onClose }: LoggerOpen 
 
   const doneSets = items.reduce((a, it) => a + it.sets.filter(s => s.done).length, 0)
   const totalSets = items.reduce((a, it) => a + it.sets.length, 0)
+
+  // En vivo: tu pareja ve qué ejercicio haces y cuántas series llevas (nunca kilos ni reps)
+  const [share, setShare] = useState(getLiveShare)
+  const liveOn = !workout && !!partner && share
+  const current = items.find(it => it.sets.some(st => !st.done)) ?? items[items.length - 1]
+  useLiveShare(liveOn, { title, exercise: current ? exercises.find(e => e.id === current.exercise_id)?.name ?? null : null, setsDone: doneSets, setsTotal: totalSets, restingUntil: rest?.end ?? null, startedAt })
+  useIncomingReactions(!workout && !!partner)
+  const [records, setRecords] = useState<WorkoutRecord[]>([])
 
   const tryClose = async () => {
     if (workout) { if (await confirm({ title: '¿Salir sin guardar?', text: 'Perderás los cambios de esta pantalla.', confirm: 'Salir', danger: true })) onClose(); return }
@@ -588,6 +598,12 @@ function WorkoutLogger({ routine, workout, draft, repeat, onClose }: LoggerOpen 
           <label className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-rose-50 to-orange-50 p-3 dark:from-fuego-500/15 dark:to-transparent">
             <input type="checkbox" className="size-5 accent-fuego-500" checked={joint} onChange={e => setJoint(e.target.checked)} data-testid="joint-toggle" />
             <span className="text-[14px]"><b>Entrenamos juntos 💞</b><span className="muted block text-[12px]">{partner.display_name} lo confirma y cuenta para los dos (+20 XP cada uno).</span></span>
+          </label>
+        )}
+        {partner && !workout && (
+          <label className="flex items-center gap-3 rounded-2xl bg-rose-50/70 p-3 dark:bg-noche-700/60">
+            <input type="checkbox" className="size-5 accent-rose-500" checked={share} onChange={e => { setShare(e.target.checked); setLiveShare(e.target.checked) }} data-testid="live-toggle" />
+            <span className="text-[14px]"><b className="inline-flex items-center gap-1.5">{share && <i className="live-dot size-2 rounded-full bg-rose-600" />}Entrenar en vivo con {partner.display_name}</b><span className="muted block text-[12px]">Ve tu ejercicio, series y descanso, y te manda 🔥 mientras entrenas. Nunca ve tus kilos.</span></span>
           </label>
         )}
         {isCopy && <p className="rounded-xl bg-rose-50 p-2.5 text-[13px] dark:bg-fuego-500/10">💞 Entreno juntos confirmado</p>}
@@ -659,10 +675,17 @@ function WorkoutLogger({ routine, workout, draft, repeat, onClose }: LoggerOpen 
         <Button variant="soft" className="w-full" onClick={() => setPicker(true)}><Plus className="size-4" />Añadir ejercicios</Button>
         <Field label="Notas"><textarea className="input min-h-20" maxLength={1000} value={notes} onChange={e => setNotes(e.target.value)} placeholder="¿Cómo te sentiste?" /></Field>
         {!workout && <p className="muted text-[12px] leading-relaxed">ℹ️ En iPhone, con la pantalla bloqueada el aviso de fin de descanso puede no sonar (límite de Safari). Al volver a la app verás el tiempo correcto.</p>}
-        <Button variant="ember" className="sticky-save w-full min-h-14 text-lg" loading={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: () => { if (!workout) { clearDraft(uid); celebrate(['💪', '🔥', '🏋️']) } onClose() } })}>{workout ? 'Guardar cambios' : 'Terminar y guardar'}</Button>
+        <Button variant="ember" className="sticky-save w-full min-h-14 text-lg" loading={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: async id => {
+          if (workout) return onClose()
+          clearDraft(uid)
+          const recs = await checkRecords(String(id)).catch(() => [] as WorkoutRecord[])
+          if (recs.length) setRecords(recs)
+          else { celebrate(['💪', '🔥', '🏋️']); onClose() }
+        } })}>{workout ? 'Guardar cambios' : 'Terminar y guardar'}</Button>
         {!workout && <Button variant="ghost" className="w-full text-red-600" onClick={discard}><Trash2 className="size-4" />Descartar entrenamiento</Button>}
         {workout && <Button variant="ghost" className="w-full text-red-600" onClick={async () => { if (await confirm({ title: '¿Eliminar este entrenamiento?', text: 'Si era de hoy, puede afectar tu estado de racha del día.', danger: true, confirm: 'Eliminar' })) del.mutate(undefined, { onSuccess: onClose }) }}><Trash2 className="size-4" />Eliminar entrenamiento</Button>}
       </div>
+      <RecordsCelebration records={records} onClose={() => { setRecords([]); onClose() }} />
       <ExercisePicker open={picker} onClose={() => setPicker(false)} title="Añadir al entrenamiento" onPick={exs => setItems(a => [...a, ...exs.map(ex => ({ exercise_id: ex.id, open: true, sets: [1, 2, 3].map(() => ({ reps: '', weight_kg: '', duration_sec: '', rest_sec: '90', done: false })) }))])} />
     </Sheet>
   )

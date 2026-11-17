@@ -128,6 +128,8 @@ export function useRealtimeSync() {
         streak_rules: ['rules'],
         goals: ['goals'],
         challenges: ['challenges'],
+        live_sessions: ['live'],
+        live_reactions: ['live'],
       }
       for (const [table, keys] of Object.entries(map)) {
         ch.on('postgres_changes', { event: '*', schema: 'public', table, filter: f }, () => keys.forEach(inv))

@@ -262,3 +262,11 @@ input[type="date"], input[type="time"] { min-height: 48px; }
 @keyframes muscle-pulse { 0%,100% { opacity: 1 } 50% { opacity: .72 } }
 .muscle-hot { animation: muscle-pulse 1.8s ease-in-out 3; }
 @media (prefers-reduced-motion: reduce) { .muscle-hot { animation: none } }
+
+/* En vivo y récords */
+@keyframes live-dot { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+.live-dot { animation: live-dot 1.2s ease-in-out infinite; }
+@keyframes trophy-pop { 0% { transform: scale(.3) rotate(-20deg); opacity: 0 } 60% { transform: scale(1.15) rotate(6deg); opacity: 1 } 100% { transform: scale(1) rotate(0) } }
+.trophy-pop { animation: trophy-pop .7s cubic-bezier(.2,.9,.3,1.3) both; }
+.record-glow { background: radial-gradient(circle, rgba(251,191,36,.45), transparent 70%); animation: muscle-pulse 1.6s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) { .live-dot, .trophy-pop, .record-glow { animation: none } }

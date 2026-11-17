@@ -539,3 +539,49 @@ select pg_temp.check(not exists (select 1 from auth.users where id = :F), 'cuent
 select pg_temp.check(not exists (select 1 from public.profiles where id = :F) and not exists (select 1 from public.workouts where user_id = :F), 'datos personales eliminados');
 select pg_temp.check(private.active_couple(:G) is null and exists (select 1 from public.profiles where id = :G) and exists (select 1 from public.cycle_settings where user_id = :G), 'la pareja queda desvinculada y conserva sus datos');
 select pg_temp.check((select count(*) from public.notifications where user_id = :G and title = 'Tu pareja eliminó su cuenta') = 1, 'aviso a la pareja');
+
+-- 20) ENTRENAR EN VIVO, RÉCORDS Y RECORDATORIOS INTELIGENTES ---------------
+set role authenticated;
+select pg_temp.login(:D);
+insert into public.live_sessions(couple_id, title, exercise, sets_done, sets_total) values (private.active_couple(:D), 'Piernas', 'Sentadilla', 2, 12);
+select pg_temp.expect_error(format($q$insert into public.live_sessions(user_id, couple_id) values (%L, %L)$q$, :E, private.active_couple(:D)), 'no se puede crear la sesión en vivo de la pareja');
+select pg_temp.login(:E);
+select pg_temp.check((select exercise from public.live_sessions where user_id = :D) = 'Sentadilla', 'la pareja ve lo que entrenas en vivo');
+update public.live_sessions set sets_done = 99 where user_id = :D;
+select pg_temp.check((select sets_done from public.live_sessions where user_id = :D) = 2, 'la pareja no puede cambiar tu sesión en vivo');
+select pg_temp.check((select count(*) from public.notifications where user_id = :E and kind = 'live') = 1, 'aviso "está entrenando ahora"');
+insert into public.live_reactions(couple_id, to_user, emoji) values (private.active_couple(:E), :D, '🔥');
+select pg_temp.expect_error(format($q$insert into public.live_reactions(couple_id, to_user, emoji) values (%L, %L, '🔥')$q$, private.active_couple(:E), :A), 'no se reacciona a alguien que no es tu pareja');
+select pg_temp.expect_error(format($q$insert into public.live_reactions(couple_id, to_user, emoji) values (%L, %L, 'x')$q$, private.active_couple(:E), :D), 'solo emojis permitidos');
+select pg_temp.login(:D);
+select pg_temp.check((select count(*) from public.live_reactions where to_user = :D) = 1, 'te llegan las reacciones');
+select pg_temp.login(:A);
+select pg_temp.check((select count(*) from public.live_sessions) = 0 and (select count(*) from public.live_reactions) = 0, 'otra persona no ve nada en vivo');
+-- Récords
+select pg_temp.login(:D);
+create temp table if not exists t_w(id uuid);
+grant all on t_w to authenticated;
+insert into public.exercises(name, muscle_group) values ('Sentadilla PR', 'piernas'), ('Plancha PR', 'abdomen');
+insert into public.workouts(title, performed_at) values ('Antes PR', now() - interval '2 hours');
+insert into public.workout_sets(workout_id, exercise_id, set_number, reps, weight_kg, duration_sec)
+select w.id, e.id, 1, case when e.name = 'Sentadilla PR' then 8 else null end, case when e.name = 'Sentadilla PR' then 50 else null end, case when e.name = 'Plancha PR' then 40 else null end
+  from public.workouts w, public.exercises e where w.title = 'Antes PR' and e.name in ('Sentadilla PR', 'Plancha PR');
+with w as (insert into public.workouts(title) values ('Ahora') returning id) insert into t_w select id from w;
+insert into public.workout_sets(workout_id, exercise_id, set_number, reps, weight_kg, duration_sec)
+select (select id from t_w), e.id, 1, case when e.name = 'Sentadilla PR' then 6 else null end, case when e.name = 'Sentadilla PR' then 55 else null end, case when e.name = 'Plancha PR' then 60 else null end
+  from public.exercises e where e.name in ('Sentadilla PR', 'Plancha PR');
+select pg_temp.check((select count(*) from public.workout_records((select id from t_w))) = 2, 'detecta 2 récords (peso y tiempo)');
+select pg_temp.check((select best from public.workout_records((select id from t_w)) where exercise = 'Sentadilla PR') = 55 and (select previous from public.workout_records((select id from t_w)) where exercise = 'Sentadilla PR') = 50, 'récord de peso 50 → 55 kg');
+select pg_temp.check((select kind from public.workout_records((select id from t_w)) where exercise = 'Plancha PR') = 'tiempo', 'récord de tiempo en plancha');
+select * from public.workout_records((select id from t_w), true);
+select pg_temp.login(:E);
+select pg_temp.check((select count(*) from public.workout_records((select id from t_w))) = 0, 'no se pueden pedir récords de entrenos ajenos');
+select pg_temp.check((select count(*) from public.notifications where user_id = :E and kind = 'records' and title like '%2 récords%' and body not like '%55%') = 1, 'la pareja recibe el aviso del récord, sin ver el peso');
+reset role;
+-- Recordatorios inteligentes
+select pg_temp.check(private.missing_text('{"required":["workout","activity"],"met":[],"require":"any"}'::jsonb) = 'un entreno o actividad', 'texto de lo que falta');
+create temp table t_smart as select (private.compute_member(private.active_couple(:D), :D, private.local_day_for(:D, now()), now())).* ;
+select private.enqueue_smart(((select details->>'day_end' from t_smart)::timestamptz) - interval '115 minutes');
+select pg_temp.check(((select status from t_smart) in ('pending','in_progress')) = exists (select 1 from public.notifications where user_id = :D and kind = 'smart'), 'aviso 2 h antes solo si te falta algo');
+select private.enqueue_smart(now());
+select pg_temp.check((select count(*) from public.notifications where kind = 'smart' and user_id = :D) <= 1, 'no repite el aviso');
