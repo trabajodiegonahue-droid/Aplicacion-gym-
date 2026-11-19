@@ -1,15 +1,20 @@
 // Función serverless de Vercel (plan Hobby gratuito).
 // Supabase la llama cuando se crea una notificación; envía Web Push a los dispositivos del usuario.
 // Usa variables de entorno SOLO del servidor (nunca llegan al navegador).
-import webpush from 'web-push'
+// web-push 4 es un módulo ESM sin export por defecto
+import * as webpush from 'web-push'
 
 interface Req { method?: string; headers: Record<string, string | string[] | undefined>; body?: unknown }
 interface Res { status: (n: number) => Res; json: (b: unknown) => void }
 
-const {
-  SUPABASE_SERVICE_ROLE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY,
-  VAPID_SUBJECT = 'mailto:admin@example.com', PUSH_SECRET,
-} = process.env
+// Limpia valores pegados con espacios o notas como "(SECRETA)"
+const clean = (v?: string) => v?.replace(/\(SECRETA\)/gi, '').trim() || undefined
+const SUPABASE_SERVICE_ROLE_KEY = clean(process.env.SUPABASE_SERVICE_ROLE_KEY)
+const VAPID_PUBLIC_KEY = clean(process.env.VAPID_PUBLIC_KEY)
+const VAPID_PRIVATE_KEY = clean(process.env.VAPID_PRIVATE_KEY)
+const PUSH_SECRET = clean(process.env.PUSH_SECRET)
+const rawSubject = clean(process.env.VAPID_SUBJECT) ?? 'mailto:admin@example.com'
+const VAPID_SUBJECT = /^(mailto:|https:\/\/)/.test(rawSubject) ? rawSubject.replace(/^mailto:\s+/, 'mailto:') : `mailto:${rawSubject}`
 // Acepta la URL aunque se haya pegado con /rest/v1/ al final
 const SUPABASE_URL = process.env.SUPABASE_URL?.trim().replace(/\/(rest|auth)\/v1\/?$/, '').replace(/\/+$/, '')
 
@@ -34,9 +39,19 @@ async function rest(path: string, init: RequestInit = {}) {
 }
 
 export default async function handler(req: Req, res: Res) {
+  try {
+    return await run(req, res)
+  } catch (e) {
+    // Nunca caerse: devolver el motivo (sin secretos) para verlo en Supabase (net._http_response)
+    return res.status(500).json({ error: (e as Error).message?.slice(0, 300) ?? 'error' })
+  }
+}
+
+async function run(req: Req, res: Res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method' })
   if (!PUSH_SECRET || req.headers['x-push-secret'] !== PUSH_SECRET) return res.status(401).json({ error: 'unauthorized' })
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) return res.status(500).json({ error: 'missing env' })
+  const missing = Object.entries({ SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY }).filter(([, v]) => !v).map(([k]) => k)
+  if (missing.length) return res.status(500).json({ error: 'Faltan variables en Vercel: ' + missing.join(', ') })
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
 
   const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {}) as { notification_id?: string }
@@ -45,6 +60,7 @@ export default async function handler(req: Req, res: Res) {
   const notes = await rest(`notifications?select=id,user_id,kind,title,body&pushed_at=is.null&${filter}&limit=100`) as { id: string; user_id: string; kind: string; title: string; body: string | null }[]
 
   let sent = 0
+  const errors: string[] = []
   const unread = new Map<string, number>()
   for (const n of notes) {
     // número rojo sobre el ícono (como WhatsApp): avisos sin leer
@@ -60,10 +76,11 @@ export default async function handler(req: Req, res: Res) {
         sent++
       } catch (e) {
         const code = (e as { statusCode?: number }).statusCode
+        errors.push(`${code ?? ''} ${(e as Error).message ?? ''}`.trim().slice(0, 120))
         if (code === 404 || code === 410) await rest(`push_subscriptions?id=eq.${s.id}`, { method: 'DELETE' }) // dispositivo dado de baja
       }
     }
     await rest(`notifications?id=eq.${n.id}`, { method: 'PATCH', body: JSON.stringify({ pushed_at: new Date().toISOString() }) })
   }
-  res.status(200).json({ ok: true, notifications: notes.length, sent })
+  res.status(200).json({ ok: true, notifications: notes.length, sent, errors: errors.slice(0, 3) })
 }
