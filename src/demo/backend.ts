@@ -20,9 +20,10 @@ import m13 from '../../supabase/migrations/0013_cycle.sql?raw'
 import m14 from '../../supabase/migrations/0014_more.sql?raw'
 import m15 from '../../supabase/migrations/0015_first_run.sql?raw'
 import m16 from '../../supabase/migrations/0016_live.sql?raw'
+import m17 from '../../supabase/migrations/0017_push.sql?raw'
 import { seedSql } from './seed'
 
-const DB_NAME = 'idb://fuego-juntos-demo-v9'
+const DB_NAME = 'idb://fuego-juntos-demo-v10'
 let dbPromise: Promise<PGlite> | null = null
 
 async function open(): Promise<PGlite> {
@@ -43,7 +44,7 @@ async function init(): Promise<PGlite> {
   const db = await open()
   const ready = (await db.query<{ ok: boolean }>(`select to_regclass('public.profiles') is not null as ok`)).rows[0].ok
   if (!ready) {
-    for (const sql of [mockSql, m1, m2, m3, m6, m7, m8, m9, m10, m11, m13, m14, m15, m16]) await db.exec(sql)
+    for (const sql of [mockSql, m1, m2, m3, m6, m7, m8, m9, m10, m11, m13, m14, m15, m16, m17]) await db.exec(sql)
     await db.exec(`
       create table if not exists auth.demo_passwords(email text primary key, password text not null, user_id uuid not null);
       create table if not exists public.demo_media(path text primary key, data_url text not null, owner uuid);
@@ -59,7 +60,7 @@ export const getDb = () => (dbPromise ??= init())
 export async function resetDb() {
   try { const db = await getDb(); await db.close() } catch { /* */ }
   dbPromise = null
-  await new Promise<void>(res => { const r = indexedDB.deleteDatabase('/pglite/fuego-juntos-demo-v9'); r.onsuccess = r.onerror = r.onblocked = () => res() })
+  await new Promise<void>(res => { const r = indexedDB.deleteDatabase('/pglite/fuego-juntos-demo-v10'); r.onsuccess = r.onerror = r.onblocked = () => res() })
 }
 export async function resetDemo() {
   await resetDb()

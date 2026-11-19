@@ -37,7 +37,12 @@ export async function enablePush(uid: string) {
   const perm = await Notification.requestPermission()
   if (perm !== 'granted') throw new Error('No se concedió el permiso de notificaciones.')
   const reg = await navigator.serviceWorker.ready
-  const sub = (await reg.pushManager.getSubscription()) ?? await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToUint8(VAPID!) })
+  let sub: PushSubscription
+  try {
+    sub = (await reg.pushManager.getSubscription()) ?? await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToUint8(VAPID!) })
+  } catch {
+    throw new Error('No se pudo registrar este teléfono para los avisos. Revisa que tengas internet y vuelve a intentarlo.')
+  }
   const j = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }
   const { error } = await supabase.from('push_subscriptions').upsert(
     { user_id: uid, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_agent: navigator.userAgent.slice(0, 200) },

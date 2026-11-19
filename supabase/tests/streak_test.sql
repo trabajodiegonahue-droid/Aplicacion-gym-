@@ -585,3 +585,20 @@ select private.enqueue_smart(((select details->>'day_end' from t_smart)::timesta
 select pg_temp.check(((select status from t_smart) in ('pending','in_progress')) = exists (select 1 from public.notifications where user_id = :D and kind = 'smart'), 'aviso 2 h antes solo si te falta algo');
 select private.enqueue_smart(now());
 select pg_temp.check((select count(*) from public.notifications where kind = 'smart' and user_id = :D) <= 1, 'no repite el aviso');
+
+-- 21) NOTIFICACIÓN DE PRUEBA Y DIAGNÓSTICO PUSH ------------------------------
+set role authenticated;
+select pg_temp.login(:D);
+select pg_temp.check((public.push_status()->>'server')::boolean = false, 'diagnóstico: servidor push aún sin configurar');
+select public.send_test_push();
+select public.send_test_push();
+select pg_temp.check((select count(*) from public.notifications where kind = 'test') = 1, 'notificación de prueba (máx. 1 por minuto)');
+select pg_temp.login(:E);
+select pg_temp.check((select count(*) from public.notifications where kind = 'test') = 0, 'la prueba solo te llega a ti');
+reset role;
+insert into private.app_settings(key, value) values ('push_url', 'https://ejemplo.invalid/api/push'), ('push_secret', 'x') on conflict (key) do update set value = excluded.value;
+set role authenticated;
+select pg_temp.login(:D);
+select pg_temp.check((public.push_status()->>'server')::boolean, 'diagnóstico: servidor push configurado');
+reset role;
+delete from private.app_settings where key in ('push_url', 'push_secret');

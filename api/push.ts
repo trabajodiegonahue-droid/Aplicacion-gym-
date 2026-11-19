@@ -16,6 +16,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL?.trim().replace(/\/(rest|auth)\/v1
 const URLS: Record<string, string> = {
   messages: '/pareja', proposals: '/propuestas', streak: '/racha', streak_risk: '/racha', partner_activity: '/racha',
   water: '/habitos/agua', workout: '/gym', habits: '/habitos', goals: '/habitos/metas', challenges: '/habitos/retos', dates: '/pareja/calendario', couple: '/pareja', weekly: '/?semana=1', cycle: '/gym/peso',
+  live: '/', records: '/notificaciones', smart: '/', test: '/perfil',
 }
 
 async function rest(path: string, init: RequestInit = {}) {
@@ -44,12 +45,18 @@ export default async function handler(req: Req, res: Res) {
   const notes = await rest(`notifications?select=id,user_id,kind,title,body&pushed_at=is.null&${filter}&limit=100`) as { id: string; user_id: string; kind: string; title: string; body: string | null }[]
 
   let sent = 0
+  const unread = new Map<string, number>()
   for (const n of notes) {
+    // número rojo sobre el ícono (como WhatsApp): avisos sin leer
+    if (!unread.has(n.user_id)) {
+      const u = await rest(`notifications?select=id&user_id=eq.${n.user_id}&read_at=is.null&limit=99`) as unknown[]
+      unread.set(n.user_id, u.length)
+    }
     const subs = await rest(`push_subscriptions?select=id,endpoint,p256dh,auth&user_id=eq.${n.user_id}`) as { id: string; endpoint: string; p256dh: string; auth: string }[]
     for (const s of subs) {
       try {
         await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          JSON.stringify({ title: n.title, body: n.body ?? '', url: URLS[n.kind] ?? '/', tag: n.kind }), { TTL: 3600 })
+          JSON.stringify({ title: n.title, body: n.body ?? '', url: URLS[n.kind] ?? '/', tag: n.kind === 'messages' ? n.id : n.kind, badge: unread.get(n.user_id) ?? 1 }), { TTL: 6 * 3600, urgency: 'high' })
         sent++
       } catch (e) {
         const code = (e as { statusCode?: number }).statusCode

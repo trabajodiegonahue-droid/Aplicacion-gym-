@@ -13,6 +13,7 @@ import { OfflineBanner } from './OfflineBanner'
 import { Onboarding } from './Onboarding'
 import { Tour, useFirstTour } from './Tour'
 import { isDemo } from '../lib/supabase'
+import { useAppBadge } from './PushSetup'
 
 const tabs = [
   { to: '/', label: 'Inicio', icon: House, end: true },
@@ -24,6 +25,7 @@ const tabs = [
 
 export function AppShell() {
   useRealtimeSync()
+  useAppBadge()
   useEnsureToday()
   useFirstTour()
   const { toast } = useUi()

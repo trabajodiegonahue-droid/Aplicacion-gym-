@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthProvider'
 import { useAction } from '../lib/queries'
 import { uploadPhoto, deletePhoto } from '../lib/media'
 import { currentSubscription, disablePush, enablePush, pushSupport } from '../lib/push'
+import { PushDiagnostics } from '../components/PushSetup'
 import type { NotifKind, NotificationPrefs, Profile as P } from '../lib/types'
 import { deviceTimezone, fmtShort } from '../lib/dates'
 import { DataTools, HealthConnect } from '../components/DataTools'
@@ -158,6 +159,7 @@ export default function Profile() {
 function PushCard() {
   const { uid } = useAuth()
   const { toast } = useUi()
+  const qc = useQueryClient()
   const [on, setOn] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
   const support = pushSupport()
@@ -172,9 +174,10 @@ function PushCard() {
         <Toggle checked={on} disabled={busy} label={on ? 'Activadas en este dispositivo' : 'Desactivadas en este dispositivo'} onChange={async v => {
           setBusy(true)
           try { if (v) { await enablePush(uid!); toast('¡Notificaciones activadas! 🔔') } else { await disablePush(); toast('Notificaciones desactivadas') } setOn(v) }
-          catch (e) { toast((e as Error).message, 'error') } finally { setBusy(false) }
+          catch (e) { toast((e as Error).message, 'error') } finally { setBusy(false); qc.invalidateQueries({ queryKey: ['push-status'] }) }
         }} />
       )}
+      {support === 'ok' && on !== null && <PushDiagnostics enabled={on} />}
       {support === 'needs-install' && (
         <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
           En iPhone, las notificaciones web solo funcionan con <b>iOS 16.4 o posterior</b> y con la app <b>instalada en la pantalla de inicio</b>. Instálala (ver “Instalar en iPhone” abajo), ábrela desde el icono y vuelve aquí para activarlas.

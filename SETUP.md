@@ -54,7 +54,7 @@ Menú izquierdo → **Project Settings** (⚙️) → **API Keys** (y **Data API
 1. Entra en **https://vercel.com/signup** → **Hobby** → **Continue with GitHub**.
 2. Pulsa **Add New… → Project**. Busca el repositorio **`aplicacion-gym-`** y pulsa **Import**.
    (Si no aparece: *Adjust GitHub App Permissions* → dale acceso a ese repositorio.)
-3. **Project Name:** escribe `fuegojuntos` (tu enlace será `https://fuegojuntos.vercel.app`; si está ocupado Vercel te sugerirá otro, ej. `fuegojuntos-abc.vercel.app`).
+3. **Project Name:** escribe `fuegojuntos` (tu enlace será `https://gymaiego.vercel.app`; si está ocupado Vercel te sugerirá otro, ej. `fuegojuntos-abc.vercel.app`).
 4. **Framework Preset:** debe decir **Vite** (se detecta solo). No cambies nada más.
 5. Abre **Environment Variables** y añade una por una (*Key* = nombre, *Value* = valor):
 
@@ -82,15 +82,15 @@ Menú izquierdo → **Project Settings** (⚙️) → **API Keys** (y **Data API
 
 **a) Direcciones permitidas para el inicio de sesión**
 Supabase → **Authentication** → **URL Configuration**:
-- **Site URL:** `https://fuegojuntos.vercel.app` (tu enlace real) → **Save**.
-- **Redirect URLs** → **Add URL:** `https://fuegojuntos.vercel.app/**` → **Save**.
+- **Site URL:** `https://gymaiego.vercel.app` (tu enlace real) → **Save**.
+- **Redirect URLs** → **Add URL:** `https://gymaiego.vercel.app/**` → **Save**.
 
 **b) Activar el envío de notificaciones push**
 Supabase → **SQL Editor** → **New query**, pega esto cambiando los dos valores, y pulsa **Run**:
 
 ```sql
 insert into private.app_settings(key, value) values
-  ('push_url', 'https://fuegojuntos.vercel.app/api/push'),
+  ('push_url', 'https://gymaiego.vercel.app/api/push'),
   ('push_secret', 'PEGA_AQUI_EL_MISMO_PUSH_SECRET_DE_VERCEL')
 on conflict (key) do update set value = excluded.value;
 ```
@@ -111,7 +111,7 @@ Gmail gratuito permite ~500 correos al día: de sobra para dos personas.
 
 En **cada** iPhone (iOS 16.4 o posterior para notificaciones):
 
-1. Abre **Safari** (no Chrome) y entra en tu enlace `https://fuegojuntos.vercel.app`.
+1. Abre **Safari** (no Chrome) y entra en tu enlace `https://gymaiego.vercel.app`.
 2. Toca **Compartir** (cuadrado con flecha ↑, abajo al centro).
 3. Desliza y toca **Añadir a pantalla de inicio** → **Añadir**.
 4. Abre **Gymaiego** desde el nuevo icono 🔥 (se abre a pantalla completa).

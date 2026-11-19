@@ -21,6 +21,7 @@ import { WeighInCard } from '../components/BodyCheck'
 import { NutritionSheet, PRODUCE_GOAL, useNutritionSummary } from '../components/Nutrition'
 import { VisitCountdown } from '../components/VisitCountdown'
 import { PartnerLiveCard } from '../components/Live'
+import { PushPromptCard } from '../components/PushSetup'
 import { JointInvites } from '../components/JointInvites'
 import { useCoupleCalendar } from '../lib/life'
 import { draftDoneSets, useWorkoutDraft } from './gym/workoutDraft'
@@ -153,6 +154,7 @@ export default function Home() {
 
       <div className="stagger space-y-3 px-4">
         <PartnerLiveCard />
+        <PushPromptCard />
         {!couple && (
           <Card onClick={() => nav('/vincular')} className="flex items-center gap-4">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blush text-ember dark:bg-noche-700"><Link2 className="size-5" /></span>
