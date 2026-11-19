@@ -52,7 +52,7 @@ async function run(req: Req, res: Res) {
   if (!PUSH_SECRET || req.headers['x-push-secret'] !== PUSH_SECRET) return res.status(401).json({ error: 'unauthorized' })
   const missing = Object.entries({ SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY }).filter(([, v]) => !v).map(([k]) => k)
   if (missing.length) return res.status(500).json({ error: 'Faltan variables en Vercel: ' + missing.join(', ') })
-  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY!, VAPID_PRIVATE_KEY!)
 
   const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {}) as { notification_id?: string }
   const since = new Date(Date.now() - 2 * 3600_000).toISOString()
